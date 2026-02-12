@@ -1,0 +1,253 @@
+{
+  "id": "slideshow-base",
+  "name": "Slideshow Base Template",
+  "reference": "slideshow-base",
+  "outputFormat": "mp4",
+  "width": 1080,
+  "height": 1080,
+  "imageCount": 8,
+  "categoryKeys": ["slideshow", "reel"],
+  "fps": 30,
+  "transition": {
+    "type": "fade",
+    "durationMs": 800
+  },
+  "frames": [
+    {
+      "durationMs": 3000,
+      "background": { "type": "image", "source": "user_image", "index": 0 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 880,
+          "width": 1080,
+          "height": 200,
+          "fill": "rgba(0,0,0,0.65)"
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 40,
+          "y": 890,
+          "width": 1000,
+          "height": 80,
+          "fontFamily": "Inter",
+          "fontSize": 40,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "left",
+          "maxLines": 2,
+          "lineHeight": 1.2
+        },
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 40,
+          "y": 990,
+          "width": 500,
+          "height": 40,
+          "fontFamily": "Inter",
+          "fontSize": 22,
+          "fontWeight": "medium",
+          "color": "{{primary_colour}}",
+          "align": "left",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 3000,
+      "background": { "type": "image", "source": "user_image", "index": 1 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 880,
+          "width": 1080,
+          "height": 200,
+          "fill": "rgba(0,0,0,0.65)"
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 40,
+          "y": 910,
+          "width": 1000,
+          "height": 80,
+          "fontFamily": "Inter",
+          "fontSize": 34,
+          "fontWeight": "semibold",
+          "color": "#FFFFFF",
+          "align": "left",
+          "maxLines": 2,
+          "lineHeight": 1.2
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 3000,
+      "background": { "type": "image", "source": "user_image", "index": 2 },
+      "layers": [
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 3000,
+      "background": { "type": "image", "source": "user_image", "index": 3 },
+      "layers": [
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 3000,
+      "background": { "type": "image", "source": "user_image", "index": 4 },
+      "layers": [
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 4000,
+      "background": { "type": "solid", "color": "#000000" },
+      "layers": [
+        {
+          "type": "logo",
+          "x": 365,
+          "y": 200,
+          "width": 350,
+          "height": 200,
+          "fit": "contain",
+          "padding": 10
+        },
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 40,
+          "y": 450,
+          "width": 1000,
+          "height": 60,
+          "fontFamily": "Inter",
+          "fontSize": 44,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "maxLines": 1
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 90,
+          "y": 530,
+          "width": 900,
+          "height": 60,
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "regular",
+          "color": "#CCCCCC",
+          "align": "center",
+          "maxLines": 2,
+          "lineHeight": 1.3
+        },
+        {
+          "type": "text",
+          "content": "{{phone}}",
+          "x": 240,
+          "y": 680,
+          "width": 600,
+          "height": 50,
+          "fontFamily": "Inter",
+          "fontSize": 36,
+          "fontWeight": "bold",
+          "color": "{{primary_colour}}",
+          "align": "center",
+          "maxLines": 1
+        },
+        {
+          "type": "rect",
+          "x": 310,
+          "y": 750,
+          "width": 460,
+          "height": 56,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 12
+        },
+        {
+          "type": "text",
+          "content": "CALL NOW",
+          "x": 310,
+          "y": 754,
+          "width": 460,
+          "height": 56,
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "textTransform": "uppercase",
+          "letterSpacing": 3
+        },
+        {
+          "type": "text",
+          "content": "{{service_areas}}",
+          "x": 90,
+          "y": 860,
+          "width": 900,
+          "height": 40,
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "regular",
+          "color": "#999999",
+          "align": "center",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1070,
+          "width": 1080,
+          "height": 10,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    }
+  ]
+}

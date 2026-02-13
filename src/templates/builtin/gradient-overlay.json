@@ -1,0 +1,171 @@
+{
+  "id": "gradient-overlay",
+  "name": "Gradient Overlay 2 Image",
+  "reference": "gradient_overlay_2_image",
+  "outputFormat": "png",
+  "width": 1080,
+  "height": 1080,
+  "imageCount": 2,
+  "categoryKeys": ["recent_job", "promote_service", "special_offer", "general_info"],
+  "frames": [
+    {
+      "background": { "type": "gradient", "colors": ["{{primary_colour}}", "{{secondary_colour}}"], "angle": 150 },
+      "layers": [
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 50,
+          "y": 40,
+          "width": 500,
+          "height": 35,
+          "fontFamily": "Inter",
+          "fontSize": 15,
+          "fontWeight": "bold",
+          "color": "rgba(255,255,255,0.7)",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "textTransform": "uppercase",
+          "letterSpacing": 4
+        },
+        {
+          "type": "logo",
+          "x": 880,
+          "y": 25,
+          "width": 150,
+          "height": 60,
+          "fit": "contain"
+        },
+        {
+          "type": "image",
+          "source": "user_image",
+          "index": 0,
+          "x": 50,
+          "y": 100,
+          "width": 480,
+          "height": 440,
+          "fit": "cover",
+          "borderRadius": 20,
+          "shadow": { "blur": 30, "offsetX": 0, "offsetY": 10, "color": "rgba(0,0,0,0.3)" }
+        },
+        {
+          "type": "image",
+          "source": "user_image",
+          "index": 1,
+          "x": 550,
+          "y": 100,
+          "width": 480,
+          "height": 440,
+          "fit": "cover",
+          "borderRadius": 20,
+          "shadow": { "blur": 30, "offsetX": 0, "offsetY": 10, "color": "rgba(0,0,0,0.3)" }
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 50,
+          "y": 580,
+          "width": 980,
+          "height": 130,
+          "fontFamily": "Inter",
+          "fontSize": 52,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 2,
+          "lineHeight": 1.15
+        },
+        {
+          "type": "rect",
+          "x": 490,
+          "y": 720,
+          "width": 100,
+          "height": 4,
+          "fill": "rgba(255,255,255,0.4)",
+          "borderRadius": 2
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 100,
+          "y": 745,
+          "width": 880,
+          "height": 50,
+          "fontFamily": "Inter",
+          "fontSize": 22,
+          "fontWeight": "medium",
+          "color": "rgba(255,255,255,0.85)",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 2,
+          "lineHeight": 1.3
+        },
+        {
+          "type": "text",
+          "content": "{{body}}",
+          "x": 100,
+          "y": 810,
+          "width": 880,
+          "height": 80,
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "regular",
+          "color": "rgba(255,255,255,0.6)",
+          "align": "center",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.4
+        },
+        {
+          "type": "rect",
+          "x": 340,
+          "y": 910,
+          "width": 400,
+          "height": 56,
+          "fill": "rgba(255,255,255,0.15)",
+          "borderRadius": 28,
+          "stroke": { "color": "rgba(255,255,255,0.3)", "width": 1 }
+        },
+        {
+          "type": "text",
+          "content": "{{phone}}",
+          "x": 340,
+          "y": 912,
+          "width": 400,
+          "height": 54,
+          "fontFamily": "Inter",
+          "fontSize": 22,
+          "fontWeight": "semibold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "text",
+          "content": "{{service_areas}}",
+          "x": 50,
+          "y": 990,
+          "width": 980,
+          "height": 30,
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "regular",
+          "color": "rgba(255,255,255,0.4)",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1068,
+          "width": 1080,
+          "height": 12,
+          "color": "rgba(255,255,255,0.2)"
+        }
+      ]
+    }
+  ]
+}

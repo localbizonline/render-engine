@@ -67,12 +67,21 @@ const accentBarLayerSchema = baseLayerSchema.extend({
   color: z.string(),
 });
 
+const ctaImageLayerSchema = baseLayerSchema.extend({
+  type: z.literal('cta_image'),
+  variant: z.enum(['square', 'landscape']),
+  fit: z.enum(['contain', 'cover']),
+  padding: z.number().optional(),
+  background: z.string().optional(),
+});
+
 const layerSchema = z.discriminatedUnion('type', [
   imageLayerSchema,
   textLayerSchema,
   rectLayerSchema,
   logoLayerSchema,
   accentBarLayerSchema,
+  ctaImageLayerSchema,
 ]);
 
 const frameSchema = z.object({

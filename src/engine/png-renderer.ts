@@ -9,6 +9,7 @@ import type {
   RectLayer,
   LogoLayer,
   AccentBarLayer,
+  CtaImageLayer,
 } from '../types.js';
 import { resolveColor } from '../utils/color.js';
 import { wrapText, applyTextTransform } from '../utils/text.js';
@@ -21,11 +22,13 @@ export interface PngRenderContext {
   variables: RenderVariables;
   userImages: Image[];
   logoImage: Image | null;
+  squareCtaImage?: Image | null;
+  landscapeCtaImage?: Image | null;
   frameIndex?: number;
 }
 
 export function renderPng(ctx: PngRenderContext): Buffer {
-  const { template, variables, userImages, logoImage, frameIndex = 0 } = ctx;
+  const { template, variables, userImages, logoImage, squareCtaImage, landscapeCtaImage, frameIndex = 0 } = ctx;
   const frame = template.frames[frameIndex];
   if (!frame) {
     throw new Error(`Frame ${frameIndex} not found in template "${template.id}"`);
@@ -41,7 +44,7 @@ export function renderPng(ctx: PngRenderContext): Buffer {
   // Draw layers in order (painter's algorithm)
   for (const layer of frame.layers) {
     if (layer.visible === false) continue;
-    drawLayer(c, layer, variables, colorVars, userImages, logoImage);
+    drawLayer(c, layer, variables, colorVars, userImages, logoImage, squareCtaImage ?? null, landscapeCtaImage ?? null);
   }
 
   return canvas.toBuffer('image/png');
@@ -96,7 +99,9 @@ function drawLayer(
   variables: RenderVariables,
   colorVars: Record<string, string>,
   userImages: Image[],
-  logoImage: Image | null
+  logoImage: Image | null,
+  squareCtaImage: Image | null,
+  landscapeCtaImage: Image | null,
 ) {
   // Apply opacity
   if (layer.opacity !== undefined && layer.opacity < 1) {
@@ -119,6 +124,9 @@ function drawLayer(
       break;
     case 'accent_bar':
       drawAccentBar(ctx, layer, colorVars);
+      break;
+    case 'cta_image':
+      drawCtaImage(ctx, layer, squareCtaImage, landscapeCtaImage);
       break;
   }
 
@@ -289,6 +297,37 @@ function drawAccentBar(
 ) {
   ctx.fillStyle = resolveColor(layer.color, colorVars);
   ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+}
+
+function drawCtaImage(
+  ctx: CanvasRenderingContext2D,
+  layer: CtaImageLayer,
+  squareCtaImage: Image | null,
+  landscapeCtaImage: Image | null,
+) {
+  const img = layer.variant === 'square' ? squareCtaImage : landscapeCtaImage;
+  if (!img) {
+    console.warn(`[png-renderer] No ${layer.variant} CTA image provided`);
+    return;
+  }
+
+  const padding = layer.padding || 0;
+
+  if (layer.background) {
+    ctx.fillStyle = layer.background;
+    ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+  }
+
+  const innerX = layer.x + padding;
+  const innerY = layer.y + padding;
+  const innerW = layer.width - padding * 2;
+  const innerH = layer.height - padding * 2;
+
+  if (layer.fit === 'cover') {
+    drawImageCover(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
+  } else {
+    drawImageContain(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
+  }
 }
 
 function roundedRect(

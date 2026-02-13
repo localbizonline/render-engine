@@ -1,0 +1,182 @@
+{
+  "id": "hero-banner",
+  "name": "Hero Banner Full Bleed",
+  "reference": "hero_banner_full_bleed",
+  "outputFormat": "png",
+  "width": 1080,
+  "height": 1080,
+  "imageCount": 1,
+  "categoryKeys": ["recent_job", "promote_service", "special_offer", "general_info"],
+  "frames": [
+    {
+      "background": { "type": "image", "source": "user_image", "index": 0 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1080,
+          "fill": "rgba(0,0,0,0.45)"
+        },
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 600,
+          "width": 1080,
+          "height": 480,
+          "fill": "rgba(0,0,0,0.35)"
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 60,
+          "width": 8,
+          "height": 80,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 4
+        },
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 84,
+          "y": 60,
+          "width": 500,
+          "height": 40,
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "semibold",
+          "color": "rgba(255,255,255,0.7)",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "textTransform": "uppercase",
+          "letterSpacing": 3
+        },
+        {
+          "type": "text",
+          "content": "{{service_areas}}",
+          "x": 84,
+          "y": 100,
+          "width": 500,
+          "height": 30,
+          "fontFamily": "Inter",
+          "fontSize": 14,
+          "fontWeight": "regular",
+          "color": "rgba(255,255,255,0.5)",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "logo",
+          "x": 860,
+          "y": 50,
+          "width": 160,
+          "height": 90,
+          "fit": "contain"
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 60,
+          "y": 620,
+          "width": 960,
+          "height": 160,
+          "fontFamily": "Inter",
+          "fontSize": 62,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 2,
+          "lineHeight": 1.1
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 800,
+          "width": 80,
+          "height": 5,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 3
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 60,
+          "y": 825,
+          "width": 700,
+          "height": 60,
+          "fontFamily": "Inter",
+          "fontSize": 24,
+          "fontWeight": "medium",
+          "color": "rgba(255,255,255,0.85)",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 2,
+          "lineHeight": 1.3
+        },
+        {
+          "type": "text",
+          "content": "{{body}}",
+          "x": 60,
+          "y": 900,
+          "width": 550,
+          "height": 80,
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "regular",
+          "color": "rgba(255,255,255,0.6)",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.4
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 1000,
+          "width": 220,
+          "height": 52,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 8
+        },
+        {
+          "type": "text",
+          "content": "{{phone}}",
+          "x": 60,
+          "y": 1002,
+          "width": 220,
+          "height": 50,
+          "fontFamily": "Inter",
+          "fontSize": 20,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "cta_image",
+          "variant": "landscape",
+          "x": 620,
+          "y": 900,
+          "width": 400,
+          "height": 160,
+          "fit": "contain",
+          "padding": 8,
+          "borderRadius": 12
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 6,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    }
+  ]
+}

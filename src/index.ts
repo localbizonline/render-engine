@@ -6,10 +6,17 @@ import { renderRouter } from './routes/render.js';
 import { templatesRouter } from './routes/templates.js';
 import { previewRouter } from './routes/preview.js';
 import { designRouter } from './routes/design.js';
+import { LOCAL_OUTPUT_DIR } from './services/r2-storage.js';
 
 const app = express();
 
 app.use(express.json({ limit: '10mb' }));
+
+// Serve locally rendered files (fallback when R2 not configured)
+app.use('/output', express.static(LOCAL_OUTPUT_DIR, {
+  maxAge: '1y',
+  immutable: true,
+}));
 
 // Health check (no auth)
 app.get('/health', (_req, res) => {
@@ -37,9 +44,9 @@ app.use('/api/preview', previewRouter);
 app.use('/api/design', designRouter);
 
 async function start() {
-  // Register fonts + load template definitions
+  // Register fonts + load template definitions (templates sync from Airtable)
   initFonts();
-  initRegistry();
+  await initRegistry();
   console.log('[render-engine] Fonts + templates loaded');
 
   app.listen(config.port, () => {

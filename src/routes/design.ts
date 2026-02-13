@@ -2,7 +2,8 @@ import { Router } from 'express';
 import type { DesignRequest, DesignResponse, RenderVariables } from '../types.js';
 import { generateTemplate, iterateTemplate } from '../services/claude.js';
 import { renderPng } from '../engine/png-renderer.js';
-import { saveTemplate } from '../templates/registry.js';
+import { saveTemplate, refreshRegistry } from '../templates/registry.js';
+import { saveTemplateToAirtable } from '../services/airtable.js';
 
 export const designRouter = Router();
 
@@ -104,16 +105,41 @@ designRouter.post('/iterate', async (req, res) => {
 
 /**
  * POST /api/design/save
- * Save a designed template to the registry for reuse.
+ * Save a designed template to the registry and Airtable.
+ * Optional: pass `saveToAirtable: true` to persist (default: true).
  */
-designRouter.post('/save', (req, res) => {
-  const { template } = req.body as { template: DesignResponse['template'] };
+designRouter.post('/save', async (req, res) => {
+  const { template, saveToAirtable: persistToAirtable = true } = req.body as {
+    template: DesignResponse['template'];
+    saveToAirtable?: boolean;
+  };
 
   if (!template || !template.id || !template.frames) {
     res.status(400).json({ error: 'Valid template with id and frames is required' });
     return;
   }
 
+  // Save to in-memory registry
   saveTemplate(template);
-  res.json({ success: true, id: template.id });
+
+  let airtableRecordId: string | undefined;
+
+  if (persistToAirtable) {
+    try {
+      airtableRecordId = await saveTemplateToAirtable({
+        reference: template.name || template.id,
+        template_json: JSON.stringify(template),
+        output_format: template.outputFormat,
+        image_count: template.imageCount,
+        template_active: false, // Starts inactive — activate via management endpoint
+        rotation_weight: 1,
+      });
+      await refreshRegistry();
+    } catch (err) {
+      console.warn('[design] Failed to save to Airtable:', err);
+      // Don't fail the request — template is still saved in-memory
+    }
+  }
+
+  res.json({ success: true, id: template.id, airtableRecordId });
 });

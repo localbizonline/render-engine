@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { getTemplate } from '../templates/registry.js';
+import { templateSchema } from '../templates/schema.js';
 import { renderPng } from '../engine/png-renderer.js';
 import { loadRemoteImage } from '../engine/asset-loader.js';
-import type { RenderVariables } from '../types.js';
+import type { RenderVariables, TemplateDefinition } from '../types.js';
 
 export const previewRouter = Router();
 
@@ -22,17 +23,31 @@ const SAMPLE_VARIABLES: RenderVariables = {
 };
 
 previewRouter.post('/', async (req, res) => {
-  const { templateId, variables } = req.body as {
-    templateId: string;
+  const { templateId, templateJson, variables } = req.body as {
+    templateId?: string;
+    templateJson?: TemplateDefinition;
     variables?: Partial<RenderVariables>;
   };
 
-  if (!templateId) {
-    res.status(400).json({ error: 'templateId is required' });
+  if (!templateId && !templateJson) {
+    res.status(400).json({ error: 'templateId or templateJson is required' });
     return;
   }
 
-  const template = getTemplate(templateId);
+  let template: TemplateDefinition | undefined;
+
+  if (templateJson) {
+    // Validate inline template JSON
+    const result = templateSchema.safeParse(templateJson);
+    if (!result.success) {
+      res.status(400).json({ error: 'Invalid templateJson', details: result.error.issues });
+      return;
+    }
+    template = result.data as TemplateDefinition;
+  } else if (templateId) {
+    template = getTemplate(templateId);
+  }
+
   if (!template) {
     res.status(404).json({ error: 'Template not found' });
     return;

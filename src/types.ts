@@ -34,7 +34,8 @@ export type LayerDefinition =
   | TextLayer
   | RectLayer
   | LogoLayer
-  | AccentBarLayer;
+  | AccentBarLayer
+  | CtaImageLayer;
 
 export interface BaseLayer {
   x: number;
@@ -89,6 +90,14 @@ export interface AccentBarLayer extends BaseLayer {
   color: string;
 }
 
+export interface CtaImageLayer extends BaseLayer {
+  type: 'cta_image';
+  variant: 'square' | 'landscape';
+  fit: 'contain' | 'cover';
+  padding?: number;
+  background?: string;
+}
+
 // ── Render Variables (resolved from Airtable at render time) ──
 
 export interface RenderVariables {
@@ -103,6 +112,8 @@ export interface RenderVariables {
   user_images: string[];
   company_name: string;
   website?: string;
+  square_cta_image_url?: string;
+  landscape_cta_image_url?: string;
 }
 
 // ── API Types ──
@@ -136,6 +147,14 @@ export interface DesignResponse {
 
 // ── Airtable Record Types ──
 
+export type PostType =
+  | 'slideshow'     // Slideshow (3-8 image)
+  | 'gallery'       // Gallery (3-8 image) — upload_as_gallery
+  | '1-2_image'     // 1-2 Image Post
+  | 'before_after'  // Before and After Post
+  | 'text_only'     // Text only
+  | 'user_reel';    // User Reel Video
+
 export interface PostBuilderRecord {
   id: string;
   content_title: string;
@@ -153,6 +172,18 @@ export interface PostBuilderRecord {
   output_format: 'png' | 'mp4';
   before_photo_square_url?: string;
   after_photo_square_url?: string;
+  // CTA images from Companies table
+  square_cta_image_url?: string;
+  landscape_cta_image_url?: string;
+  // Post routing fields
+  post_type?: PostType;
+  post_category_key?: string;
+  // Skip-render flags
+  is_text_only: boolean;
+  upload_as_gallery: boolean;
+  is_user_uploaded_video: boolean;
+  // Company link (for rotation state)
+  company_id?: string;
 }
 
 export interface TemplateRecord {
@@ -163,4 +194,20 @@ export interface TemplateRecord {
   output_format: 'png' | 'mp4';
   image_count: number;
   category_keys: string[];
+  builtin_id?: string;
+  template_json?: string;
+  rotation_weight: number;
+  template_active: boolean;
+}
+
+export interface RotationState {
+  png: { lastIndex: number };
+  mp4: { lastIndex: number };
+}
+
+export interface TemplateWithMeta {
+  template: TemplateDefinition;
+  airtableRecordId: string;
+  rotationWeight: number;
+  categoryKeys: string[];
 }

@@ -1,0 +1,180 @@
+{
+  "id": "minimal-split",
+  "name": "Minimal Left-Right Split",
+  "reference": "minimal_left_right_split",
+  "outputFormat": "png",
+  "width": 1080,
+  "height": 1080,
+  "imageCount": 1,
+  "categoryKeys": ["recent_job", "promote_service", "special_offer", "general_info"],
+  "frames": [
+    {
+      "background": { "type": "solid", "color": "#FAFAFA" },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 540,
+          "height": 1080,
+          "fill": "#FAFAFA"
+        },
+        {
+          "type": "image",
+          "source": "user_image",
+          "index": 0,
+          "x": 540,
+          "y": 0,
+          "width": 540,
+          "height": 1080,
+          "fit": "cover"
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 80,
+          "width": 50,
+          "height": 50,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 12
+        },
+        {
+          "type": "logo",
+          "x": 130,
+          "y": 80,
+          "width": 200,
+          "height": 50,
+          "fit": "contain"
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 60,
+          "y": 200,
+          "width": 440,
+          "height": 200,
+          "fontFamily": "Inter",
+          "fontSize": 44,
+          "fontWeight": "bold",
+          "color": "#1A1A1A",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.15
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 420,
+          "width": 50,
+          "height": 4,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 2
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 60,
+          "y": 445,
+          "width": 440,
+          "height": 80,
+          "fontFamily": "Inter",
+          "fontSize": 20,
+          "fontWeight": "medium",
+          "color": "#666666",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.35
+        },
+        {
+          "type": "text",
+          "content": "{{body}}",
+          "x": 60,
+          "y": 550,
+          "width": 440,
+          "height": 160,
+          "fontFamily": "Inter",
+          "fontSize": 18,
+          "fontWeight": "regular",
+          "color": "#888888",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 6,
+          "lineHeight": 1.4
+        },
+        {
+          "type": "rect",
+          "x": 60,
+          "y": 760,
+          "width": 440,
+          "height": 1,
+          "fill": "#E0E0E0"
+        },
+        {
+          "type": "text",
+          "content": "{{phone}}",
+          "x": 60,
+          "y": 785,
+          "width": 440,
+          "height": 40,
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "color": "{{primary_colour}}",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "text",
+          "content": "{{website}}",
+          "x": 60,
+          "y": 835,
+          "width": 440,
+          "height": 30,
+          "fontFamily": "Inter",
+          "fontSize": 16,
+          "fontWeight": "regular",
+          "color": "#999999",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "text",
+          "content": "{{service_areas}}",
+          "x": 60,
+          "y": 920,
+          "width": 440,
+          "height": 30,
+          "fontFamily": "Inter",
+          "fontSize": 13,
+          "fontWeight": "regular",
+          "color": "#BBBBBB",
+          "align": "left",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "cta_image",
+          "variant": "landscape",
+          "x": 60,
+          "y": 960,
+          "width": 440,
+          "height": 90,
+          "fit": "contain",
+          "padding": 4
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 0,
+          "width": 8,
+          "height": 1080,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    }
+  ]
+}

@@ -36,7 +36,7 @@ async function main() {
   initFonts();
 
   console.log('Loading templates...');
-  initRegistry();
+  await initRegistry();
 
   const templates = listTemplates();
   console.log(`Found ${templates.length} templates\n`);

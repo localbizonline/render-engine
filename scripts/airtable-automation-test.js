@@ -1,10 +1,8 @@
 /**
- * Airtable Automation Script
+ * Airtable Automation Script — TEST TABLE
  *
- * Trigger: When "generate_final_image" checkbox is checked on post_builder record
+ * Trigger: When "generate_final_image" checkbox is checked on render_engine_test record
  * Action: Run this script
- *
- * Paste this entire script into the Airtable automation "Run a script" action.
  *
  * Input variables needed:
  *   - recordId: the record ID from the trigger (config.inputConfig.recordId)
@@ -20,10 +18,10 @@ if (!recordId) {
   return;
 }
 
-console.log(`Triggering render for record: ${recordId}`);
+console.log(`[TEST] Triggering render for record: ${recordId}`);
 
 try {
-  const response = await fetch(`${RENDER_API_URL}/api/render/sync`, {
+  const response = await fetch(`${RENDER_API_URL}/api/render/test`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

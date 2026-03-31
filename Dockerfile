@@ -52,6 +52,9 @@ COPY src/templates/builtin/ ./dist/templates/builtin/
 # Copy fonts
 COPY fonts/ ./fonts/
 
+# Copy static frontend files (designer UI)
+COPY public/ ./public/
+
 EXPOSE 3000
 
 ENV NODE_ENV=production

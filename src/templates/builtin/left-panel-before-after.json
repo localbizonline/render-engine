@@ -1,0 +1,191 @@
+{
+  "id": "left-panel-before-after",
+  "name": "Left Panel Before and After",
+  "reference": "left_panel_before_after",
+  "outputFormat": "png",
+  "width": 1080,
+  "height": 1080,
+  "imageCount": 2,
+  "categoryKeys": ["before_after"],
+  "frames": [
+    {
+      "background": { "type": "solid", "color": "#F5F5F5" },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 360,
+          "height": 1080,
+          "fill": "#F8F6F2"
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 30,
+          "y": 35,
+          "width": 300,
+          "height": 160,
+          "fontFamily": "Inter",
+          "fontSize": 46,
+          "fontWeight": "800",
+          "color": "#1E3A5F",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.08
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 30,
+          "y": 210,
+          "width": 300,
+          "height": 90,
+          "fontFamily": "Inter",
+          "fontSize": 29,
+          "fontWeight": "600",
+          "color": "#3B7DDD",
+          "align": "left",
+          "verticalAlign": "top",
+          "maxLines": 3,
+          "lineHeight": 1.12
+        },
+        {
+          "type": "rect",
+          "x": 200,
+          "y": 330,
+          "width": 180,
+          "height": 180,
+          "fill": "#FFFFFF",
+          "borderRadius": 90,
+          "stroke": {
+            "color": "#3B7DDD",
+            "width": 6
+          }
+        },
+        {
+          "type": "text",
+          "content": "{{yearsExperience}}",
+          "x": 200,
+          "y": 345,
+          "width": 180,
+          "height": 65,
+          "fontFamily": "Inter",
+          "fontSize": 60,
+          "fontWeight": "800",
+          "color": "#1E3A5F",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1
+        },
+        {
+          "type": "text",
+          "content": "YEARS",
+          "x": 200,
+          "y": 415,
+          "width": 180,
+          "height": 32,
+          "fontFamily": "Inter",
+          "fontSize": 14,
+          "fontWeight": "700",
+          "color": "#1E3A5F",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "letterSpacing": 2.5
+        },
+        {
+          "type": "text",
+          "content": "EXPERIENCE",
+          "x": 200,
+          "y": 450,
+          "width": 180,
+          "height": 30,
+          "fontFamily": "Inter",
+          "fontSize": 11,
+          "fontWeight": "600",
+          "color": "#1E3A5F",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "letterSpacing": 1.5
+        },
+        {
+          "type": "image",
+          "source": "user_image",
+          "index": 0,
+          "x": 360,
+          "y": 0,
+          "width": 360,
+          "height": 1080,
+          "fit": "cover",
+          "borderRadius": 0
+        },
+        {
+          "type": "text",
+          "content": "Before",
+          "x": 360,
+          "y": 1010,
+          "width": 360,
+          "height": 50,
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "shadow": {
+            "offsetX": 0,
+            "offsetY": 2,
+            "blur": 8,
+            "color": "rgba(0,0,0,0.7)"
+          }
+        },
+        {
+          "type": "image",
+          "source": "user_image",
+          "index": 1,
+          "x": 720,
+          "y": 0,
+          "width": 360,
+          "height": 1080,
+          "fit": "cover",
+          "borderRadius": 0
+        },
+        {
+          "type": "text",
+          "content": "After",
+          "x": 720,
+          "y": 1010,
+          "width": 360,
+          "height": 50,
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "shadow": {
+            "offsetX": 0,
+            "offsetY": 2,
+            "blur": 8,
+            "color": "rgba(0,0,0,0.7)"
+          }
+        },
+        {
+          "type": "cta_image",
+          "variant": "square",
+          "x": 840,
+          "y": 850,
+          "width": 220,
+          "height": 210,
+          "fit": "contain",
+          "padding": 15
+        }
+      ]
+    }
+  ]
+}

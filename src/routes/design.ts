@@ -1,26 +1,171 @@
 import { Router } from 'express';
-import type { DesignRequest, DesignResponse, RenderVariables } from '../types.js';
-import { generateTemplate, iterateTemplate } from '../services/claude.js';
-import { renderPng } from '../engine/png-renderer.js';
-import { saveTemplate, refreshRegistry } from '../templates/registry.js';
-import { saveTemplateToAirtable } from '../services/airtable.js';
+import type {
+  DesignRequest,
+  DesignResponse,
+  VisionDesignRequest,
+  VisionIterateRequest,
+  VisionCompareRequest,
+  CompareAndIterateRequest,
+} from '../types.js';
+import {
+  generateTemplate,
+  iterateTemplate,
+  generateTemplateFromImage,
+  iterateTemplateFromImage,
+  compareDesigns,
+  compareAndIterate,
+} from '../services/claude.js';
+import { renderTemplatePreview } from '../services/template-preview.js';
+import { saveTemplate } from '../templates/registry.js';
 
 export const designRouter = Router();
 
-// Sample data for design previews
-const PREVIEW_VARIABLES: RenderVariables = {
-  title: 'Professional Service Completed',
-  subtitle: 'Quality workmanship delivered on time and within budget',
-  body: 'Sample body text for preview.',
-  phone: '(021) 555-1234',
-  service_areas: 'Cape Town \u2022 Northern Suburbs \u2022 Southern Suburbs',
-  primary_colour: '#235BAA',
-  secondary_colour: '#4582D0',
-  logo_url: '',
-  user_images: [],
-  company_name: 'Sample Company',
-  website: 'https://example.co.za',
-};
+// ── Helper: parse data URI ──
+
+function parseDataUri(dataUri: string): { base64: string; mediaType: string } {
+  const match = dataUri.match(/^data:(image\/\w+);base64,(.+)$/s);
+  if (!match) throw new Error('Invalid data URI format');
+  return { mediaType: match[1], base64: match[2] };
+}
+
+async function renderPreview(template: import('../types.js').TemplateDefinition): Promise<string> {
+  const { previewBase64 } = await renderTemplatePreview(template);
+  return previewBase64;
+}
+
+// ── Vision-based design endpoints (Claude CLI via Max subscription) ──
+
+/**
+ * POST /api/design/vision
+ * Generate a template from a reference image using Claude Vision.
+ */
+designRouter.post('/vision', async (req, res) => {
+  const { referenceImage, prompt, width, height } = req.body as VisionDesignRequest;
+
+  if (!referenceImage) {
+    res.status(400).json({ error: 'referenceImage is required (data URI)' });
+    return;
+  }
+
+  try {
+    const { base64, mediaType } = parseDataUri(referenceImage);
+    const template = await generateTemplateFromImage(base64, mediaType, prompt || '', width, height);
+    const previewBase64 = await renderPreview(template);
+
+    res.json({ template, previewBase64 });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[design/vision] Generation error:', errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+/**
+ * POST /api/design/vision/iterate
+ * Iterate a template by comparing reference to current preview.
+ */
+designRouter.post('/vision/iterate', async (req, res) => {
+  const { referenceImage, previewImage, feedback, existingTemplate } = req.body as VisionIterateRequest;
+
+  if (!referenceImage || !previewImage || !feedback || !existingTemplate) {
+    res.status(400).json({ error: 'referenceImage, previewImage, feedback, and existingTemplate are all required' });
+    return;
+  }
+
+  try {
+    const ref = parseDataUri(referenceImage);
+    const prev = parseDataUri(previewImage);
+    const template = await iterateTemplateFromImage(
+      ref.base64, ref.mediaType,
+      prev.base64,
+      feedback,
+      existingTemplate,
+    );
+    const previewBase64 = await renderPreview(template);
+
+    res.json({ template, previewBase64 });
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[design/vision] Iteration error:', errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+/**
+ * POST /api/design/vision/compare
+ * Compare reference image to current preview and rate similarity.
+ */
+designRouter.post('/vision/compare', async (req, res) => {
+  const { referenceImage, previewImage, currentTemplate } = req.body as VisionCompareRequest;
+
+  if (!referenceImage || !previewImage || !currentTemplate) {
+    res.status(400).json({ error: 'referenceImage, previewImage, and currentTemplate are all required' });
+    return;
+  }
+
+  try {
+    const ref = parseDataUri(referenceImage);
+    const prev = parseDataUri(previewImage);
+    const result = await compareDesigns(ref.base64, ref.mediaType, prev.base64, currentTemplate);
+
+    res.json(result);
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[design/vision] Compare error:', errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+/**
+ * POST /api/design/vision/compare-iterate
+ * Combined compare + iterate in a single CLI call.
+ * Scores the current preview against reference, then produces an updated template.
+ * Accepts iteration history for context accumulation across the loop.
+ */
+designRouter.post('/vision/compare-iterate', async (req, res) => {
+  const {
+    referenceImage,
+    previewImage,
+    existingTemplate,
+    iterationHistory,
+    iterationNumber,
+    maxIterations,
+    plateauWarning,
+  } = req.body as CompareAndIterateRequest;
+
+  if (!referenceImage || !previewImage || !existingTemplate) {
+    res.status(400).json({ error: 'referenceImage, previewImage, and existingTemplate are required' });
+    return;
+  }
+
+  try {
+    const ref = parseDataUri(referenceImage);
+    const prev = parseDataUri(previewImage);
+
+    const result = await compareAndIterate(
+      ref.base64, ref.mediaType,
+      prev.base64,
+      existingTemplate,
+      iterationHistory || [],
+      iterationNumber || 1,
+      maxIterations || 8,
+      plateauWarning || false,
+    );
+
+    // If template was updated, render a preview
+    if (result.template) {
+      result.previewBase64 = await renderPreview(result.template);
+    }
+
+    res.json(result);
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[design/vision] Compare+iterate error:', errMsg);
+    res.status(500).json({ error: errMsg });
+  }
+});
+
+// ── Text-based design endpoints (Anthropic SDK) ──
 
 /**
  * POST /api/design
@@ -37,22 +182,9 @@ designRouter.post('/', async (req, res) => {
 
   try {
     const template = await generateTemplate(prompt, width, height);
+    const previewBase64 = await renderPreview(template);
 
-    // Render a preview with sample data
-    const previewBuffer = renderPng({
-      template,
-      variables: PREVIEW_VARIABLES,
-      userImages: [],
-      logoImage: null,
-    });
-
-    const previewBase64 = `data:image/png;base64,${previewBuffer.toString('base64')}`;
-
-    const response: DesignResponse = {
-      template,
-      previewBase64,
-    };
-
+    const response: DesignResponse = { template, previewBase64 };
     res.json(response);
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -79,22 +211,9 @@ designRouter.post('/iterate', async (req, res) => {
 
   try {
     const template = await iterateTemplate(prompt, existingTemplate);
+    const previewBase64 = await renderPreview(template);
 
-    // Render a preview
-    const previewBuffer = renderPng({
-      template,
-      variables: PREVIEW_VARIABLES,
-      userImages: [],
-      logoImage: null,
-    });
-
-    const previewBase64 = `data:image/png;base64,${previewBuffer.toString('base64')}`;
-
-    const response: DesignResponse = {
-      template,
-      previewBase64,
-    };
-
+    const response: DesignResponse = { template, previewBase64 };
     res.json(response);
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
@@ -105,13 +224,13 @@ designRouter.post('/iterate', async (req, res) => {
 
 /**
  * POST /api/design/save
- * Save a designed template to the registry and Airtable.
- * Optional: pass `saveToAirtable: true` to persist (default: true).
+ * Save a designed template to the local in-memory registry.
  */
 designRouter.post('/save', async (req, res) => {
-  const { template, saveToAirtable: persistToAirtable = true } = req.body as {
+  const {
+    template,
+  } = req.body as {
     template: DesignResponse['template'];
-    saveToAirtable?: boolean;
   };
 
   if (!template || !template.id || !template.frames) {
@@ -122,24 +241,8 @@ designRouter.post('/save', async (req, res) => {
   // Save to in-memory registry
   saveTemplate(template);
 
-  let airtableRecordId: string | undefined;
-
-  if (persistToAirtable) {
-    try {
-      airtableRecordId = await saveTemplateToAirtable({
-        reference: template.name || template.id,
-        template_json: JSON.stringify(template),
-        output_format: template.outputFormat,
-        image_count: template.imageCount,
-        template_active: false, // Starts inactive — activate via management endpoint
-        rotation_weight: 1,
-      });
-      await refreshRegistry();
-    } catch (err) {
-      console.warn('[design] Failed to save to Airtable:', err);
-      // Don't fail the request — template is still saved in-memory
-    }
-  }
-
-  res.json({ success: true, id: template.id, airtableRecordId });
+  res.json({
+    success: true,
+    id: template.id,
+  });
 });

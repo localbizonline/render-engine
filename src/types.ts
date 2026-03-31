@@ -98,7 +98,7 @@ export interface CtaImageLayer extends BaseLayer {
   background?: string;
 }
 
-// ── Render Variables (resolved from Airtable at render time) ──
+// ── Render Variables ──
 
 export interface RenderVariables {
   title: string;
@@ -145,69 +145,58 @@ export interface DesignResponse {
   previewBase64?: string;
 }
 
-// ── Airtable Record Types ──
+// ── Vision Design Types ──
 
-export type PostType =
-  | 'slideshow'     // Slideshow (3-8 image)
-  | 'gallery'       // Gallery (3-8 image) — upload_as_gallery
-  | '1-2_image'     // 1-2 Image Post
-  | 'before_after'  // Before and After Post
-  | 'text_only'     // Text only
-  | 'user_reel';    // User Reel Video
-
-export interface PostBuilderRecord {
-  id: string;
-  content_title: string;
-  content_subtitle: string;
-  content_body: string;
-  primary_colour: string;
-  secondary_colour: string;
-  logo_url: string;
-  user_images: string[];
-  phone: string;
-  service_areas: string;
-  company_name: string;
-  website: string;
-  template_id: string | null;
-  output_format: 'png' | 'mp4';
-  before_photo_square_url?: string;
-  after_photo_square_url?: string;
-  // CTA images from Companies table
-  square_cta_image_url?: string;
-  landscape_cta_image_url?: string;
-  // Post routing fields
-  post_type?: PostType;
-  post_category_key?: string;
-  // Skip-render flags
-  is_text_only: boolean;
-  upload_as_gallery: boolean;
-  is_user_uploaded_video: boolean;
-  // Company link (for rotation state)
-  company_id?: string;
+export interface VisionDesignRequest {
+  referenceImage: string;   // data:image/...;base64,... URI
+  prompt?: string;
+  width?: number;
+  height?: number;
 }
 
-export interface TemplateRecord {
-  id: string;
-  name: string;
-  reference: string;
-  creatomate_template_id: string;
-  output_format: 'png' | 'mp4';
-  image_count: number;
-  category_keys: string[];
-  builtin_id?: string;
-  template_json?: string;
-  rotation_weight: number;
-  template_active: boolean;
+export interface VisionIterateRequest {
+  referenceImage: string;
+  previewImage: string;
+  feedback: string;
+  existingTemplate: TemplateDefinition;
 }
 
-export interface RotationState {
-  png: { lastIndex: number };
-  mp4: { lastIndex: number };
+export interface VisionCompareRequest {
+  referenceImage: string;
+  previewImage: string;
+  currentTemplate: TemplateDefinition;
 }
 
-export interface TemplateWithMeta {
-  template: TemplateDefinition;
-  airtableRecordId: string;
-  rotationWeight: number;
-  categoryKeys: string[];
+export interface VisionCompareResponse {
+  score: number;
+  feedback: string;
+  shouldContinue: boolean;
+}
+
+// ── Combined Compare + Iterate (auto-iterate loop) ──
+
+export interface IterationHistoryEntry {
+  iteration: number;
+  score: number;
+  feedback: string;
+  changesApplied: string;
+}
+
+export interface CompareAndIterateRequest {
+  referenceImage: string;
+  previewImage: string;
+  existingTemplate: TemplateDefinition;
+  iterationHistory: IterationHistoryEntry[];
+  iterationNumber: number;
+  maxIterations: number;
+  plateauWarning?: boolean;
+}
+
+export interface CompareAndIterateResponse {
+  score: number;
+  feedback: string;
+  shouldContinue: boolean;
+  template?: TemplateDefinition;
+  previewBase64?: string;
+  changesApplied: string;
 }

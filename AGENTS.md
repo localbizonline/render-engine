@@ -6,12 +6,15 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 
 - Repo path for the main app: `/Users/jeremymartin/Documents/Cursor/In Production/social-posting-v2`
 - This repo is used for authoring UX, preview rendering UX, JSON editing UX, and the V2 bridge flow.
-- The current Template Lab bridge is PNG-only.
+- The current Template Lab bridge supports approved PNG and MP4 owned templates.
 - Airtable integration has been removed from the active runtime in this repo.
 - The designer can:
   - open an approved V2 template via `v2ExportUrl`
   - use `v2Token` for short-lived scoped auth
   - fall back to a manually entered V2 admin secret if needed
+  - auto-load the render-engine API key and V2 connection defaults from the server
+  - generate slideshow-style MP4 reels from prompt-only, reference-image, or reference-video inputs
+  - auto-review generated reels against a reference video and iterate toward a closer slideshow match
   - send updates back with `Approve for V2`
 
 ## Relationship To `social-posting-v2`
@@ -37,6 +40,10 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 - The designer serves:
   - `/designer`
   - `/designer.html`
+  - `/designer/reference-video`
+  - `/designer/reference-image`
+  - `/designer/v2`
+  - `/designer/json`
   - `/designer-v2-bridge.js`
   - `/designer-app.js`
 
@@ -56,7 +63,8 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 | MP4 rendering | FFmpeg via fluent-ffmpeg |
 | Storage | Cloudflare R2 (S3-compatible) |
 | Template design (text) | Anthropic SDK (`src/services/claude.ts`) |
-| Template design (vision) | Claude CLI |
+| Template design (vision) | Anthropic SDK vision messages |
+| Reference-video analysis | Google Gemini Files API + structured JSON output (`src/services/gemini-video.ts`) |
 | Template source | Local built-in templates + V2 export/import bridge |
 | Validation | Zod |
 | Deployment | Railway (Docker) |
@@ -84,6 +92,7 @@ render-engine/
 │   │   └── font-manager.ts
 │   ├── services/
 │   │   ├── claude.ts
+│   │   ├── gemini-video.ts
 │   │   └── r2-storage.ts
 │   ├── templates/
 │   │   ├── registry.ts              # Local built-ins + in-memory custom templates
@@ -126,16 +135,22 @@ All `/api/*` routes require `X-Api-Key`. Health and static designer routes are p
 | POST | `/api/design/vision/iterate` | Iterate template from reference + preview |
 | POST | `/api/design/vision/compare` | Rate similarity between reference + preview |
 | POST | `/api/design/vision/compare-iterate` | Combined compare + iterate loop |
+| POST | `/api/design/video` | Generate an MP4 reel template from an uploaded reference video |
+| POST | `/api/design/video/compare-iterate` | Compare generated MP4 preview vs uploaded reference video and return the next revision |
 | POST | `/api/design/save` | Save designed template to local in-memory registry |
 | POST | `/api/render/sync` | Returns `410` (old Airtable path removed) |
 | POST | `/api/render/test` | Returns `410` (old Airtable path removed) |
 | GET | `/designer` | Template Lab UI |
 | GET | `/designer.html` | Template Lab UI direct file route |
+| GET | `/designer/reference-video` | Readable Template Lab route for the reference-video workflow |
+| GET | `/designer/reference-image` | Readable Template Lab route for the reference-image workflow |
+| GET | `/designer/v2` | Readable Template Lab route for V2 improvement sessions |
+| GET | `/designer/json` | Readable Template Lab route for JSON workbench sessions |
 | GET | `/designer-v2-bridge.js` | Extracted V2 bridge helper |
 
 ## Template System
 
-Templates are declarative JSON for a 1080x1080 canvas.
+Templates are declarative JSON for static posts and slideshow-style reels. Width and height now vary by template type.
 
 ```ts
 {
@@ -180,11 +195,12 @@ Access locally at `http://localhost:3000/designer`.
 ### What It Does
 
 1. Upload a reference image.
-2. Optionally add a text prompt.
-3. Generate or iterate template JSON with Claude API / Claude CLI.
-4. Render a preview using local sample assets from `public/designer-assets/`.
-5. Load approved templates from V2.
-6. Approve updated templates back into V2.
+2. Upload a short reference video when you want slideshow-style matching from video.
+3. Optionally add a text prompt.
+4. Generate or iterate template JSON with Claude or Gemini-backed services.
+5. Render a preview using local sample assets from `public/designer-assets/`.
+6. Load approved templates from V2.
+7. Approve updated templates back into V2.
 
 ### Bridge Notes
 
@@ -210,7 +226,21 @@ Access locally at `http://localhost:3000/designer`.
 - The V2 handoff panel now shows persistent load/approval state, including the linked V2 template id and updated export URL after approval.
 - The V2 handoff panel also includes one-click copy actions for the linked V2 template id and export URL.
 - Explicit server routes for `/designer`, `/designer.html`, and `/designer-v2-bridge.js` were added after a Railway static-route regression during deployment.
-- Explicit server routes protect `/designer`, `/designer.html`, `/designer-v2-bridge.js`, and `/designer-app.js`.
+- Explicit server routes protect `/designer`, `/designer.html`, `/designer/reference-video`, `/designer/reference-image`, `/designer/v2`, `/designer/json`, `/designer-v2-bridge.js`, and `/designer-app.js`.
+- The designer now supports readable URL modes plus prompt-prefill query strings for direct entry into the right authoring path.
+- The designer now supports a `Reference Video` workflow:
+  - multipart MP4/MOV upload
+  - server-side Gemini analysis
+  - local slideshow template synthesis
+  - preview through the existing `/api/preview` flow
+- Reference-video drafts now support auto-review and iterative refinement against the uploaded reference video.
+- The left rail now includes a `Video Review` card with score, confidence, structure tags, and notes from the latest analysis/review pass.
+- The normal live designer flow no longer requires manual entry of the render-engine API key or V2 base URL.
+- Current MP4 output remains slideshow-style and inspiration-based:
+  - no frame-perfect recreation
+  - no audio extraction
+  - no caption synchronization
+  - no per-layer motion timeline
 
 ## Development
 
@@ -246,6 +276,10 @@ npm run build
   - loading V2 template metadata without preview when the render-engine API key is missing
   - refusing to auto-load when V2 auth is missing
   - surfacing the updated V2 template id/export URL after approval
+  - reference-video generation
+  - reference-video compare-iterate loop
+  - readable URL mode selection and prompt prefill
+  - the live video-analysis summary card state
 - `src/app.ts` exists so tests can import the Express app without auto-starting the server.
 
 ### Environment Variables
@@ -259,6 +293,8 @@ Copy `.env.example` to `.env` and fill in:
 - `R2_BUCKET_NAME`
 - `R2_PUBLIC_URL`
 - `ANTHROPIC_API_KEY`
+- `GEMINI_API_KEY`
+- `GEMINI_VIDEO_MODEL`
 
 ### Deploying to Railway
 
@@ -287,6 +323,7 @@ After deploy, verify:
 curl https://render-engine-production.up.railway.app/health
 curl -I https://render-engine-production.up.railway.app/designer
 curl -I https://render-engine-production.up.railway.app/designer.html
+curl -I https://render-engine-production.up.railway.app/designer/reference-video
 curl -I https://render-engine-production.up.railway.app/designer-v2-bridge.js
 ```
 

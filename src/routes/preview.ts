@@ -12,6 +12,7 @@ previewRouter.post('/', async (req, res) => {
     templateJson?: TemplateDefinition;
     variables?: Partial<RenderVariables>;
     frameIndex?: number;
+    previewMode?: 'poster' | 'video';
   };
 
   if (!templateId && !templateJson) {
@@ -39,15 +40,20 @@ previewRouter.post('/', async (req, res) => {
   }
 
   const requestedFrameIndex = Number.isInteger(req.body?.frameIndex) ? Number(req.body.frameIndex) : undefined;
-  const templateForPreview = requestedFrameIndex == null
-    ? template
-    : { ...template, frames: [template.frames[requestedFrameIndex] ?? template.frames[0]] };
-  const { previewBase64 } = await renderTemplatePreview(templateForPreview, variables as Partial<RenderVariables>);
+  const previewMode = req.body?.previewMode === 'video' ? 'video' : 'poster';
+  const preview = await renderTemplatePreview(template, variables as Partial<RenderVariables>, {
+    frameIndex: requestedFrameIndex,
+    mode: previewMode,
+  });
 
   res.json({
-    previewBase64,
+    previewBase64: preview.previewBase64,
+    previewPosterBase64: preview.previewPosterBase64,
+    previewKind: preview.previewKind,
+    previewUrl: preview.previewUrl,
+    previewWarning: preview.previewWarning,
     templateId: template.id,
-    frameIndex: requestedFrameIndex ?? 0,
+    frameIndex: preview.frameIndex,
     width: template.width,
     height: template.height,
   });

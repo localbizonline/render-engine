@@ -30,170 +30,70 @@
       --font-mono: "IBM Plex Mono", "SFMono-Regular", monospace;
     }
 
-    *, *::before, *::after {
-      box-sizing: border-box;
-    }
-
-    html {
-      color-scheme: dark;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { color-scheme: dark; }
 
     body {
       margin: 0;
       min-height: 100vh;
-      background:
-        radial-gradient(circle at top left, rgba(93, 168, 255, 0.18), transparent 28%),
-        radial-gradient(circle at top right, rgba(50, 196, 141, 0.12), transparent 26%),
-        linear-gradient(180deg, #0b1020 0%, #080d16 100%);
+      background: linear-gradient(180deg, #0b1020 0%, #080d16 100%);
       color: var(--text);
       font-family: var(--font-sans);
       line-height: 1.5;
     }
 
-    button,
-    input,
-    textarea,
-    summary {
-      font: inherit;
+    button, input, textarea, summary { font: inherit; }
+    button, input, textarea { -webkit-tap-highlight-color: transparent; }
+    img { max-width: 100%; display: block; }
+
+    /* ── Utility ── */
+    .sr-only {
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0 0 0 0);
+      white-space: nowrap; clip-path: inset(50%);
     }
 
-    button,
-    input,
-    textarea {
-      -webkit-tap-highlight-color: transparent;
-    }
+    .visually-hidden { display: none !important; }
 
-    img {
-      max-width: 100%;
-      display: block;
-    }
-
-    .skip-link {
-      position: absolute;
-      left: 16px;
-      top: -48px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      background: var(--accent);
-      color: #08111f;
-      text-decoration: none;
-      font-weight: 700;
-      z-index: 10;
-      transition: top 0.2s ease;
-    }
-
-    .skip-link:focus-visible {
-      top: 16px;
-    }
-
-    .studio-shell {
-      width: min(1600px, calc(100% - 32px));
-      margin: 0 auto;
-      padding: 24px 0 32px;
-    }
-
-    .studio-header {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
-      gap: 20px;
-      align-items: stretch;
-      margin-bottom: 20px;
-    }
-
-    .hero-pane,
-    .status-pane,
-    .rail-section,
-    .main-stage,
-    .publish-panel,
-    .advanced-panel {
+    /* ── Top Bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--line);
       background: var(--bg-panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow);
       backdrop-filter: blur(14px);
     }
 
-    .hero-pane {
-      padding: 28px 28px 24px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero-pane::after {
-      content: "";
-      position: absolute;
-      inset: auto -80px -80px auto;
-      width: 220px;
-      height: 220px;
-      border-radius: 50%;
-      background: rgba(93, 168, 255, 0.12);
-      filter: blur(8px);
-    }
-
-    .status-pane {
-      padding: 22px 22px 18px;
+    .topbar-left {
       display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 18px;
+      align-items: center;
+      gap: 14px;
     }
 
-    .eyebrow {
-      margin: 0 0 12px;
-      color: var(--accent);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.24em;
-      text-transform: uppercase;
-    }
-
-    .hero-pane h1 {
+    .topbar h1 {
       margin: 0;
-      max-width: 12ch;
-      font-size: clamp(32px, 4vw, 56px);
-      line-height: 0.98;
-      letter-spacing: -0.05em;
+      font-size: 18px;
+      letter-spacing: -0.03em;
     }
 
-    .hero-pane p {
-      margin: 16px 0 0;
-      max-width: 55ch;
-      color: var(--text-soft);
-      font-size: 15px;
-    }
-
-    .hero-notes {
+    .topbar-pills {
       display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-top: 24px;
-    }
-
-    .hero-note {
-      padding: 12px 14px;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--text-soft);
-      font-size: 13px;
-    }
-
-    .status-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 9px 12px;
+      gap: 6px;
+      padding: 5px 10px;
       border-radius: 999px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-soft);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -217,257 +117,10 @@
       color: #ffe2b2;
     }
 
-    .status-copy strong {
-      display: block;
-      font-size: 18px;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-    }
-
-    .status-copy p,
-    .status-matrix dd,
-    .status-matrix dt,
-    .helper-copy,
-    .publish-copy {
-      margin: 0;
-      color: var(--text-soft);
-    }
-
-    .status-matrix {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      padding-top: 2px;
-    }
-
-    .status-matrix div {
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
-    }
-
-    .status-matrix dt {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-      margin-bottom: 4px;
-    }
-
-    .status-matrix dd {
-      font-size: 14px;
-      color: var(--text);
-    }
-
-    .autosave-band,
-    .draft-restore {
-      margin-top: 14px;
-      padding: 14px;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-    }
-
-    .autosave-band strong,
-    .draft-restore strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 13px;
-      letter-spacing: -0.02em;
-    }
-
-    .autosave-band p,
-    .draft-restore p {
-      margin: 0;
-      color: var(--text-soft);
-      font-size: 12px;
-    }
-
-    .draft-restore-actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-
-    .studio-grid {
-      display: grid;
-      grid-template-columns: 320px minmax(0, 1fr) 360px;
-      gap: 18px;
-      align-items: start;
-    }
-
-    .rail,
-    .publish-stack {
-      display: grid;
-      gap: 16px;
-    }
-
-    .rail-section,
-    .publish-panel,
-    .advanced-panel,
-    .main-stage {
-      padding: 18px;
-    }
-
-    .section-kicker {
-      margin: 0 0 8px;
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-    }
-
-    .section-title {
-      margin: 0;
-      font-size: 22px;
-      line-height: 1.1;
-      letter-spacing: -0.04em;
-    }
-
-    .helper-copy {
-      margin-top: 10px;
-      font-size: 13px;
-    }
-
-    .session-choices {
-      display: grid;
-      gap: 10px;
-      margin-top: 16px;
-    }
-
-    .session-choice {
-      width: 100%;
-      padding: 14px 15px;
-      text-align: left;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--line);
-      background: var(--bg-muted);
-      color: var(--text);
-      cursor: pointer;
-      transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
-      touch-action: manipulation;
-    }
-
-    .session-choice:hover {
-      transform: translateY(-1px);
-      border-color: rgba(93, 168, 255, 0.26);
-      background: rgba(93, 168, 255, 0.08);
-    }
-
-    .session-choice.active {
-      border-color: rgba(93, 168, 255, 0.4);
-      background: linear-gradient(180deg, rgba(93, 168, 255, 0.16), rgba(93, 168, 255, 0.06));
-    }
-
-    .session-choice strong {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 14px;
-    }
-
-    .session-choice span {
-      display: block;
-      color: var(--text-soft);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    details summary {
-      list-style: none;
-      cursor: pointer;
-    }
-
-    details summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .setup-panel summary,
-    .advanced-panel summary {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .setup-panel summary::after,
-    .advanced-panel summary::after {
-      content: "Open";
-      color: var(--text-dim);
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-    }
-
-    .setup-panel[open] summary::after,
-    .advanced-panel[open] summary::after {
-      content: "Close";
-    }
-
-    .setup-grid,
-    .save-grid {
-      display: grid;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .field {
-      display: grid;
-      gap: 6px;
-    }
-
-    .field label {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    input,
-    textarea {
-      width: 100%;
-      padding: 11px 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text);
-      transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    input::placeholder,
-    textarea::placeholder {
-      color: var(--text-dim);
-    }
-
-    textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    input:focus-visible,
-    textarea:focus-visible,
-    button:focus-visible,
-    summary:focus-visible {
-      outline: 2px solid rgba(93, 168, 255, 0.75);
-      outline-offset: 2px;
-      border-color: rgba(93, 168, 255, 0.6);
-      box-shadow: 0 0 0 5px rgba(93, 168, 255, 0.12);
-    }
-
-    .status-inline {
+    .topbar-right {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: var(--radius-md);
-      background: var(--bg-muted);
-      border: 1px solid var(--line);
     }
 
     .status-dot {
@@ -484,78 +137,450 @@
       box-shadow: 0 0 0 4px rgba(50, 196, 141, 0.16);
     }
 
-    .status-inline span {
+    .btn-icon {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-soft);
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-icon:hover { background: rgba(255, 255, 255, 0.08); }
+
+    /* ── Draft Restore Banner ── */
+    .draft-restore {
+      padding: 12px 24px;
+      background: rgba(93, 168, 255, 0.06);
+      border-bottom: 1px solid rgba(93, 168, 255, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .draft-restore strong { font-size: 13px; }
+    .draft-restore p { margin: 0; color: var(--text-soft); font-size: 12px; }
+
+    .draft-restore-actions {
+      display: flex;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    /* ── Settings Drawer ── */
+    .settings-drawer {
+      display: none;
+      padding: 16px 24px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .settings-drawer.open { display: block; }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+      max-width: 900px;
+    }
+
+    /* ── Main Layout ── */
+    .app-layout {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      height: calc(100vh - 52px);
+    }
+
+    /* ── Left Panel ── */
+    .panel-left {
+      border-right: 1px solid var(--line);
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      backdrop-filter: blur(14px);
+    }
+
+    .card-title {
+      margin: 0 0 12px;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .card-subtitle {
+      margin: 0 0 12px;
       font-size: 12px;
       color: var(--text-soft);
     }
 
-    .step-header {
+    .action-helper {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 22px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .action-helper strong {
+      color: var(--text);
+    }
+
+    .action-helper.is-warning {
+      color: #ffe2b2;
+    }
+
+    .divider-label {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .step-marker {
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background: var(--accent-wash);
-      border: 1px solid rgba(93, 168, 255, 0.22);
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0.06em;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      flex-shrink: 0;
+      margin: 4px 0;
     }
 
-    .step-copy h2,
-    .history-head h2 {
+    .divider-label::before,
+    .divider-label::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    /* ── Right Panel ── */
+    .panel-right {
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .preview-header h2 {
       margin: 0;
-      font-size: 19px;
-      line-height: 1.15;
+      font-size: 20px;
       letter-spacing: -0.03em;
     }
 
-    .step-copy p,
-    .history-head p {
-      margin: 3px 0 0;
-      color: var(--text-soft);
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .comparison-pane {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+
+    .pane-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .pane-stage {
+      flex: 1;
+      min-height: 400px;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      background: #060a12;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .comparison-pane img,
+    .comparison-pane video {
+      width: 100%;
+      max-height: 620px;
+      object-fit: contain;
+      border-radius: var(--radius-sm);
+    }
+
+    .placeholder-box {
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 500px;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.02);
+      display: grid;
+      place-items: center;
+      color: var(--text-dim);
+      padding: 24px;
+      text-align: center;
       font-size: 13px;
     }
 
+    .frame-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+    }
+
+    .frame-controls label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .frame-controls select {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
+    .preview-status,
+    .handoff-status {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-soft);
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+      word-break: break-word;
+    }
+
+    .preview-status.info, .handoff-status.info {
+      background: rgba(93, 168, 255, 0.1);
+      border-color: rgba(93, 168, 255, 0.22);
+      color: #cfe5ff;
+    }
+
+    .preview-status.warning {
+      background: rgba(255, 182, 72, 0.1);
+      border-color: rgba(255, 182, 72, 0.22);
+      color: #ffe2b2;
+    }
+
+    .preview-status.error, .handoff-status.error {
+      background: rgba(255, 107, 107, 0.12);
+      border-color: rgba(255, 107, 107, 0.24);
+      color: #ffd0d0;
+    }
+
+    .handoff-status.success {
+      background: rgba(50, 196, 141, 0.1);
+      border-color: rgba(50, 196, 141, 0.22);
+      color: #d2ffee;
+    }
+
+    .generating-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-soft);
+      text-align: center;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── History Strip ── */
+    .history-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .history-strip::-webkit-scrollbar { height: 5px; }
+    .history-strip::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; }
+
+    .history-card {
+      flex: 0 0 110px;
+      padding: 0;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      overflow: hidden;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .history-card.active {
+      border-color: rgba(93, 168, 255, 0.42);
+      background: rgba(93, 168, 255, 0.08);
+    }
+
+    .history-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+    }
+
+    .history-meta {
+      padding: 8px;
+    }
+
+    .history-meta strong {
+      display: block;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .history-meta span {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      color: var(--text-soft);
+    }
+
+    .score { color: var(--warning); font-weight: 700; }
+
+    /* ── Approve Section ── */
+    .approve-section {
+      background: var(--bg-panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    .approve-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .approve-grid .field:first-child {
+      grid-column: 1 / -1;
+    }
+
+    .approve-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .approve-meta {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    /* ── Form Elements ── */
+    .field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-size: 13px;
+      transition: border-color 0.15s ease;
+    }
+
+    input::placeholder, textarea::placeholder { color: var(--text-dim); }
+    textarea { min-height: 72px; resize: vertical; }
+
+    input:focus-visible,
+    textarea:focus-visible,
+    button:focus-visible,
+    summary:focus-visible {
+      outline: 2px solid rgba(93, 168, 255, 0.75);
+      outline-offset: 2px;
+      border-color: rgba(93, 168, 255, 0.6);
+    }
+
+    /* ── Upload Zone ── */
     .upload-zone {
       position: relative;
-      margin-top: 14px;
-      border-radius: calc(var(--radius-md) + 4px);
+      border-radius: var(--radius-sm);
       border: 1px dashed rgba(93, 168, 255, 0.34);
-      background:
-        linear-gradient(180deg, rgba(93, 168, 255, 0.08), rgba(255, 255, 255, 0.02)),
-        rgba(255, 255, 255, 0.02);
-      min-height: 220px;
+      background: linear-gradient(180deg, rgba(93, 168, 255, 0.06), rgba(255, 255, 255, 0.02));
+      min-height: 140px;
       display: grid;
       place-items: center;
       text-align: center;
       overflow: hidden;
-      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-      touch-action: manipulation;
+      transition: border-color 0.2s ease;
     }
 
     .upload-zone:hover,
     .upload-zone.dragover {
       border-color: rgba(93, 168, 255, 0.58);
-      background:
-        linear-gradient(180deg, rgba(93, 168, 255, 0.16), rgba(255, 255, 255, 0.03)),
-        rgba(255, 255, 255, 0.02);
-      transform: translateY(-1px);
     }
 
     .upload-zone.has-image {
       min-height: 0;
-      padding: 10px;
+      padding: 8px;
+      border-style: solid;
+    }
+
+    .upload-zone.has-video {
+      min-height: 0;
+      padding: 8px;
       border-style: solid;
     }
 
@@ -567,38 +592,47 @@
     }
 
     .placeholder {
-      padding: 20px;
+      padding: 16px;
       color: var(--text-soft);
+      font-size: 13px;
     }
 
     .placeholder strong {
       display: block;
-      margin-bottom: 4px;
-      font-size: 18px;
-      letter-spacing: -0.03em;
+      margin-bottom: 2px;
+      font-size: 14px;
       color: var(--text);
     }
 
     .upload-zone img {
       width: 100%;
-      max-height: 320px;
+      max-height: 200px;
       object-fit: contain;
-      border-radius: var(--radius-md);
+      border-radius: 8px;
+    }
+
+    .upload-zone video {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.28);
     }
 
     .upload-clear {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 8px;
+      right: 8px;
       z-index: 1;
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 50%;
-      background: rgba(8, 13, 22, 0.72);
+      background: rgba(8, 13, 22, 0.8);
       color: var(--text);
       display: none;
       cursor: pointer;
+      font-size: 16px;
     }
 
     .upload-zone.has-image .upload-clear {
@@ -606,45 +640,61 @@
       place-items: center;
     }
 
-    .action-bar,
-    .feedback-bar,
-    .save-actions,
-    .handoff-tools,
-    .json-actions {
+    .upload-zone.has-video .upload-clear {
+      display: inline-grid;
+      place-items: center;
+    }
+
+    .reference-mode-switch {
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
     }
 
-    .action-bar {
-      align-items: center;
-      margin-top: 14px;
+    .reference-mode-switch .btn {
+      flex: 1;
+      justify-content: center;
     }
 
+    .reference-mode-switch .btn.active {
+      background: var(--accent-wash);
+      border-color: rgba(93, 168, 255, 0.3);
+      color: #d8ebff;
+    }
+
+    .reference-panel {
+      display: none;
+    }
+
+    .reference-panel.active {
+      display: block;
+    }
+
+    .upload-meta {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--text-soft);
+      min-height: 18px;
+    }
+
+    /* ── Buttons ── */
     .btn {
       appearance: none;
       border: 1px solid transparent;
       border-radius: 999px;
-      padding: 10px 16px;
+      padding: 9px 16px;
       color: var(--text);
       background: rgba(255, 255, 255, 0.06);
       cursor: pointer;
       font-size: 13px;
       font-weight: 700;
       letter-spacing: 0.02em;
-      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-      touch-action: manipulation;
+      transition: background 0.15s ease, transform 0.15s ease;
+      white-space: nowrap;
     }
 
-    .btn:hover:not(:disabled) {
-      transform: translateY(-1px);
-    }
-
-    .btn:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-      transform: none;
-    }
+    .btn:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .btn-primary {
       background: linear-gradient(135deg, var(--accent), var(--accent-strong));
@@ -668,45 +718,178 @@
       color: #d2ffee;
     }
 
-    .auto-iterate-group {
-      margin-left: auto;
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    /* ── Inline row ── */
+    .inline-row {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .inline-row .field { flex: 1; }
+    .inline-row .btn { margin-bottom: 1px; }
+
+    /* ── Auto-iterate compact ── */
+    .auto-row {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--line);
+      margin-top: 8px;
     }
 
-    .auto-iterate-group label {
-      font-size: 12px;
+    .auto-row label {
+      font-size: 11px;
       font-weight: 700;
       color: var(--text-dim);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .auto-row input[type="number"] {
+      width: 54px;
+      text-align: center;
+      padding: 6px;
+      font-size: 12px;
+    }
+
+    /* ── Video Review ── */
+    .insight-card {
+      display: none;
+    }
+
+    .insight-card.active {
+      display: block;
+    }
+
+    .insight-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .insight-score {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 58px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(93, 168, 255, 0.22);
+      background: rgba(93, 168, 255, 0.12);
+      color: #d8ebff;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .insight-score.is-strong {
+      background: rgba(50, 196, 141, 0.14);
+      border-color: rgba(50, 196, 141, 0.24);
+      color: #d2ffee;
+    }
+
+    .insight-score.is-mid {
+      background: rgba(255, 182, 72, 0.14);
+      border-color: rgba(255, 182, 72, 0.24);
+      color: #ffe2b2;
+    }
+
+    .insight-summary {
+      margin: 0 0 10px;
+      color: var(--text-soft);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .insight-meta {
+      margin-bottom: 10px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
-    .auto-iterate-group input[type="number"] {
-      width: 66px;
-      text-align: center;
-      padding: 10px 8px;
+    .insight-chip-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .insight-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+      color: var(--text-soft);
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .insight-chip strong {
+      color: var(--text);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .insight-notes {
+      display: none;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-soft);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .insight-notes.active {
+      display: block;
+    }
+
+    .insight-notes strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
     .toggle {
       position: relative;
-      width: 54px;
-      height: 32px;
+      width: 42px;
+      height: 24px;
       border-radius: 999px;
       border: 1px solid var(--line);
       background: rgba(255, 255, 255, 0.04);
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     .toggle::after {
       content: "";
       position: absolute;
-      top: 4px;
-      left: 4px;
-      width: 22px;
-      height: 22px;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
       border-radius: 50%;
       background: white;
       transition: transform 0.2s ease;
@@ -717,414 +900,43 @@
       border-color: rgba(93, 168, 255, 0.36);
     }
 
-    .toggle.active::after {
-      transform: translateX(22px);
-    }
+    .toggle.active::after { transform: translateX(18px); }
 
     .toggle-text {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      white-space: nowrap;
-      clip-path: inset(50%);
+      position: absolute; width: 1px; height: 1px;
+      overflow: hidden; clip: rect(0 0 0 0);
     }
 
-    .feedback-bar {
-      margin-top: 14px;
-    }
-
-    .log-area {
-      margin-top: 14px;
-      min-height: 160px;
-      max-height: 260px;
-      overflow-y: auto;
-      padding: 14px;
-      border-radius: var(--radius-md);
-      background: #070b12;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      font-family: var(--font-mono);
-      font-size: 12px;
-      line-height: 1.7;
-      color: var(--text-soft);
-    }
-
-    .log-entry {
-      margin-bottom: 6px;
-    }
-
-    .log-score {
-      color: #ffe19f;
-    }
-
-    .log-info {
-      color: #9fc8ff;
-    }
-
-    .log-error {
-      color: #ffb3b3;
-    }
-
-    .log-plateau {
-      color: #ffd188;
-      font-weight: 700;
-    }
-
-    .main-stage {
-      padding: 20px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .workspace-head {
-      display: flex;
-      align-items: start;
-      justify-content: space-between;
-      gap: 16px;
-      padding-bottom: 18px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .workspace-copy h2 {
-      margin: 0;
-      font-size: 28px;
-      line-height: 1.02;
-      letter-spacing: -0.05em;
-    }
-
-    .workspace-copy p {
-      margin: 10px 0 0;
-      max-width: 54ch;
-      color: var(--text-soft);
-      font-size: 14px;
-    }
-
-    .workspace-metrics {
-      display: grid;
-      gap: 10px;
-      min-width: 210px;
-    }
-
-    .workspace-card {
-      padding: 12px 14px;
-      border-radius: var(--radius-md);
-      background: var(--bg-muted);
-      border: 1px solid var(--line);
-    }
-
-    .workspace-card span {
-      display: block;
-      margin-bottom: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .workspace-card strong {
-      display: block;
-      font-size: 15px;
-      line-height: 1.25;
-    }
-
-    .comparison {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .comparison-pane {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-height: 0;
-    }
-
-    .pane-head {
+    /* ── Collapsible sections ── */
+    details summary {
+      list-style: none;
+      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
-    }
-
-    .pane-label {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .pane-note {
-      font-size: 12px;
       color: var(--text-soft);
+      padding: 8px 0;
     }
 
-    .frame-controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-      padding: 10px 12px;
-      border-radius: var(--radius-md);
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-    }
+    details summary::-webkit-details-marker { display: none; }
 
-    .frame-controls label {
+    details summary::after {
+      content: "Show";
       font-size: 11px;
-      font-weight: 700;
+      color: var(--text-dim);
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: var(--text-dim);
-    }
-
-    .frame-controls select {
-      flex: 1;
-      min-width: 180px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text);
-    }
-
-    .pane-stage {
-      min-height: 460px;
-      padding: 18px;
-      border-radius: calc(var(--radius-md) + 2px);
-      background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
-        #060a12;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
-
-    .comparison-pane img {
-      width: 100%;
-      max-height: 620px;
-      object-fit: contain;
-      border-radius: var(--radius-sm);
-    }
-
-    .placeholder-box {
-      width: 100%;
-      aspect-ratio: 1;
-      max-width: 620px;
-      border-radius: calc(var(--radius-md) + 2px);
-      border: 1px dashed rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.03);
-      display: grid;
-      place-items: center;
-      color: var(--text-dim);
-      padding: 28px;
-      text-align: center;
-    }
-
-    .preview-status,
-    .handoff-status {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--text-soft);
-      font-size: 13px;
-      line-height: 1.5;
-      display: none;
-      word-break: break-word;
-    }
-
-    .preview-status.info,
-    .handoff-status.info {
-      background: rgba(93, 168, 255, 0.1);
-      border-color: rgba(93, 168, 255, 0.22);
-      color: #cfe5ff;
-    }
-
-    .preview-status.warning {
-      background: rgba(255, 182, 72, 0.1);
-      border-color: rgba(255, 182, 72, 0.22);
-      color: #ffe2b2;
-    }
-
-    .preview-status.error,
-    .handoff-status.error {
-      background: rgba(255, 107, 107, 0.12);
-      border-color: rgba(255, 107, 107, 0.24);
-      color: #ffd0d0;
-    }
-
-    .handoff-status.success {
-      background: rgba(50, 196, 141, 0.1);
-      border-color: rgba(50, 196, 141, 0.22);
-      color: #d2ffee;
-    }
-
-    .generating-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      color: var(--text-soft);
-      text-align: center;
-    }
-
-    .spinner {
-      width: 42px;
-      height: 42px;
-      border: 3px solid rgba(255, 255, 255, 0.1);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .history-panel {
-      padding-top: 4px;
-      border-top: 1px solid var(--line);
-    }
-
-    .history-head {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .history-strip {
-      display: flex;
-      gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scroll-padding-inline: 4px;
-    }
-
-    .history-strip::-webkit-scrollbar {
-      height: 6px;
-    }
-
-    .history-strip::-webkit-scrollbar-thumb {
-      background: var(--line-strong);
-      border-radius: 999px;
-    }
-
-    .history-card {
-      flex: 0 0 140px;
-      padding: 0;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.03);
-      color: var(--text);
-      overflow: hidden;
-      cursor: pointer;
-      text-align: left;
-    }
-
-    .history-card.active {
-      border-color: rgba(93, 168, 255, 0.42);
-      background: rgba(93, 168, 255, 0.08);
-    }
-
-    .history-card img {
-      width: 100%;
-      aspect-ratio: 1;
-      object-fit: cover;
-    }
-
-    .history-meta {
-      padding: 10px 10px 12px;
-    }
-
-    .history-meta strong {
-      display: block;
-      font-size: 13px;
-      line-height: 1.2;
-    }
-
-    .history-meta span {
-      display: block;
-      margin-top: 4px;
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .score {
-      color: var(--warning);
       font-weight: 700;
     }
 
-    .phase-badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
+    details[open] summary::after { content: "Hide"; }
 
-    .phase-layout {
-      background: rgba(93, 168, 255, 0.12);
-      color: #cfe5ff;
-    }
-
-    .phase-spacing {
-      background: rgba(255, 182, 72, 0.12);
-      color: #ffe2b2;
-    }
-
-    .phase-finetune {
-      background: rgba(50, 196, 141, 0.12);
-      color: #d2ffee;
-    }
-
-    .publish-panel h2 {
-      margin: 0;
-      font-size: 22px;
-      line-height: 1.05;
-      letter-spacing: -0.04em;
-    }
-
-    .publish-copy {
-      margin-top: 8px;
-      font-size: 13px;
-    }
-
-    .save-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .publish-note {
-      margin-top: 12px;
-      padding: 12px 13px;
-      border-radius: var(--radius-md);
-      background: var(--bg-muted);
-      border: 1px solid var(--line);
-      font-size: 12px;
-      color: var(--text-soft);
-    }
-
-    .json-content {
-      margin-top: 16px;
-    }
-
+    /* ── JSON Editor ── */
     .json-editor {
-      min-height: 320px;
+      min-height: 240px;
       font-family: var(--font-mono);
       font-size: 11px;
       line-height: 1.65;
@@ -1133,412 +945,375 @@
       tab-size: 2;
     }
 
+    .json-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    /* ── Log Area ── */
+    .log-area {
+      min-height: 100px;
+      max-height: 200px;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: var(--radius-sm);
+      background: #070b12;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--text-soft);
+    }
+
+    .log-entry { margin-bottom: 4px; }
+    .log-score { color: #ffe19f; }
+    .log-info { color: #9fc8ff; }
+    .log-error { color: #ffb3b3; }
+    .log-plateau { color: #ffd188; font-weight: 700; }
+
+    .phase-badge {
+      display: inline-flex;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .phase-layout { background: rgba(93, 168, 255, 0.12); color: #cfe5ff; }
+    .phase-spacing { background: rgba(255, 182, 72, 0.12); color: #ffe2b2; }
+    .phase-finetune { background: rgba(50, 196, 141, 0.12); color: #d2ffee; }
+
+    /* ── Toast ── */
     .toast {
       position: fixed;
       right: 24px;
       bottom: 24px;
       z-index: 1000;
-      max-width: 360px;
-      padding: 12px 16px;
-      border-radius: 16px;
+      max-width: 340px;
+      padding: 10px 16px;
+      border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: white;
+      font-size: 13px;
       box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
       animation: slideUp 0.24s ease;
     }
 
-    .toast.success {
-      background: rgba(50, 196, 141, 0.9);
-    }
-
-    .toast.error {
-      background: rgba(255, 107, 107, 0.9);
-    }
+    .toast.success { background: rgba(50, 196, 141, 0.9); }
+    .toast.error { background: rgba(255, 107, 107, 0.9); }
 
     @keyframes slideUp {
-      from {
-        transform: translateY(18px);
-        opacity: 0;
-      }
-
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
+      from { transform: translateY(18px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
     }
 
-    @media (max-width: 1240px) {
-      .studio-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .studio-header {
-        grid-template-columns: 1fr;
-      }
-
-      .workspace-head,
-      .history-head {
-        flex-direction: column;
-        align-items: start;
-      }
-
-      .comparison {
-        grid-template-columns: 1fr;
-      }
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .app-layout { grid-template-columns: 1fr; }
+      .panel-left { border-right: none; border-bottom: 1px solid var(--line); }
+      .comparison { grid-template-columns: 1fr; }
     }
 
-    @media (max-width: 760px) {
-      .studio-shell {
-        width: min(100% - 24px, 1600px);
-        padding-top: 16px;
-      }
-
-      .hero-pane,
-      .status-pane,
-      .rail-section,
-      .main-stage,
-      .publish-panel,
-      .advanced-panel {
-        padding: 16px;
-        border-radius: 22px;
-      }
-
-      .hero-pane h1 {
-        max-width: 9ch;
-      }
-
-      .action-bar,
-      .feedback-bar,
-      .save-actions,
-      .handoff-tools,
-      .json-actions {
-        flex-direction: column;
-      }
-
-      .auto-iterate-group {
-        width: 100%;
-        margin-left: 0;
-      }
-
-      .btn {
-        width: 100%;
-        justify-content: center;
-      }
-
-      .pane-stage {
-        min-height: 340px;
-      }
+    @media (max-width: 600px) {
+      .topbar { padding: 10px 16px; }
+      .topbar-pills { display: none; }
+      .panel-left, .panel-right { padding: 14px; }
+      .approve-grid { grid-template-columns: 1fr; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *,
-      *::before,
-      *::after {
+      *, *::before, *::after {
         animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
       }
     }
   </style>
 </head>
 <body data-session-mode="reference">
-  <a class="skip-link" href="#studioMain">Skip to workspace</a>
 
-  <div class="studio-shell">
-    <header class="studio-header">
-      <section class="hero-pane" aria-labelledby="studioTitle">
-        <p class="eyebrow">Render Engine</p>
-        <h1 id="studioTitle">Template Session Studio</h1>
-        <p>Build one draft at a time. Start from a reference, refine until the preview feels right, then approve a trusted version back into V2.</p>
-        <div class="hero-notes">
-          <div class="hero-note">Local preview is the working surface for authoring, not the durable production record.</div>
-          <div class="hero-note"><strong>Approve for V2</strong> is the publishing step that turns the current draft into the next approved template.</div>
-        </div>
-      </section>
+  <!-- ── Top Bar ── -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Template Lab</h1>
+      <div class="topbar-pills">
+        <div class="status-pill is-accent" id="sessionModePill">Reference Draft</div>
+        <div class="status-pill" id="draftStatePill">Awaiting Draft</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="statusDot" title="API connection status"></div>
+      <button class="btn-icon" id="btnToggleSettings" type="button" title="Settings">&#9881;</button>
+    </div>
+  </header>
 
-      <section class="status-pane" aria-labelledby="workspaceTitle">
-        <div class="status-row">
-          <div class="status-pill is-accent" id="sessionModePill">Reference Draft</div>
-          <div class="status-pill" id="draftStatePill">Awaiting Draft</div>
-        </div>
-        <div class="status-copy">
-          <strong id="sessionSummary">Choose a session path and create the first preview.</strong>
-          <p id="sessionMeta">No V2 template is linked yet. Use V2 load when you want to improve an existing approved template.</p>
-        </div>
-        <dl class="status-matrix">
-          <div>
-            <dt>Current Link</dt>
-            <dd id="linkedTemplateBadge">Not linked</dd>
-          </div>
-          <div>
-            <dt>Preview State</dt>
-            <dd id="previewFreshness">No preview yet</dd>
-          </div>
-          <div>
-            <dt>Publishing</dt>
-            <dd id="publishSummary">Nothing ready to approve yet.</dd>
-          </div>
-          <div>
-            <dt>Session Focus</dt>
-            <dd id="pathHelper">Start with a reference image to create a new template session.</dd>
-          </div>
-        </dl>
-        <div class="autosave-band">
-          <strong>Draft Recovery</strong>
-          <p id="autosaveStatus">Autosave is idle until this session has something to recover.</p>
-        </div>
-        <div class="draft-restore" id="draftRestore" style="display:none">
-          <strong id="draftRestoreTitle">Saved draft available</strong>
-          <p id="draftRestoreMeta">Restore the last locally saved draft or discard it before starting a new session.</p>
-          <div class="draft-restore-actions">
-            <button class="btn btn-secondary" id="btnRestoreDraft" type="button">Restore Draft</button>
-            <button class="btn btn-secondary" id="btnDiscardDraft" type="button">Discard Saved Draft</button>
-          </div>
-        </div>
-      </section>
-    </header>
-
-    <div class="studio-grid">
-      <aside class="rail" aria-label="Session setup and refinement">
-        <section class="rail-section">
-          <p class="section-kicker">Session Path</p>
-          <h2 class="section-title">Choose how this session starts</h2>
-          <div class="session-choices">
-            <button class="session-choice active" id="modeReference" type="button">
-              <strong>Create from Reference</strong>
-              <span>Upload a target design, generate a first draft, and steer it visually.</span>
-            </button>
-            <button class="session-choice" id="modeV2" type="button">
-              <strong>Improve Existing V2 Template</strong>
-              <span>Load an approved template, preview it locally, then send a better version back.</span>
-            </button>
-            <button class="session-choice" id="modeJson" type="button">
-              <strong>Advanced JSON Workbench</strong>
-              <span>Inspect and adjust the raw template definition when you need exact control.</span>
-            </button>
-          </div>
-        </section>
-
-        <details class="rail-section setup-panel" open>
-          <summary>Connections & Access</summary>
-          <div class="setup-grid">
-            <div class="field">
-              <label for="apiKeyInput">Render API Key</label>
-              <input type="password" id="apiKeyInput" name="render_api_key" autocomplete="off" spellcheck="false" placeholder="Enter render-engine API key">
-            </div>
-            <div class="field">
-              <label for="v2BaseUrlInput">V2 App Base</label>
-              <input type="url" id="v2BaseUrlInput" name="v2_base_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="https://social-posting.example.com">
-            </div>
-            <div class="field">
-              <label for="v2AdminSecretInput">V2 Admin Secret Fallback</label>
-              <input type="password" id="v2AdminSecretInput" name="v2_admin_secret" autocomplete="off" spellcheck="false" placeholder="Only needed when a scoped Template Lab session link is unavailable">
-            </div>
-            <button class="btn btn-secondary" id="btnOpenV2Admin" type="button">Open V2 Admin</button>
-          </div>
-          <div class="status-inline">
-            <div class="status-dot" id="statusDot"></div>
-            <span>The render preview and design routes need the render-engine API key. Scoped V2 session links remain the preferred approval path.</span>
-          </div>
-        </details>
-
-        <section class="rail-section">
-          <div class="step-header">
-            <div class="step-marker">1</div>
-            <div class="step-copy">
-              <h2>Start the draft</h2>
-              <p>Reference-led sessions work best when the target image is already cropped to the rough composition you want.</p>
-            </div>
-          </div>
-
-          <div class="upload-zone" id="uploadZone">
-            <input type="file" id="fileInput" name="reference_image" accept="image/png,image/jpeg,image/webp" aria-label="Upload a reference image">
-            <button class="upload-clear" id="uploadClear" type="button" aria-label="Clear uploaded reference image">&times;</button>
-            <div class="placeholder" id="uploadPlaceholder">
-              <strong>Drop a reference here</strong>
-              PNG, JPG, or WebP. The closer the crop is to the desired layout, the better the first draft usually lands.
-            </div>
-            <img id="uploadPreview" style="display:none" alt="Uploaded reference preview" width="1080" height="1080">
-          </div>
-
-          <div class="field" style="margin-top:14px;">
-            <label for="promptInput">Prompt</label>
-            <textarea id="promptInput" name="prompt" placeholder="Optional direction… for example: dark background, two images side by side, white CTA footer."></textarea>
-          </div>
-
-          <div class="action-bar">
-            <button class="btn btn-primary" id="btnGenerate" type="button" disabled>Generate Draft</button>
-            <button class="btn btn-danger" id="btnStop" type="button" disabled>Stop Refinement</button>
-
-            <div class="auto-iterate-group">
-              <label for="toggleAutoIterate">Auto</label>
-              <button class="toggle" id="toggleAutoIterate" type="button" aria-pressed="false">
-                <span class="toggle-text">Toggle auto-iterate</span>
-              </button>
-              <label for="maxIterations">Max</label>
-              <input type="number" id="maxIterations" name="max_iterations" value="8" min="1" max="20" inputmode="numeric">
-              <label for="scoreTarget">Target</label>
-              <input type="number" id="scoreTarget" name="score_target" value="8" min="6" max="10" inputmode="numeric" title="Stop when score reaches this value">
-            </div>
-          </div>
-        </section>
-
-        <section class="rail-section">
-          <div class="step-header">
-            <div class="step-marker">2</div>
-            <div class="step-copy">
-              <h2>Refine the current version</h2>
-              <p>Use short, visual feedback once the broad structure is close and you want the next pass to be more intentional.</p>
-            </div>
-          </div>
-          <div class="feedback-bar">
-            <input type="text" id="feedbackInput" name="feedback" autocomplete="off" spellcheck="false" placeholder="For example: make the title larger and pull the images upward." disabled>
-            <button class="btn btn-secondary" id="btnIterate" type="button" disabled>Refine</button>
-          </div>
-        </section>
-
-        <section class="rail-section">
-          <div class="step-header">
-            <div class="step-marker">Log</div>
-            <div class="step-copy">
-              <h2>Session activity</h2>
-              <p>The studio records the draft path so you can tell whether the current version came from V2, reference generation, or manual edits.</p>
-            </div>
-          </div>
-          <div class="log-area" id="logArea">
-            <div class="log-entry log-info">Ready. Choose a session path and start the first draft.</div>
-          </div>
-        </section>
-      </aside>
-
-      <main class="main-stage" id="studioMain">
-        <section class="workspace-head">
-          <div class="workspace-copy">
-            <p class="section-kicker">Current Session</p>
-            <h2 id="workspaceTitle">Reference-led draft</h2>
-            <p id="workspaceLead">The main workspace keeps the reference and the current preview side by side so you can judge structure, spacing, and hierarchy in one glance.</p>
-          </div>
-          <div class="workspace-metrics">
-            <div class="workspace-card">
-              <span>Linked V2 Template</span>
-              <strong id="workspaceLinkedLabel">Not linked yet</strong>
-            </div>
-            <div class="workspace-card">
-              <span>Version Checkpoint</span>
-              <strong id="historySummary">No versions yet. The first render will create the first restorable checkpoint.</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="comparison">
-          <div class="comparison-pane">
-            <div class="pane-head">
-              <div class="pane-label">Reference</div>
-              <div class="pane-note">Target composition</div>
-            </div>
-            <div class="pane-stage">
-              <div class="placeholder-box" id="refPlaceholder">Upload a reference to anchor the session.</div>
-              <img id="refImage" style="display:none" alt="Reference image for the current session" width="1080" height="1080">
-            </div>
-          </div>
-
-          <div class="comparison-pane">
-            <div class="pane-head">
-              <div class="pane-label">Current Preview</div>
-              <div class="pane-note">Latest local render</div>
-            </div>
-            <div class="pane-stage">
-              <div id="previewPlaceholder" class="placeholder-box">No preview yet</div>
-              <div id="previewLoading" class="generating-state" style="display:none">
-                <div class="spinner"></div>
-                <span>Generating draft…</span>
-              </div>
-              <img id="previewImage" style="display:none" alt="Current generated preview" width="1080" height="1080">
-            </div>
-            <div id="previewFrameControls" class="frame-controls" style="display:none">
-              <label for="previewFrameSelect">Poster Frame</label>
-              <select id="previewFrameSelect" name="preview_frame" disabled></select>
-            </div>
-            <div id="previewStatus" class="preview-status" aria-live="polite"></div>
-          </div>
-        </section>
-
-        <section class="history-panel">
-          <div class="history-head">
-            <div>
-              <p class="section-kicker">Versions</p>
-              <h2>Restore any meaningful checkpoint</h2>
-              <p>Generated drafts, V2 loads, refinement passes, and manual JSON renders all land here.</p>
-            </div>
-          </div>
-          <div class="history-strip" id="historyStrip">
-            <div style="color:var(--text-dim); font-size:12px; padding:20px 0;">No iterations yet</div>
-          </div>
-        </section>
-      </main>
-
-      <aside class="publish-stack" aria-label="Publish and advanced controls">
-        <section class="publish-panel">
-          <div class="step-header">
-            <div class="step-marker">3</div>
-            <div class="step-copy">
-              <h2>Approve back into V2</h2>
-              <p class="publish-copy">Publishing happens only from this panel. Confirm the linked record, the current ID, and the image count before you approve.</p>
-            </div>
-          </div>
-
-          <div class="save-grid">
-            <div class="field">
-              <label for="v2ExportUrlInput">V2 Template Export URL</label>
-              <input type="url" id="v2ExportUrlInput" name="v2_export_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="Paste /api/admin/render-templates/:id/export URL">
-            </div>
-            <div class="field">
-              <label for="saveName">Template Name</label>
-              <input type="text" id="saveName" name="template_name" autocomplete="off" spellcheck="false" placeholder="For example: Modern Split Layout">
-            </div>
-            <div class="field">
-              <label for="saveId">Template ID</label>
-              <input type="text" id="saveId" name="template_id" autocomplete="off" spellcheck="false" placeholder="Slug used for reference and import">
-            </div>
-            <div class="field">
-              <label for="saveImageCount">Image Count</label>
-              <input type="number" id="saveImageCount" name="image_count" min="1" step="1" value="1" inputmode="numeric" placeholder="Template image count">
-            </div>
-          </div>
-
-          <div class="save-actions" style="margin-top:16px;">
-            <button class="btn btn-secondary" id="btnLoadV2" type="button">Load from V2</button>
-            <button class="btn btn-success" id="btnSaveV2" type="button" disabled>Approve for V2</button>
-          </div>
-
-          <div id="handoffStatus" class="handoff-status" aria-live="polite"></div>
-
-          <div class="handoff-tools" style="margin-top:12px;">
-            <button class="btn btn-secondary" id="btnCopyV2TemplateId" type="button" disabled>Copy V2 Template ID</button>
-            <button class="btn btn-secondary" id="btnCopyV2ExportUrl" type="button" disabled>Copy Export URL</button>
-          </div>
-
-          <div class="publish-note" id="publishLead">Use <strong>Load from V2</strong> when you want to reopen an approved template. MP4 templates still preview here as a local poster frame while the queue-side rollout remains in place.</div>
-        </section>
-
-        <details class="advanced-panel" id="advancedJsonPanel">
-          <summary>Advanced JSON</summary>
-          <div class="json-content">
-            <div class="json-actions">
-              <button class="btn btn-secondary" id="btnRerender" type="button" disabled>Re-render from JSON</button>
-              <button class="btn btn-secondary" id="btnCopyJson" type="button" disabled>Copy JSON</button>
-            </div>
-            <div class="field" style="margin-top:12px;">
-              <label for="jsonEditor">Template JSON</label>
-              <textarea class="json-editor" id="jsonEditor" name="template_json" spellcheck="false" placeholder="Template JSON will appear here…" disabled></textarea>
-            </div>
-          </div>
-        </details>
-      </aside>
+  <!-- ── Settings Drawer (hidden by default) ── -->
+  <div class="settings-drawer" id="settingsDrawer">
+    <div class="settings-grid">
+      <div class="field">
+        <label for="apiKeyInput">Render API Key</label>
+        <input type="password" id="apiKeyInput" name="render_api_key" autocomplete="off" spellcheck="false" placeholder="Render-engine API key">
+      </div>
+      <div class="field">
+        <label for="v2BaseUrlInput">V2 App Base URL</label>
+        <input type="url" id="v2BaseUrlInput" name="v2_base_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="https://social-posting.example.com">
+      </div>
+      <div class="field">
+        <label for="v2AdminSecretInput">V2 Admin Secret</label>
+        <input type="password" id="v2AdminSecretInput" name="v2_admin_secret" autocomplete="off" spellcheck="false" placeholder="Fallback when no session link">
+      </div>
+      <div style="display:flex; align-items:end;">
+        <button class="btn btn-secondary btn-sm" id="btnOpenV2Admin" type="button">Open V2 Admin</button>
+      </div>
     </div>
   </div>
 
+  <!-- ── Draft Restore Banner (hidden by default) ── -->
+  <div class="draft-restore" id="draftRestore" style="display:none">
+    <div>
+      <strong id="draftRestoreTitle">Saved draft available</strong>
+      <p id="draftRestoreMeta">Restore or discard the last saved draft.</p>
+    </div>
+    <div class="draft-restore-actions">
+      <button class="btn btn-secondary btn-sm" id="btnRestoreDraft" type="button">Restore</button>
+      <button class="btn btn-secondary btn-sm" id="btnDiscardDraft" type="button">Discard</button>
+    </div>
+  </div>
+
+  <!-- ── Main Layout ── -->
+  <div class="app-layout">
+
+    <!-- ── Left Panel: Controls ── -->
+    <div class="panel-left">
+
+      <!-- Session mode buttons (hidden, auto-switched by JS) -->
+      <button class="sr-only" id="modeReference" type="button">Reference</button>
+      <button class="sr-only" id="modeV2" type="button">V2</button>
+      <button class="sr-only" id="modeJson" type="button">JSON</button>
+
+      <!-- Upload Reference -->
+      <div class="card">
+        <h3 class="card-title">Reference Input</h3>
+        <div class="reference-mode-switch" role="tablist" aria-label="Reference source">
+          <button class="btn btn-secondary active" id="referenceModeImage" type="button">Reference Image</button>
+          <button class="btn btn-secondary" id="referenceModeVideo" type="button">Reference Video</button>
+        </div>
+
+        <div class="reference-panel active" id="referenceImagePanel">
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="fileInput" name="reference_image" accept="image/png,image/jpeg,image/webp" aria-label="Upload a reference image">
+            <button class="upload-clear" id="uploadClear" type="button" aria-label="Clear reference">&times;</button>
+            <div class="placeholder" id="uploadPlaceholder">
+              <strong>Drop image here</strong>
+              PNG, JPG, or WebP
+            </div>
+            <img id="uploadPreview" style="display:none" alt="Reference preview" width="1080" height="1080">
+          </div>
+        </div>
+
+        <div class="reference-panel" id="referenceVideoPanel">
+          <div class="upload-zone" id="videoUploadZone">
+            <input type="file" id="videoFileInput" name="reference_video" accept=".mp4,.mov,video/mp4,video/quicktime,video/mov" aria-label="Upload a reference video">
+            <button class="upload-clear" id="videoUploadClear" type="button" aria-label="Clear reference video">&times;</button>
+            <div class="placeholder" id="videoUploadPlaceholder">
+              <strong>Drop short video here</strong>
+              MP4 or MOV. Match style from video within our slideshow renderer.
+            </div>
+            <video id="videoUploadPreview" style="display:none" muted playsinline controls preload="metadata"></video>
+          </div>
+          <div class="upload-meta" id="videoUploadMeta" aria-live="polite"></div>
+        </div>
+
+        <div class="field" style="margin-top:10px;">
+          <label for="promptInput">Prompt (optional)</label>
+          <textarea id="promptInput" name="prompt" rows="2" placeholder="e.g. keep the same clean pacing, dark overlays, bold hook card, and strong CTA ending"></textarea>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button class="btn btn-primary" id="btnGenerate" type="button" disabled>Generate</button>
+          <button class="btn btn-danger btn-sm" id="btnStop" type="button" disabled>Stop</button>
+        </div>
+
+        <div class="action-helper" id="generateHint" aria-live="polite">
+          Add a prompt or reference image to start.
+        </div>
+        <button class="btn btn-secondary btn-sm" id="btnOpenSettingsHint" type="button" style="display:none;">Open Settings</button>
+
+        <div class="auto-row">
+          <label>Auto-refine</label>
+          <button class="toggle" id="toggleAutoIterate" type="button" aria-pressed="false">
+            <span class="toggle-text">Toggle auto-iterate</span>
+          </button>
+          <label>Max</label>
+          <input type="number" id="maxIterations" name="max_iterations" value="8" min="1" max="20" inputmode="numeric">
+          <label>Target</label>
+          <input type="number" id="scoreTarget" name="score_target" value="8" min="6" max="10" inputmode="numeric">
+        </div>
+      </div>
+
+      <!-- Refine -->
+      <div class="card">
+        <h3 class="card-title">Refine</h3>
+        <div class="inline-row">
+          <div class="field">
+            <input type="text" id="feedbackInput" name="feedback" autocomplete="off" spellcheck="false" placeholder="e.g. make the title larger" disabled>
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btnIterate" type="button" disabled>Refine</button>
+        </div>
+      </div>
+
+      <div class="card insight-card" id="videoInsightsCard" aria-live="polite">
+        <div class="insight-header">
+          <div>
+            <h3 class="card-title" style="margin-bottom:4px;">Video Review</h3>
+            <p class="card-subtitle" id="videoInsightHeadline" style="margin-bottom:0;">Reference-video analysis and review scores will appear here.</p>
+          </div>
+          <div class="insight-score" id="videoInsightScore" style="display:none;">--</div>
+        </div>
+        <p class="insight-summary" id="videoInsightSummary">Upload a short MP4 or MOV and generate a draft to see how the reference maps into our slideshow reel blueprint.</p>
+        <div class="insight-meta" id="videoInsightMeta">Waiting for video analysis</div>
+        <div class="insight-chip-grid" id="videoInsightMetrics"></div>
+        <div class="insight-notes" id="videoInsightNotes"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Start Blank</h3>
+        <p class="card-subtitle">Admin-only shortcuts for starting with a blank square post or a vertical slideshow reel before approving the draft into V2.</p>
+        <div class="inline-row">
+          <button class="btn btn-secondary" id="btnNewBlankTemplate" type="button">New Blank Template</button>
+          <button class="btn btn-secondary" id="btnNewReelTemplate" type="button">New Reel Template</button>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="divider-label">or load existing</div>
+
+      <!-- Load from V2 -->
+      <div class="card">
+        <h3 class="card-title">Load from V2</h3>
+        <div class="inline-row">
+          <div class="field">
+            <input type="url" id="v2ExportUrlInput" name="v2_export_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="Paste V2 export URL">
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btnLoadV2" type="button">Load</button>
+        </div>
+      </div>
+
+      <!-- Activity Log (collapsed) -->
+      <details class="card">
+        <summary>Activity Log</summary>
+        <div class="log-area" id="logArea" style="margin-top:8px;">
+          <div class="log-entry log-info">Ready.</div>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- ── Right Panel: Preview + Approve ── -->
+    <div class="panel-right">
+
+      <!-- Preview Header -->
+      <div class="preview-header">
+        <h2 id="workspaceTitle">Preview</h2>
+        <span style="font-size:12px; color:var(--text-dim);" id="workspaceLinkedLabel"></span>
+      </div>
+
+      <!-- Side-by-side comparison -->
+      <div class="comparison">
+        <div class="comparison-pane">
+          <div class="pane-label">Reference</div>
+          <div class="pane-stage">
+            <div class="placeholder-box" id="refPlaceholder">Upload a reference image or video to start</div>
+            <img id="refImage" style="display:none" alt="Reference" width="1080" height="1080">
+            <video id="refVideo" style="display:none" controls muted playsinline preload="metadata"></video>
+          </div>
+        </div>
+
+        <div class="comparison-pane">
+          <div class="pane-label">Generated Preview</div>
+          <div class="pane-stage">
+            <div id="previewPlaceholder" class="placeholder-box">No preview yet</div>
+            <div id="previewLoading" class="generating-state" style="display:none">
+              <div class="spinner"></div>
+              <span>Generating...</span>
+            </div>
+            <img id="previewImage" style="display:none" alt="Preview" width="1080" height="1080">
+            <video id="previewVideo" style="display:none" controls loop muted playsinline></video>
+          </div>
+          <div id="previewFrameControls" class="frame-controls" style="display:none">
+            <label for="previewFrameSelect">Frame</label>
+            <select id="previewFrameSelect" name="preview_frame" disabled></select>
+          </div>
+          <div id="previewStatus" class="preview-status" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <!-- History strip -->
+      <div>
+        <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-dim); margin-bottom:8px;">Versions</div>
+        <div class="history-strip" id="historyStrip">
+          <div style="color:var(--text-dim); font-size:11px; padding:10px 0;">No versions yet</div>
+        </div>
+      </div>
+
+      <!-- Approve for V2 -->
+      <div class="approve-section">
+        <h3 class="card-title">Approve for V2</h3>
+        <div class="approve-grid">
+          <div class="field">
+            <label for="saveName">Template Name</label>
+            <input type="text" id="saveName" name="template_name" autocomplete="off" spellcheck="false" placeholder="e.g. Modern Split Layout">
+          </div>
+          <div class="field">
+            <label for="saveId">Template ID</label>
+            <input type="text" id="saveId" name="template_id" autocomplete="off" spellcheck="false" placeholder="auto-generated slug">
+          </div>
+          <div class="field">
+            <label for="saveImageCount">Images</label>
+            <input type="number" id="saveImageCount" name="image_count" min="1" step="1" value="1" inputmode="numeric">
+          </div>
+        </div>
+        <div class="approve-actions">
+          <button class="btn btn-success" id="btnSaveV2" type="button" disabled>Approve for V2</button>
+          <button class="btn btn-secondary btn-sm" id="btnCopyV2TemplateId" type="button" disabled>Copy ID</button>
+          <button class="btn btn-secondary btn-sm" id="btnCopyV2ExportUrl" type="button" disabled>Copy URL</button>
+        </div>
+        <div id="handoffStatus" class="handoff-status" aria-live="polite"></div>
+      </div>
+
+      <!-- JSON Editor (collapsed) -->
+      <details class="card" id="advancedJsonPanel">
+        <summary>JSON Editor</summary>
+        <div style="margin-top:8px;">
+          <div class="json-actions">
+            <button class="btn btn-secondary btn-sm" id="btnRerender" type="button" disabled>Re-render from JSON</button>
+            <button class="btn btn-secondary btn-sm" id="btnCopyJson" type="button" disabled>Copy JSON</button>
+          </div>
+          <div class="field">
+            <textarea class="json-editor" id="jsonEditor" name="template_json" spellcheck="false" placeholder="Template JSON will appear here..." disabled></textarea>
+          </div>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Hidden elements that JS expects but aren't shown in simplified UI -->
+  <div class="sr-only" aria-hidden="true">
+    <span id="sessionSummary"></span>
+    <span id="sessionMeta"></span>
+    <span id="pathHelper"></span>
+    <span id="linkedTemplateBadge"></span>
+    <span id="previewFreshness"></span>
+    <span id="publishSummary"></span>
+    <span id="autosaveStatus"></span>
+    <span id="historySummary"></span>
+    <span id="workspaceLead"></span>
+    <span id="publishLead"></span>
+  </div>
+
+  <script src="/designer-bootstrap.js"></script>
   <script src="/designer-v2-bridge.js"></script>
   <script src="/designer-app.js"></script>
 </body>

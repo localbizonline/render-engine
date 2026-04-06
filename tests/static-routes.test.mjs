@@ -79,6 +79,9 @@ function createElement(initial = {}) {
     getAttribute(name) {
       return attributes.has(name) ? attributes.get(name) : null;
     },
+    removeAttribute(name) {
+      attributes.delete(name);
+    },
     dispatchEvent(type, event = {}) {
       for (const handler of listeners.get(type) || []) {
         handler(event);
@@ -105,6 +108,11 @@ function createElement(initial = {}) {
     focus() {
       this.focused = true;
     },
+    pause() {},
+    load() {},
+    play() {
+      return Promise.resolve();
+    },
   };
   Object.defineProperty(element, 'textContent', {
     get() {
@@ -130,6 +138,8 @@ function createElement(initial = {}) {
 function createDesignerDom() {
   const elements = {
     apiKeyInput: createElement(),
+    settingsDrawer: createElement(),
+    btnToggleSettings: createElement(),
     v2BaseUrlInput: createElement(),
     v2AdminSecretInput: createElement(),
     btnOpenV2Admin: createElement(),
@@ -157,28 +167,51 @@ function createDesignerDom() {
     historySummary: createElement(),
     publishLead: createElement(),
     advancedJsonPanel: createElement(),
+    referenceModeImage: createElement(),
+    referenceModeVideo: createElement(),
+    referenceImagePanel: createElement(),
+    referenceVideoPanel: createElement(),
     uploadZone: createElement(),
     fileInput: createElement(),
     uploadClear: createElement(),
     uploadPlaceholder: createElement(),
     uploadPreview: createElement(),
+    videoUploadZone: createElement(),
+    videoFileInput: createElement(),
+    videoUploadClear: createElement(),
+    videoUploadPlaceholder: createElement(),
+    videoUploadPreview: createElement(),
+    videoUploadMeta: createElement(),
     promptInput: createElement(),
     btnGenerate: createElement(),
     btnStop: createElement(),
+    generateHint: createElement(),
+    btnOpenSettingsHint: createElement(),
     toggleAutoIterate: createElement(),
     maxIterations: createElement({ value: '8' }),
     scoreTarget: createElement({ value: '8' }),
     feedbackInput: createElement(),
     btnIterate: createElement(),
+    videoInsightsCard: createElement(),
+    videoInsightHeadline: createElement(),
+    videoInsightSummary: createElement(),
+    videoInsightScore: createElement(),
+    videoInsightMeta: createElement(),
+    videoInsightMetrics: createElement(),
+    videoInsightNotes: createElement(),
+    btnNewBlankTemplate: createElement(),
+    btnNewReelTemplate: createElement(),
     historyStrip: createElement(),
     logArea: createElement(),
     refPlaceholder: createElement(),
     refImage: createElement(),
+    refVideo: createElement(),
     previewFrameControls: createElement(),
     previewFrameSelect: createElement({ value: '0' }),
     previewPlaceholder: createElement({ textContent: 'No preview yet' }),
     previewLoading: createElement(),
     previewImage: createElement(),
+    previewVideo: createElement(),
     previewStatus: createElement(),
     jsonEditor: createElement(),
     btnRerender: createElement(),
@@ -247,7 +280,15 @@ function loadBridgeFactory({ locationSearch = '', locationHref = 'https://render
   });
 }
 
-async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {}) {
+async function runDesignerApp({
+  bridgeFactory,
+  storageSeed = {},
+  fetchImpl,
+  bootstrap = null,
+  locationSearch = '',
+  locationPath = '/designer',
+  locationHref = null,
+} = {}) {
   const source = await read('public/designer-app.js');
   const storage = createStorage(storageSeed);
   const { document, elements, body } = createDesignerDom();
@@ -302,6 +343,29 @@ async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {
 
   const fetchCalls = [];
   const clipboardWrites = [];
+  class FakeFormData {
+    constructor() {
+      this._entries = [];
+    }
+    append(name, value) {
+      this._entries.push([name, value]);
+    }
+    get(name) {
+      const match = this._entries.find(([key]) => key === name);
+      return match ? match[1] : null;
+    }
+    entries() {
+      return this._entries[Symbol.iterator]();
+    }
+  }
+
+  const URLWithBlobHelpers = Object.assign(URL, {
+    createObjectURL(file) {
+      return `blob:${file?.name || 'reference-video'}`;
+    },
+    revokeObjectURL() {},
+  });
+
   const resolvedFetch = fetchImpl || (async (url, options = {}) => {
     fetchCalls.push({ url, options });
     throw new Error(`Unexpected fetch call: ${url}`);
@@ -309,6 +373,12 @@ async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {
 
   const window = {
     localStorage: storage,
+    __TEMPLATE_LAB_BOOTSTRAP__: bootstrap,
+    location: {
+      pathname: locationPath,
+      search: locationSearch,
+      href: locationHref || `https://render-engine.example.com${locationPath}${locationSearch}`,
+    },
     fetch(url, options) {
       fetchCalls.push({ url, options });
       return resolvedFetch(url, options);
@@ -321,6 +391,7 @@ async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {
     confirm() {
       return true;
     },
+    URL: URLWithBlobHelpers,
   };
 
   const context = vm.createContext({
@@ -343,8 +414,9 @@ async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {
     },
     clearTimeout() {},
     Date,
-    URL,
+    URL: URLWithBlobHelpers,
     URLSearchParams,
+    FormData: FakeFormData,
   });
 
   vm.runInContext(source, context);
@@ -365,7 +437,10 @@ async function runDesignerApp({ bridgeFactory, storageSeed = {}, fetchImpl } = {
 test('app wiring keeps explicit public routes for the Template Lab entry points', async () => {
   const appSource = await read('src/app.ts');
 
-  assert.match(appSource, /app\.get\(\[['"]\/designer['"], ['"]\/designer\.html['"]\]/);
+  assert.match(appSource, /\/designer\/reference-video/);
+  assert.match(appSource, /\/designer\/reference-image/);
+  assert.match(appSource, /\/designer\/v2/);
+  assert.match(appSource, /\/designer\/json/);
   assert.match(appSource, /app\.get\(['"]\/designer-v2-bridge\.js['"]/);
   assert.match(appSource, /app\.get\(['"]\/designer-app\.js['"]/);
   assert.match(appSource, /app\.get\(['"]\/health['"]/);
@@ -386,11 +461,26 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
   assert.match(html, /<title>Template Lab Designer<\/title>/);
   assert.match(html, /<script src="\/designer-v2-bridge\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-app\.js"><\/script>/);
+  assert.match(html, /<script src="\/designer-bootstrap\.js"><\/script>/);
   assert.match(html, /Approve for V2/);
   assert.match(html, /Load from V2/);
+  assert.match(html, /New Blank Template/);
+  assert.match(html, /New Reel Template/);
+  assert.match(html, /Reference Video/);
+  assert.match(html, /id="videoFileInput"/);
+  assert.match(html, /id="referenceModeVideo"/);
+  assert.match(html, /Match style from video/i);
+  assert.match(html, /Video Review/);
+  assert.match(html, /id="videoInsightsCard"/);
+  assert.match(html, /id="videoInsightScore"/);
+  assert.match(html, /id="btnNewBlankTemplate"/);
+  assert.match(html, /id="btnNewReelTemplate"/);
   assert.match(html, /id="previewStatus"/);
+  assert.match(html, /id="generateHint"/);
+  assert.match(html, /id="btnOpenSettingsHint"/);
   assert.match(html, /id="previewFrameControls"/);
   assert.match(html, /id="previewFrameSelect"/);
+  assert.match(html, /id="previewVideo"/);
   assert.match(html, /id="handoffStatus"/);
   assert.match(html, /id="btnCopyV2TemplateId"/);
   assert.match(html, /id="btnCopyV2ExportUrl"/);
@@ -413,9 +503,299 @@ test('designer app module contains the extracted non-V2 Template Lab behavior', 
   const designerAppSource = await read('public/designer-app.js');
 
   assert.match(designerAppSource, /const v2Bridge = window\.createTemplateLabV2Bridge/);
+  assert.match(designerAppSource, /function parseStudioUrlState/);
+  assert.match(designerAppSource, /function applyStudioUrlState/);
+  assert.match(designerAppSource, /function renderVideoInsights/);
   assert.match(designerAppSource, /async function generate/);
+  assert.match(designerAppSource, /fetchMultipartApi\('\/video'/);
   assert.match(designerAppSource, /async function autoIterate/);
+  assert.match(designerAppSource, /function createBlankTemplateSession/);
   assert.match(designerAppSource, /async function approveTemplateForV2/);
+});
+
+test('designer app can preselect the reference-video workflow from a readable URL', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+    locationPath: '/designer/reference-video',
+    locationSearch: '?prompt=match%20style%20from%20video',
+  });
+
+  assert.equal(result.elements.referenceModeVideo.classList.contains('active'), true);
+  assert.equal(result.elements.referenceVideoPanel.classList.contains('active'), true);
+  assert.equal(result.elements.referenceImagePanel.classList.contains('active'), false);
+  assert.equal(result.elements.promptInput.value, 'match style from video');
+  assert.match(result.elements.generateHint.textContent, /reference image\/video|reference video/i);
+});
+
+test('designer app can generate a reel template from a reference video upload', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+    fetchImpl: async (url, options = {}) => {
+      if (url !== '/api/design/video') {
+        throw new Error(`Unexpected fetch call: ${url}`);
+      }
+
+      assert.equal(options.method, 'POST');
+      assert.equal(options.headers['X-Api-Key'], 'render-key');
+      assert.equal(options.body.get('prompt'), 'match the strong hook and CTA ending');
+      assert.equal(options.body.get('referenceVideo').name, 'sample.mov');
+
+      return {
+        ok: true,
+        async json() {
+          return {
+            analysis: {
+              orientation: 'portrait',
+              aspectRatio: '9:16',
+              durationBucket: 'short',
+              pacing: 'fast',
+              majorSceneCount: 4,
+              headlineTextDensity: 'medium',
+              overlayTreatment: 'dark_panel',
+              ctaTreatment: 'button_end_card',
+              colorDirection: {
+                mood: 'modern',
+                dominantHex: '#10151D',
+                secondaryHex: '#29415B',
+                accentHex: '#4E8FE8',
+                contrast: 'high',
+              },
+              slideshowBlueprint: {
+                recommendedFrameCount: 4,
+                transition: 'fade',
+                openingStyle: 'quick hook',
+                closingStyle: 'direct CTA',
+              },
+              scenes: [
+                { order: 1, role: 'hook', visualStyle: 'full_bleed_image', overlayPlacement: 'bottom', textAmount: 'medium', focus: 'Opening headline' },
+                { order: 2, role: 'proof', visualStyle: 'split_image', overlayPlacement: 'bottom', textAmount: 'light', focus: 'Service proof' },
+                { order: 3, role: 'detail', visualStyle: 'full_bleed_image', overlayPlacement: 'center', textAmount: 'medium', focus: 'Close-up detail' },
+                { order: 4, role: 'cta', visualStyle: 'text_panel', overlayPlacement: 'full', textAmount: 'medium', focus: 'Closing CTA' },
+              ],
+              confidence: 0.82,
+              notes: ['Fast-paced cuts approximated as 4 still frames.'],
+            },
+            template: {
+              id: 'reference-video-fast',
+              reference: 'reference-video-fast',
+              name: 'Reference Video Reel Match',
+              outputFormat: 'mp4',
+              width: 1080,
+              height: 1920,
+              imageCount: 3,
+              categoryKeys: ['reel', 'video_reference'],
+              fps: 30,
+              transition: { type: 'fade', durationMs: 500 },
+              frames: [
+                { durationMs: 1800, background: { type: 'solid', color: '#111111' }, layers: [] },
+                { durationMs: 1800, background: { type: 'solid', color: '#222222' }, layers: [] },
+                { durationMs: 1800, background: { type: 'solid', color: '#333333' }, layers: [] },
+                { durationMs: 2200, background: { type: 'solid', color: '#444444' }, layers: [] },
+              ],
+            },
+            previewBase64: 'data:image/png;base64,preview',
+            previewPosterBase64: 'data:image/png;base64,preview',
+            previewKind: 'image',
+            frameIndex: 0,
+          };
+        },
+      };
+    },
+  });
+
+  result.elements.referenceModeVideo.dispatchEvent('click');
+  result.elements.videoFileInput.files = [{ name: 'sample.mov', type: 'video/quicktime', size: 3 * 1024 * 1024 }];
+  result.elements.videoFileInput.dispatchEvent('change');
+  result.elements.promptInput.value = 'match the strong hook and CTA ending';
+  result.elements.promptInput.dispatchEvent('input');
+  result.elements.btnGenerate.dispatchEvent('click');
+
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.fetchCalls.length, 1);
+  assert.equal(result.fetchCalls[0].url, '/api/design/video');
+  assert.equal(result.elements.btnGenerate.textContent, 'Match Style from Video');
+  assert.equal(result.elements.previewImage.src, 'data:image/png;base64,preview');
+  assert.equal(result.elements.refVideo.src, 'blob:sample.mov');
+  assert.match(result.elements.previewStatus.textContent, /Reference video analyzed/i);
+  assert.equal(result.elements.videoInsightsCard.classList.contains('active'), true);
+  assert.match(result.elements.videoInsightHeadline.textContent, /4 scenes/i);
+  assert.match(result.elements.videoInsightMeta.textContent, /82% confidence/i);
+  assert.match(result.elements.videoInsightMetrics.innerHTML, /dark panel/i);
+  assert.match(result.elements.videoInsightNotes.innerHTML, /Fast-paced cuts approximated/i);
+});
+
+test('designer app can auto-review a reference video draft and loop toward a better reel', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+    fetchImpl: async (url, options = {}) => {
+      if (url === '/api/design/video') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              analysis: {
+                orientation: 'portrait',
+                aspectRatio: '9:16',
+                durationBucket: 'short',
+                pacing: 'fast',
+                majorSceneCount: 4,
+                headlineTextDensity: 'medium',
+                overlayTreatment: 'dark_panel',
+                ctaTreatment: 'button_end_card',
+                colorDirection: {
+                  mood: 'modern',
+                  dominantHex: '#10151D',
+                  secondaryHex: '#29415B',
+                  accentHex: '#4E8FE8',
+                  contrast: 'high',
+                },
+                slideshowBlueprint: {
+                  recommendedFrameCount: 4,
+                  transition: 'fade',
+                  openingStyle: 'quick hook',
+                  closingStyle: 'direct CTA',
+                },
+                scenes: [
+                  { order: 1, role: 'hook', visualStyle: 'full_bleed_image', overlayPlacement: 'bottom', textAmount: 'medium', focus: 'Opening headline' },
+                  { order: 2, role: 'proof', visualStyle: 'split_image', overlayPlacement: 'bottom', textAmount: 'light', focus: 'Service proof' },
+                  { order: 3, role: 'detail', visualStyle: 'full_bleed_image', overlayPlacement: 'center', textAmount: 'medium', focus: 'Close-up detail' },
+                  { order: 4, role: 'cta', visualStyle: 'text_panel', overlayPlacement: 'full', textAmount: 'medium', focus: 'Closing CTA' },
+                ],
+                confidence: 0.78,
+                notes: ['Initial pass'],
+              },
+              template: {
+                id: 'reference-video-fast',
+                reference: 'reference-video-fast',
+                name: 'Reference Video Reel Match',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 3,
+                categoryKeys: ['reel', 'video_reference'],
+                fps: 30,
+                transition: { type: 'fade', durationMs: 500 },
+                frames: [
+                  { durationMs: 1800, background: { type: 'solid', color: '#111111' }, layers: [] },
+                  { durationMs: 1800, background: { type: 'solid', color: '#222222' }, layers: [] },
+                  { durationMs: 1800, background: { type: 'solid', color: '#333333' }, layers: [] },
+                  { durationMs: 2200, background: { type: 'solid', color: '#444444' }, layers: [] },
+                ],
+                previewUrl: 'https://example.com/initial-preview.mp4',
+              },
+              previewBase64: 'data:image/png;base64,initial',
+              previewPosterBase64: 'data:image/png;base64,initial',
+              previewKind: 'video',
+              previewUrl: 'https://example.com/initial-preview.mp4',
+              frameIndex: 0,
+            };
+          },
+        };
+      }
+
+      if (url === '/api/design/video/compare-iterate') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              score: 8,
+              feedback: 'Closer match after tightening pacing and CTA treatment.',
+              shouldContinue: false,
+              changesApplied: 'Reduced frame count and strengthened the end card.',
+              analysis: {
+                orientation: 'portrait',
+                aspectRatio: '9:16',
+                durationBucket: 'short',
+                pacing: 'punchy',
+                majorSceneCount: 5,
+                headlineTextDensity: 'medium',
+                overlayTreatment: 'dark_panel',
+                ctaTreatment: 'button_end_card',
+                colorDirection: {
+                  mood: 'modern',
+                  dominantHex: '#10151D',
+                  secondaryHex: '#29415B',
+                  accentHex: '#4E8FE8',
+                  contrast: 'high',
+                },
+                slideshowBlueprint: {
+                  recommendedFrameCount: 5,
+                  transition: 'fade',
+                  openingStyle: 'strong hook',
+                  closingStyle: 'direct CTA',
+                },
+                scenes: [
+                  { order: 1, role: 'hook', visualStyle: 'text_panel', overlayPlacement: 'center', textAmount: 'medium', focus: 'Opening headline' },
+                  { order: 2, role: 'proof', visualStyle: 'full_bleed_image', overlayPlacement: 'bottom', textAmount: 'light', focus: 'Service proof' },
+                  { order: 3, role: 'detail', visualStyle: 'full_bleed_image', overlayPlacement: 'center', textAmount: 'medium', focus: 'Close-up detail' },
+                  { order: 4, role: 'offer', visualStyle: 'split_image', overlayPlacement: 'bottom', textAmount: 'medium', focus: 'Offer' },
+                  { order: 5, role: 'cta', visualStyle: 'logo_end_card', overlayPlacement: 'full', textAmount: 'light', focus: 'Closing CTA' },
+                ],
+                confidence: 0.88,
+                notes: ['Refined pass'],
+              },
+              template: {
+                id: 'reference-video-punchy',
+                reference: 'reference-video-punchy',
+                name: 'Reference Video Reel Match',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 4,
+                categoryKeys: ['reel', 'video_reference'],
+                fps: 30,
+                transition: { type: 'fade', durationMs: 350 },
+                frames: [
+                  { durationMs: 1500, background: { type: 'solid', color: '#111111' }, layers: [] },
+                  { durationMs: 1500, background: { type: 'solid', color: '#222222' }, layers: [] },
+                  { durationMs: 1500, background: { type: 'solid', color: '#333333' }, layers: [] },
+                  { durationMs: 1500, background: { type: 'solid', color: '#444444' }, layers: [] },
+                  { durationMs: 2000, background: { type: 'solid', color: '#555555' }, layers: [] },
+                ],
+              },
+              previewBase64: 'data:image/png;base64,iterated',
+              previewPosterBase64: 'data:image/png;base64,iterated',
+              previewKind: 'video',
+              previewUrl: 'https://example.com/iterated-preview.mp4',
+              frameIndex: 0,
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  result.elements.toggleAutoIterate.dispatchEvent('click');
+  result.elements.referenceModeVideo.dispatchEvent('click');
+  result.elements.videoFileInput.files = [{ name: 'sample.mov', type: 'video/quicktime', size: 3 * 1024 * 1024 }];
+  result.elements.videoFileInput.dispatchEvent('change');
+  result.elements.promptInput.value = 'match the strong hook and CTA ending';
+  result.elements.promptInput.dispatchEvent('input');
+  result.elements.btnGenerate.dispatchEvent('click');
+
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.fetchCalls.length, 2);
+  assert.equal(result.fetchCalls[0].url, '/api/design/video');
+  assert.equal(result.fetchCalls[1].url, '/api/design/video/compare-iterate');
+  assert.equal(result.fetchCalls[1].options.body.get('previewVideoUrl'), 'https://example.com/initial-preview.mp4');
+  assert.equal(result.fetchCalls[1].options.body.get('previewImage'), null);
+  assert.equal(result.elements.previewVideo.src, 'https://example.com/iterated-preview.mp4');
+  assert.equal(result.elements.saveImageCount.value, '4');
+  assert.equal(result.elements.jsonEditor.value.includes('"outputFormat": "mp4"'), true);
+  assert.equal(result.elements.videoInsightsCard.classList.contains('active'), true);
+  assert.equal(result.elements.videoInsightScore.textContent, '8/10');
+  assert.match(result.elements.videoInsightHeadline.textContent, /5 scenes/i);
+  assert.match(result.elements.videoInsightSummary.textContent, /Closer match/i);
+  assert.match(result.elements.videoInsightMeta.textContent, /88% confidence/i);
+  assert.match(result.elements.videoInsightNotes.innerHTML, /Review: Closer match/i);
 });
 
 test('bridge bootstrap derives context from a scoped Template Lab session link', async () => {
@@ -530,6 +910,76 @@ test('bridge loadTemplate normalizes exported V2 template data and updates conte
   assert.equal(context.authMode, 'admin_secret');
 });
 
+test('bridge can use the server-managed V2 proxy when defaults are available', async () => {
+  const requests = [];
+  const {
+    createTemplateLabV2Bridge,
+  } = await loadBridgeFactory();
+
+  const bridge = createTemplateLabV2Bridge({
+    storage: createStorage(),
+    apiKey: 'render-key',
+    initialBaseUrl: 'https://admin.localpros.co.za',
+    serverV2Proxy: true,
+    fetchImpl: async (url, options = {}) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        async json() {
+          if (String(url).includes('/export?')) {
+            return {
+              template: {
+                id: 'rt_proxy',
+                reference: 'proxy-template',
+                name: 'Proxy Template',
+                image_count: 3,
+                output_format: 'mp4',
+                template_json: {
+                  id: 'proxy-template',
+                  outputFormat: 'mp4',
+                  frames: [],
+                },
+              },
+              template_lab: {
+                export_url: 'https://admin.localpros.co.za/api/admin/render-templates/rt_proxy/export',
+              },
+            };
+          }
+
+          return {
+            id: 'rt_proxy',
+            mode: 'updated',
+          };
+        },
+      };
+    },
+  });
+
+  const session = bridge.initializeFromQueryParams();
+  assert.equal(session.authMode, 'server_proxy');
+  assert.equal(session.hasAuth, true);
+
+  await bridge.loadTemplate('https://admin.localpros.co.za/api/admin/render-templates/rt_proxy/export');
+  await bridge.approveTemplate({
+    template: {
+      id: 'proxy-template',
+      reference: 'proxy-template',
+      name: 'Proxy Template',
+      imageCount: 3,
+      outputFormat: 'mp4',
+      frames: [],
+    },
+  });
+
+  assert.equal(requests[0].url, '/api/designer/v2/export?url=https%3A%2F%2Fadmin.localpros.co.za%2Fapi%2Fadmin%2Frender-templates%2Frt_proxy%2Fexport');
+  assert.equal(requests[0].options.method, 'GET');
+  assert.equal(requests[0].options.headers['X-Api-Key'], 'render-key');
+  assert.equal(requests[1].url, '/api/designer/v2/import');
+  assert.equal(requests[1].options.method, 'POST');
+  assert.equal(requests[1].options.headers['X-Api-Key'], 'render-key');
+  assert.equal(bridge.getContext().authMode, 'server_proxy');
+});
+
 test('bridge approveTemplate sends a PNG import payload and refreshes export context', async () => {
   const requests = [];
   const {
@@ -630,6 +1080,56 @@ test('bridge approveTemplate preserves MP4 output format in the import payload',
   assert.equal(postedPayload.render_template_id, 'rt_existing_mp4');
   assert.equal(postedPayload.output_format, 'mp4');
   assert.equal(postedPayload.image_count, 4);
+});
+
+test('bridge approveTemplate can create a brand-new V2 template when no linked template id exists', async () => {
+  const requests = [];
+  const {
+    createTemplateLabV2Bridge,
+  } = await loadBridgeFactory();
+
+  const bridge = createTemplateLabV2Bridge({
+    storage: createStorage(),
+    fetchImpl: async (url, options = {}) => {
+      requests.push({ url, options });
+      return {
+        ok: true,
+        async json() {
+          return {
+            id: 'rt_new_blank',
+            mode: 'created',
+          };
+        },
+      };
+    },
+  });
+
+  bridge.setBaseUrl('https://v2.example.com');
+  bridge.setFallbackAdminSecret('fallback-secret');
+
+  const { payload, exportUrl, result } = await bridge.approveTemplate({
+    template: {
+      id: 'untitled-template',
+      reference: 'untitled-template',
+      name: 'Untitled Template',
+      imageCount: 1,
+      outputFormat: 'png',
+      frames: [],
+    },
+    sourceMode: 'manual_json',
+  });
+
+  const postedPayload = JSON.parse(requests[0].options.body);
+  assert.equal(postedPayload.render_template_id, undefined);
+  assert.equal(postedPayload.reference, 'untitled-template');
+  assert.equal(postedPayload.name, 'Untitled Template');
+  assert.equal(postedPayload.output_format, 'png');
+  assert.equal(postedPayload.image_count, 1);
+
+  assert.equal(payload.reference, 'untitled-template');
+  assert.equal(result.id, 'rt_new_blank');
+  assert.equal(exportUrl, 'https://v2.example.com/api/admin/render-templates/rt_new_blank/export');
+  assert.equal(bridge.getContext().linkedTemplateId, 'rt_new_blank');
 });
 
 test('bridge syncs connected inputs, persists values, and opens the V2 admin from baseUrl', async () => {
@@ -886,6 +1386,219 @@ test('designer app restores a saved local draft and keeps the session recoverabl
   assert.equal(result.elements.draftRestore.style.display, 'none');
 });
 
+test('designer app can start a new blank template session for admin-only V2 creation', async () => {
+  const result = await runDesignerApp();
+
+  result.elements.btnNewBlankTemplate.dispatchEvent('click');
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.elements.saveName.value, 'Untitled Template');
+  assert.equal(result.elements.saveId.value, 'untitled-template');
+  assert.equal(result.elements.saveImageCount.value, '1');
+  assert.equal(result.elements.v2ExportUrlInput.value, '');
+  assert.equal(result.elements.previewPlaceholder.textContent, 'Blank template ready. Re-render from JSON when you want a local preview.');
+  assert.equal(result.elements.handoffStatus.innerHTML.includes('create a new V2 record'), true);
+  assert.equal(result.elements.previewStatus.textContent.includes('Blank draft ready.'), true);
+  assert.equal(result.elements.jsonEditor.value.includes('"untitled-template"'), true);
+  assert.equal(result.elements.btnSaveV2.disabled, false);
+});
+
+test('designer app explains why generate is disabled when the render API key is missing', async () => {
+  const result = await runDesignerApp();
+
+  result.elements.promptInput.value = 'simple slideshow reel';
+  result.elements.promptInput.dispatchEvent('input');
+
+  assert.equal(result.elements.btnGenerate.disabled, true);
+  assert.equal(result.elements.settingsDrawer.classList.contains('open'), true);
+  assert.equal(result.elements.generateHint.textContent.includes('Render API Key'), true);
+  assert.equal(result.elements.btnOpenSettingsHint.style.display, 'inline-flex');
+
+  result.elements.btnOpenSettingsHint.dispatchEvent('click');
+  assert.equal(result.elements.apiKeyInput.focused, true);
+});
+
+test('designer app picks up server bootstrapped defaults without manual setup', async () => {
+  const result = await runDesignerApp({
+    bootstrap: {
+      renderApiKey: 'bootstrapped-key',
+      v2BaseUrl: 'https://admin.localpros.co.za',
+      v2ServerProxyEnabled: true,
+    },
+    async fetchImpl(url) {
+      if (url === '/api/design') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              template: {
+                id: 'boot-reel',
+                reference: 'boot-reel',
+                name: 'Boot Reel',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 4,
+                frames: [],
+              },
+              previewBase64: 'data:image/png;base64,boot-preview',
+              previewPosterBase64: 'data:image/png;base64,boot-preview',
+              previewKind: 'video',
+              previewUrl: 'https://cdn.example.com/boot-reel.mp4',
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  assert.equal(result.elements.apiKeyInput.value, 'bootstrapped-key');
+
+  result.elements.promptInput.value = 'simple slideshow reel';
+  result.elements.promptInput.dispatchEvent('input');
+
+  assert.equal(result.elements.btnGenerate.disabled, false);
+});
+
+test('designer app can generate a prompt-only reel draft without a reference image', async () => {
+  const result = await runDesignerApp({
+    storageSeed: {
+      designer_api_key: 'render-key',
+    },
+    async fetchImpl(url) {
+      if (url === '/api/design') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              template: {
+                id: 'prompt-reel',
+                reference: 'prompt-reel',
+                name: 'Prompt Reel',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 4,
+                frames: [
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 0 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 1 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 2 }, layers: [] },
+                  { durationMs: 2200, background: { type: 'solid', color: '#10151D' }, layers: [] },
+                ],
+              },
+              previewBase64: 'data:image/png;base64,prompt-reel-preview',
+              previewPosterBase64: 'data:image/png;base64,prompt-reel-preview',
+              previewKind: 'video',
+              previewUrl: 'https://cdn.example.com/prompt-reel.mp4',
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  result.elements.promptInput.value = 'Create a vertical plumbing reel';
+  result.elements.promptInput.dispatchEvent('input');
+
+  assert.equal(result.elements.btnGenerate.disabled, false);
+
+  result.elements.btnGenerate.dispatchEvent('click');
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.fetchCalls.some((call) => call.url === '/api/design'), true);
+  assert.equal(result.elements.saveName.value, 'Prompt Reel');
+  assert.equal(result.elements.saveId.value, 'prompt-reel');
+  assert.equal(result.elements.saveImageCount.value, '4');
+  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/prompt-reel.mp4');
+  assert.equal(result.elements.jsonEditor.value.includes('"outputFormat": "mp4"'), true);
+});
+
+test('designer app can generate a reel draft from a restored reference-image session', async () => {
+  const result = await runDesignerApp({
+    storageSeed: {
+      designer_api_key: 'render-key',
+      designer_studio_draft_v1: JSON.stringify({
+        version: 1,
+        savedAt: '2026-04-06T10:15:00.000Z',
+        sessionMode: 'reference',
+        referenceImage: 'data:image/png;base64,reference-image',
+        prompt: 'Use full-screen frames with bold CTA',
+        currentTemplate: null,
+        currentPreview: null,
+        previewStale: false,
+        previewFrameIndex: 0,
+        lastApprovedSnapshot: null,
+        sessionDirty: true,
+        generatedSaveId: '',
+        saveIdTouched: false,
+        jsonEditorValue: '',
+        handoff: {
+          exportUrl: '',
+          saveName: '',
+          saveId: '',
+          saveImageCount: '1',
+        },
+      }),
+    },
+    async fetchImpl(url) {
+      if (url === '/api/design/vision') {
+        return {
+          ok: true,
+          async json() {
+            return {
+              template: {
+                id: 'vision-reel',
+                reference: 'vision-reel',
+                name: 'Vision Reel',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 4,
+                frames: [
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 0 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 1 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 2 }, layers: [] },
+                  { durationMs: 2200, background: { type: 'solid', color: '#10151D' }, layers: [] },
+                ],
+              },
+              previewBase64: 'data:image/png;base64,vision-reel-preview',
+              previewPosterBase64: 'data:image/png;base64,vision-reel-preview',
+              previewKind: 'video',
+              previewUrl: 'https://cdn.example.com/vision-reel.mp4',
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  result.elements.btnRestoreDraft.dispatchEvent('click');
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.elements.btnGenerate.disabled, false);
+
+  result.elements.btnGenerate.dispatchEvent('click');
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.fetchCalls.some((call) => call.url === '/api/design/vision'), true);
+  assert.equal(result.elements.saveName.value, 'Vision Reel');
+  assert.equal(result.elements.saveId.value, 'vision-reel');
+  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/vision-reel.mp4');
+});
+
 test('designer app approval surfaces the updated V2 id and export URL in the handoff area', async () => {
   const result = await runDesignerApp({
     bridgeFactory(bridgeCalls) {
@@ -968,6 +1681,140 @@ test('designer app approval surfaces the updated V2 id and export URL in the han
   ]);
 });
 
+test('designer app can approve a blank template session into a new V2 record', async () => {
+  const result = await runDesignerApp({
+    bridgeFactory(bridgeCalls) {
+      const bridgeContext = {
+        exportUrl: '',
+        linkedTemplateId: '',
+      };
+      return {
+        connectInputs(args) {
+          bridgeCalls.connectInputs.push(args);
+        },
+        initializeFromQueryParams() {
+          bridgeCalls.initializeFromQueryParams += 1;
+          return {
+            exportUrl: '',
+            shouldAutoLoad: false,
+            needsManualAuth: false,
+          };
+        },
+        getContext() {
+          return bridgeContext;
+        },
+        async approveTemplate(args) {
+          bridgeCalls.approveArgs = args;
+          bridgeContext.exportUrl = 'https://v2.example.com/api/admin/render-templates/rt_new_blank/export';
+          bridgeContext.linkedTemplateId = 'rt_new_blank';
+          return {
+            result: {
+              id: 'rt_new_blank',
+              mode: 'created',
+            },
+            exportUrl: bridgeContext.exportUrl,
+          };
+        },
+        openAdmin() {
+          bridgeCalls.openAdmin += 1;
+        },
+        setExportUrl(value) {
+          bridgeContext.exportUrl = value;
+          bridgeContext.linkedTemplateId = '';
+          return value;
+        },
+      };
+    },
+  });
+
+  result.elements.btnNewBlankTemplate.dispatchEvent('click');
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  result.elements.saveName.value = 'Fresh Layout';
+  result.elements.saveName.dispatchEvent('input');
+  result.elements.saveId.value = 'fresh-layout';
+  result.elements.saveId.dispatchEvent('input');
+
+  result.elements.btnSaveV2.dispatchEvent('click');
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.bridgeCalls.approveArgs.reference, 'fresh-layout');
+  assert.equal(result.bridgeCalls.approveArgs.name, 'Fresh Layout');
+  assert.equal(result.bridgeCalls.approveArgs.template.reference, 'fresh-layout');
+  assert.equal(result.bridgeCalls.approveArgs.template.outputFormat, 'png');
+  assert.equal(result.elements.handoffStatus.innerHTML.includes('rt_new_blank'), true);
+  assert.equal(result.elements.btnCopyV2TemplateId.disabled, false);
+  assert.equal(result.elements.btnCopyV2ExportUrl.disabled, false);
+});
+
+test('designer app can start and approve a blank reel session into a new V2 record', async () => {
+  const result = await runDesignerApp({
+    bridgeFactory(bridgeCalls) {
+      const bridgeContext = {
+        exportUrl: '',
+        linkedTemplateId: '',
+      };
+      return {
+        connectInputs(args) {
+          bridgeCalls.connectInputs.push(args);
+        },
+        initializeFromQueryParams() {
+          bridgeCalls.initializeFromQueryParams += 1;
+          return {
+            exportUrl: '',
+            shouldAutoLoad: false,
+            needsManualAuth: false,
+          };
+        },
+        getContext() {
+          return bridgeContext;
+        },
+        async approveTemplate(args) {
+          bridgeCalls.approveArgs = args;
+          bridgeContext.exportUrl = 'https://v2.example.com/api/admin/render-templates/rt_new_reel/export';
+          bridgeContext.linkedTemplateId = 'rt_new_reel';
+          return {
+            result: {
+              id: 'rt_new_reel',
+              mode: 'created',
+            },
+            exportUrl: bridgeContext.exportUrl,
+          };
+        },
+        openAdmin() {
+          bridgeCalls.openAdmin += 1;
+        },
+        setExportUrl(value) {
+          bridgeContext.exportUrl = value;
+          bridgeContext.linkedTemplateId = '';
+          return value;
+        },
+      };
+    },
+  });
+
+  result.elements.btnNewReelTemplate.dispatchEvent('click');
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  result.elements.saveName.value = 'Fresh Reel';
+  result.elements.saveName.dispatchEvent('input');
+  result.elements.saveId.value = 'fresh-reel';
+  result.elements.saveId.dispatchEvent('input');
+
+  result.elements.btnSaveV2.dispatchEvent('click');
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.bridgeCalls.approveArgs.reference, 'fresh-reel');
+  assert.equal(result.bridgeCalls.approveArgs.template.outputFormat, 'mp4');
+  assert.equal(result.bridgeCalls.approveArgs.template.height, 1920);
+  assert.equal(result.bridgeCalls.approveArgs.template.frames.length > 1, true);
+  assert.equal(result.elements.handoffStatus.innerHTML.includes('rt_new_reel'), true);
+});
+
 test('designer app preserves MP4 output format when approving a loaded V2 reel template', async () => {
   const result = await runDesignerApp({
     storageSeed: {
@@ -1035,6 +1882,9 @@ test('designer app preserves MP4 output format when approving a loaded V2 reel t
           async json() {
             return {
               previewBase64: 'data:image/png;base64,preview',
+              previewPosterBase64: 'data:image/png;base64,preview',
+              previewKind: 'video',
+              previewUrl: 'https://render-engine.example.com/output/reel-preview.mp4',
             };
           },
           ok: true,
@@ -1045,9 +1895,12 @@ test('designer app preserves MP4 output format when approving a loaded V2 reel t
   });
 
   assert.equal(
-    result.elements.previewStatus.textContent.includes('poster-frame preview'),
+    result.elements.previewStatus.textContent.includes('MP4 authoring review'),
     true,
   );
+  assert.equal(result.elements.previewVideo.style.display, '');
+  assert.equal(result.elements.previewVideo.src, 'https://render-engine.example.com/output/reel-preview.mp4');
+  assert.equal(JSON.parse(result.fetchCalls[0].options.body).previewMode, 'video');
 
   result.elements.btnSaveV2.dispatchEvent('click');
   await Promise.resolve();
@@ -1123,6 +1976,8 @@ test('designer app exposes an MP4 frame selector and re-renders the chosen poste
         async json() {
           return {
             previewBase64: previewResponses[frameIndex],
+            previewPosterBase64: previewResponses[frameIndex],
+            previewKind: 'image',
           };
         },
         ok: true,
@@ -1144,7 +1999,9 @@ test('designer app exposes an MP4 frame selector and re-renders the chosen poste
   const previewCalls = result.fetchCalls.filter((call) => call.url === '/api/preview');
   assert.equal(previewCalls.length, 2);
   assert.equal(JSON.parse(previewCalls[0].options.body).frameIndex, 0);
+  assert.equal(JSON.parse(previewCalls[0].options.body).previewMode, 'video');
   assert.equal(JSON.parse(previewCalls[1].options.body).frameIndex, 1);
+  assert.equal(JSON.parse(previewCalls[1].options.body).previewMode, 'poster');
   assert.equal(result.elements.previewImage.src, 'data:image/png;base64,frame1');
   assert.equal(result.elements.previewStatus.textContent.includes('Showing frame 2'), true);
 });

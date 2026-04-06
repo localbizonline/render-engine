@@ -13,13 +13,18 @@
   function createTemplateLabV2Bridge(options = {}) {
     const storage = options.storage || null;
     const fetchImpl = options.fetchImpl || global.fetch.bind(global);
+    const getApiKey = typeof options.getApiKey === 'function' ? options.getApiKey : () => String(options.apiKey || '').trim();
+    const initialBaseUrl = normalizeBaseUrl(options.initialBaseUrl || '');
+    const proxyBasePath = String(options.proxyBasePath || '/api/designer/v2').replace(/\/+$/, '');
+    const serverV2Proxy = Boolean(options.serverV2Proxy);
 
     const state = {
-      baseUrl: normalizeBaseUrl(storage?.getItem('designer_v2_base_url') || ''),
+      baseUrl: normalizeBaseUrl(storage?.getItem('designer_v2_base_url') || initialBaseUrl || ''),
       fallbackAdminSecret: String(storage?.getItem('designer_v2_admin_secret') || '').trim(),
       sessionToken: '',
       exportUrl: '',
       linkedTemplateId: null,
+      serverV2Proxy,
     };
 
     const inputs = {
@@ -77,11 +82,13 @@
 
     function getActiveAuthMode() {
       if (state.sessionToken) return 'session_token';
+      if (state.serverV2Proxy) return 'server_proxy';
       if (state.fallbackAdminSecret) return 'admin_secret';
       return null;
     }
 
     function getActiveAuthToken() {
+      if (state.serverV2Proxy) return 'server_proxy';
       return state.sessionToken || state.fallbackAdminSecret || '';
     }
 
@@ -192,7 +199,11 @@
       const exportUrl = setExportUrl(explicitExportUrl || state.exportUrl);
       if (!exportUrl) throw new Error('Add a V2 export URL first');
 
-      const data = await fetchJson(exportUrl, { method: 'GET' });
+      const data = state.sessionToken
+        ? await fetchJson(exportUrl, { method: 'GET' })
+        : state.serverV2Proxy
+          ? await fetchProxyJson(`${proxyBasePath}/export?url=${encodeURIComponent(exportUrl)}`, { method: 'GET' })
+          : await fetchJson(exportUrl, { method: 'GET' });
       const normalized = normalizeExportResponse(data);
 
       if (normalized.templateLab.export_url) setExportUrl(normalized.templateLab.export_url);
@@ -237,10 +248,20 @@
       if (!state.baseUrl) throw new Error('V2 base URL is required');
 
       const payload = buildApprovalPayload(args);
-      const result = await fetchJson(`${state.baseUrl}/api/admin/render-templates/import`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const result = state.sessionToken
+        ? await fetchJson(`${state.baseUrl}/api/admin/render-templates/import`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          })
+        : state.serverV2Proxy
+          ? await fetchProxyJson(`${proxyBasePath}/import`, {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            })
+          : await fetchJson(`${state.baseUrl}/api/admin/render-templates/import`, {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
 
       if (result.id) {
         setLinkedTemplateId(result.id);
@@ -267,7 +288,28 @@
         authMode: getActiveAuthMode(),
         hasAuth: Boolean(getActiveAuthToken()),
         hasScopedSession: Boolean(state.sessionToken),
+        usingServerProxy: state.serverV2Proxy,
       };
+    }
+
+    async function fetchProxyJson(url, options = {}) {
+      const apiKey = String(getApiKey() || '').trim();
+      const headers = {
+        ...(options.headers || {}),
+      };
+
+      if (apiKey) {
+        headers['X-Api-Key'] = apiKey;
+      }
+
+      if (options.body && !headers['Content-Type']) {
+        headers['Content-Type'] = 'application/json';
+      }
+
+      const res = await fetchImpl(url, { ...options, headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      return data;
     }
 
     return {

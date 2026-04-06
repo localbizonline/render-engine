@@ -1,5 +1,4 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { spawn } from 'child_process';
 import { config } from '../config.js';
 import { templateSchema } from '../templates/schema.js';
 import type {
@@ -18,7 +17,7 @@ function getClient(): Anthropic {
   return client;
 }
 
-const SYSTEM_PROMPT = `You are a social media template designer. You create JSON template definitions for a rendering engine that composites PNG social media posts (1080x1080 by default).
+const SYSTEM_PROMPT = `You are a social media template designer. You create JSON template definitions for a rendering engine that can output PNG social posts and MP4 slideshow reels.
 
 ## Template Structure
 Templates are JSON objects with layers drawn on a canvas. The engine supports these layer types:
@@ -48,7 +47,7 @@ Use these in text content and colors:
 - image: { type: "image", source: "user_image", index: 0 }
 
 ### Design Rules
-1. Canvas is 1080x1080 (unless specified otherwise)
+1. Canvas is 1080x1080 unless the request clearly calls for a vertical reel, in which case use 1080x1920
 2. All coordinates are in pixels, origin is top-left
 3. Layers are drawn in order (painter's algorithm) — later layers are on top
 4. Font family is always "Inter"
@@ -58,6 +57,7 @@ Use these in text content and colors:
 8. Include a logo layer and service_areas when space allows
 9. Use an accent_bar at the bottom for brand color
 10. Make designs professional and clean — suitable for home service businesses (plumbing, roofing, aircon, etc.)
+11. Use "outputFormat": "mp4" only for slideshow/reel concepts with multiple frames, plus fps and transition metadata
 
 ## Output Format
 Return ONLY valid JSON (no markdown, no explanation). The JSON must be a complete template definition matching this structure:
@@ -73,12 +73,22 @@ Return ONLY valid JSON (no markdown, no explanation). The JSON must be a complet
   "frames": [{ "background": {...}, "layers": [...] }]
 }`;
 
+const REEL_KEYWORDS = /\b(reel|reels|video|slideshow|story|stories|vertical video)\b/i;
+
+function inferReelMode(prompt: string, existingTemplate?: TemplateDefinition): boolean {
+  if (existingTemplate?.outputFormat === 'mp4') return true;
+  return REEL_KEYWORDS.test(prompt || '');
+}
+
 export async function generateTemplate(
   prompt: string,
   width = 1080,
   height = 1080,
 ): Promise<TemplateDefinition> {
   const anthropic = getClient();
+  const prefersReel = inferReelMode(prompt);
+  const resolvedWidth = prefersReel && width === 1080 && height === 1080 ? 1080 : width;
+  const resolvedHeight = prefersReel && width === 1080 && height === 1080 ? 1920 : height;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
@@ -87,7 +97,7 @@ export async function generateTemplate(
     messages: [
       {
         role: 'user',
-        content: `Design a social media post template (${width}x${height}) based on this description:\n\n${prompt}\n\nReturn ONLY the JSON template definition.`,
+        content: `Design a ${prefersReel ? 'vertical social video reel/slideshow' : 'social media post'} template (${resolvedWidth}x${resolvedHeight}) based on this description:\n\n${prompt}\n\n${prefersReel ? 'Because this is a reel-style request, prefer "outputFormat": "mp4", multiple frames, frame durationMs values, fps, and a transition.' : 'Return a single-post PNG layout unless the description explicitly needs a reel.'}\n\nReturn ONLY the JSON template definition.`,
       },
     ],
   });
@@ -109,6 +119,7 @@ export async function iterateTemplate(
   existingTemplate: TemplateDefinition,
 ): Promise<TemplateDefinition> {
   const anthropic = getClient();
+  const prefersReel = inferReelMode(prompt, existingTemplate);
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-5-20250929',
@@ -117,7 +128,7 @@ export async function iterateTemplate(
     messages: [
       {
         role: 'user',
-        content: `Here is an existing template:\n\n${JSON.stringify(existingTemplate, null, 2)}\n\nModify it based on this feedback:\n\n${prompt}\n\nReturn the COMPLETE updated JSON template definition (not just the changes).`,
+        content: `Here is an existing template:\n\n${JSON.stringify(existingTemplate, null, 2)}\n\nModify it based on this feedback:\n\n${prompt}\n\n${prefersReel ? 'Preserve or strengthen the reel/slideshow structure when appropriate, including mp4 output, vertical dimensions, frame durations, fps, and transitions.' : 'Keep the template aligned to its current format unless the feedback clearly asks for a reel.'}\n\nReturn the COMPLETE updated JSON template definition (not just the changes).`,
       },
     ],
   });
@@ -146,7 +157,7 @@ function extractJson(text: string): string {
 }
 
 /**
- * Attempt to repair truncated/malformed JSON from Claude CLI output.
+ * Attempt to repair truncated/malformed JSON from model output.
  * Common issues: missing closing brackets/braces, trailing commas, truncated strings.
  */
 function repairJson(jsonStr: string): string {
@@ -199,13 +210,13 @@ function parseJsonSafe(text: string): unknown {
     return JSON.parse(jsonStr);
   } catch {
     // Try repair
-    console.warn('[claude-cli] JSON parse failed, attempting repair...');
+    console.warn('[claude-api] JSON parse failed, attempting repair...');
     const repaired = repairJson(jsonStr);
     return JSON.parse(repaired); // Let this throw if repair also fails
   }
 }
 
-// ── Vision-based template design (Claude CLI via Max subscription) ──
+// ── Vision-based template design (Anthropic API) ──
 
 const VISION_SYSTEM_PROMPT = `You are an expert social media template designer for a custom rendering engine.
 You analyze reference images of social media post designs and produce precise JSON template definitions that the engine can render into matching outputs.
@@ -264,7 +275,7 @@ The ONLY available font is "Inter" in weights: regular, medium, semibold, bold.
 Always set fontFamily to "Inter".
 
 ### Design Rules
-1. Canvas is always 1080x1080 unless specified otherwise
+1. Canvas is 1080x1080 by default, or 1080x1920 for vertical reels when the request implies video/slideshow output
 2. All coordinates are absolute pixels from top-left origin
 3. Use {{primary_colour}} and {{secondary_colour}} for brand-colored elements
 4. Always include at least a {{title}} text layer
@@ -298,7 +309,8 @@ Return ONLY valid JSON. No markdown code fences. No explanation text. Just the r
   "imageCount": <number of user_image layers>,
   "categoryKeys": ["recent_job", "promote_service"],
   "frames": [{ "background": {...}, "layers": [...] }]
-}`;
+}
+Use "outputFormat": "mp4" with multiple frames, fps, and transition metadata only when the prompt or reference clearly indicates a reel/slideshow/video layout.`;
 
 const COMPARE_PROMPT = `Compare these two social media post images. The first is the REFERENCE design (the target to replicate). The second is the CURRENT rendering from our template engine.
 
@@ -318,107 +330,35 @@ interface ContentBlock {
   text?: string;
 }
 
-/**
- * Call the Claude CLI via child process using --input-format stream-json.
- * Pipes the message JSON via stdin to avoid shell argument length limits.
- * Uses the Max subscription (zero API cost).
- */
-async function callClaudeCli(
+function extractResponseText(response: Anthropic.Messages.Message): string {
+  return response.content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+}
+
+async function callVisionModel(
   systemPrompt: string,
   contentBlocks: ContentBlock[],
 ): Promise<string> {
-  const message = JSON.stringify({
-    type: 'user',
-    message: {
-      role: 'user',
-      content: contentBlocks,
-    },
-  });
-
-  // Write the system prompt to a temp file to avoid shell escaping issues
-  const { writeFileSync, unlinkSync } = await import('fs');
-  const tmpPromptPath = `/tmp/claude-designer-prompt-${Date.now()}.txt`;
-  writeFileSync(tmpPromptPath, systemPrompt);
-
-  return new Promise((resolve, reject) => {
-    const proc = spawn(
-      '/bin/zsh',
-      [
-        '-c',
-        `claude -p --input-format stream-json --output-format stream-json --verbose --model opus --no-session-persistence --tools "" --system-prompt "$(cat '${tmpPromptPath}')"`,
-      ],
+  const anthropic = getClient();
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-5-20250929',
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [
       {
-        env: { ...process.env, CLAUDECODE: '' },
-        stdio: ['pipe', 'pipe', 'pipe'],
+        role: 'user',
+        content: contentBlocks as Anthropic.Messages.ContentBlockParam[],
       },
-    );
-
-    let stdout = '';
-    let stderr = '';
-    const timeout = setTimeout(() => {
-      proc.kill('SIGTERM');
-      reject(new Error('Claude CLI timed out after 180s'));
-    }, 180_000);
-
-    proc.stdout.on('data', (data: Buffer) => { stdout += data.toString(); });
-    proc.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
-
-    proc.on('close', (code) => {
-      clearTimeout(timeout);
-      // Clean up temp file
-      try { unlinkSync(tmpPromptPath); } catch { /* ignore */ }
-
-      if (code !== 0) {
-        console.error('[claude-cli] stderr:', stderr);
-        return reject(new Error(`Claude CLI exited with code ${code}: ${stderr.slice(0, 500)}`));
-      }
-
-      // Parse stream-json output — find the result line
-      const lines = stdout.trim().split('\n');
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.type === 'result' && parsed.result) {
-            return resolve(parsed.result);
-          }
-        } catch {
-          // Skip non-JSON lines
-        }
-      }
-
-      // Fallback: try to find assistant message
-      for (const line of lines) {
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.type === 'assistant') {
-            const text = parsed.message?.content
-              ?.filter((b: { type: string }) => b.type === 'text')
-              ?.map((b: { text: string }) => b.text)
-              ?.join('');
-            if (text) return resolve(text);
-          }
-        } catch {
-          // Skip
-        }
-      }
-
-      reject(new Error('No result found in Claude CLI output'));
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timeout);
-      try { unlinkSync(tmpPromptPath); } catch { /* ignore */ }
-      reject(new Error(`Claude CLI spawn error: ${err.message}`));
-    });
-
-    // Pipe the message JSON via stdin (avoids shell argument length limits)
-    proc.stdin.write(message + '\n');
-    proc.stdin.end();
+    ],
   });
+
+  return extractResponseText(response);
 }
 
 /**
- * Generate a template from a reference image using Claude Vision (CLI).
+ * Generate a template from a reference image using the Anthropic API.
  */
 export async function generateTemplateFromImage(
   refBase64: string,
@@ -439,18 +379,18 @@ export async function generateTemplateFromImage(
     { type: 'text', text: textPrompt },
   ];
 
-  console.log('[claude-cli] Generating template from image...');
-  const result = await callClaudeCli(VISION_SYSTEM_PROMPT, contentBlocks);
+  console.log('[claude-api] Generating template from image...');
+  const result = await callVisionModel(VISION_SYSTEM_PROMPT, contentBlocks);
 
   const parsed = parseJsonSafe(result);
   const validated = templateSchema.parse(parsed);
 
-  console.log('[claude-cli] Template generated:', validated.id);
+  console.log('[claude-api] Template generated:', validated.id);
   return validated as TemplateDefinition;
 }
 
 /**
- * Iterate a template by comparing reference image to current preview (CLI).
+ * Iterate a template by comparing reference image to current preview.
  */
 export async function iterateTemplateFromImage(
   refBase64: string,
@@ -481,18 +421,18 @@ Analyze both images. Apply the feedback to make the template output match the re
     { type: 'text', text: textPrompt },
   ];
 
-  console.log('[claude-cli] Iterating template from image comparison...');
-  const result = await callClaudeCli(VISION_SYSTEM_PROMPT, contentBlocks);
+  console.log('[claude-api] Iterating template from image comparison...');
+  const result = await callVisionModel(VISION_SYSTEM_PROMPT, contentBlocks);
 
   const parsed = parseJsonSafe(result);
   const validated = templateSchema.parse(parsed);
 
-  console.log('[claude-cli] Template iterated:', validated.id);
+  console.log('[claude-api] Template iterated:', validated.id);
   return validated as TemplateDefinition;
 }
 
 /**
- * Compare reference image to current preview and rate similarity (CLI).
+ * Compare reference image to current preview and rate similarity.
  */
 export async function compareDesigns(
   refBase64: string,
@@ -517,8 +457,8 @@ ${JSON.stringify(currentTemplate, null, 2)}`;
     { type: 'text', text: textPrompt },
   ];
 
-  console.log('[claude-cli] Comparing designs...');
-  const result = await callClaudeCli(VISION_SYSTEM_PROMPT, contentBlocks);
+  console.log('[claude-api] Comparing designs...');
+  const result = await callVisionModel(VISION_SYSTEM_PROMPT, contentBlocks);
 
   const parsed = parseJsonSafe(result) as Record<string, unknown>;
 
@@ -527,12 +467,12 @@ ${JSON.stringify(currentTemplate, null, 2)}`;
   const fb = typeof parsed.feedback === 'string' ? parsed.feedback : 'Unable to parse feedback';
   const shouldContinue = typeof parsed.shouldContinue === 'boolean' ? parsed.shouldContinue : score < 8;
 
-  console.log(`[claude-cli] Compare result: score=${score}, shouldContinue=${shouldContinue}`);
+  console.log(`[claude-api] Compare result: score=${score}, shouldContinue=${shouldContinue}`);
   return { score, feedback: fb, shouldContinue };
 }
 
 /**
- * Combined compare + iterate in a single CLI call.
+ * Combined compare + iterate in a single API call.
  * Claude sees both images, scores the match, and if score < target,
  * returns an updated template — all in one round trip.
  * Includes iteration history for context accumulation.
@@ -613,18 +553,18 @@ The template must be the FULL template definition, not a partial diff.`;
     { type: 'text', text: textPrompt },
   ];
 
-  console.log(`[claude-cli] Compare+iterate iteration ${iterationNumber}/${maxIterations}${plateauWarning ? ' (PLATEAU)' : ''}...`);
+  console.log(`[claude-api] Compare+iterate iteration ${iterationNumber}/${maxIterations}${plateauWarning ? ' (PLATEAU)' : ''}...`);
 
   // Try up to 2 attempts — retry on JSON parse failure
   let parsed: Record<string, unknown>;
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const result = await callClaudeCli(VISION_SYSTEM_PROMPT, contentBlocks);
+    const result = await callVisionModel(VISION_SYSTEM_PROMPT, contentBlocks);
     try {
       parsed = parseJsonSafe(result) as Record<string, unknown>;
       break;
     } catch (parseErr) {
       if (attempt === 2) throw new Error(`JSON parse failed after 2 attempts: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
-      console.warn(`[claude-cli] Attempt ${attempt} JSON parse failed, retrying...`);
+      console.warn(`[claude-api] Attempt ${attempt} JSON parse failed, retrying...`);
     }
   }
   parsed = parsed!;
@@ -641,12 +581,12 @@ The template must be the FULL template definition, not a partial diff.`;
     try {
       validatedTemplate = templateSchema.parse(parsed.template) as TemplateDefinition;
     } catch (validationErr) {
-      console.warn('[claude-cli] Template validation failed, using raw parsed:', validationErr);
+      console.warn('[claude-api] Template validation failed, using raw parsed:', validationErr);
       // Try to use it anyway — common issues are minor schema mismatches
       validatedTemplate = parsed.template as TemplateDefinition;
     }
   }
 
-  console.log(`[claude-cli] Compare+iterate result: score=${score}, shouldContinue=${shouldContinue}, changes="${changesApplied}"`);
+  console.log(`[claude-api] Compare+iterate result: score=${score}, shouldContinue=${shouldContinue}, changes="${changesApplied}"`);
   return { score, feedback, shouldContinue, changesApplied, template: validatedTemplate };
 }

@@ -1,0 +1,251 @@
+{
+  "id": "vertical-reel-base",
+  "name": "Vertical Reel Base",
+  "reference": "vertical-reel-base",
+  "outputFormat": "mp4",
+  "width": 1080,
+  "height": 1920,
+  "imageCount": 4,
+  "categoryKeys": ["slideshow", "reel", "vertical_video"],
+  "fps": 30,
+  "transition": {
+    "type": "fade",
+    "durationMs": 700
+  },
+  "frames": [
+    {
+      "durationMs": 2200,
+      "background": { "type": "image", "source": "user_image", "index": 0 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 40,
+          "y": 1240,
+          "width": 1000,
+          "height": 500,
+          "fill": "rgba(12,18,28,0.68)",
+          "borderRadius": 32
+        },
+        {
+          "type": "text",
+          "content": "{{title}}",
+          "x": 88,
+          "y": 1300,
+          "width": 904,
+          "height": 190,
+          "fontFamily": "Inter",
+          "fontSize": 80,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "left",
+          "maxLines": 3,
+          "lineHeight": 1.05
+        },
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 88,
+          "y": 1528,
+          "width": 520,
+          "height": 48,
+          "fontFamily": "Inter",
+          "fontSize": 32,
+          "fontWeight": "semibold",
+          "color": "{{primary_colour}}",
+          "align": "left",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1892,
+          "width": 1080,
+          "height": 28,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 2200,
+      "background": { "type": "image", "source": "user_image", "index": 1 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 56,
+          "y": 86,
+          "width": 968,
+          "height": 240,
+          "fill": "rgba(255,255,255,0.9)",
+          "borderRadius": 28
+        },
+        {
+          "type": "text",
+          "content": "{{subtitle}}",
+          "x": 104,
+          "y": 132,
+          "width": 872,
+          "height": 150,
+          "fontFamily": "Inter",
+          "fontSize": 58,
+          "fontWeight": "bold",
+          "color": "#151A22",
+          "align": "left",
+          "maxLines": 3,
+          "lineHeight": 1.08
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1892,
+          "width": 1080,
+          "height": 28,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 2200,
+      "background": { "type": "image", "source": "user_image", "index": 2 },
+      "layers": [
+        {
+          "type": "rect",
+          "x": 64,
+          "y": 1320,
+          "width": 952,
+          "height": 360,
+          "fill": "rgba(18,22,30,0.76)",
+          "borderRadius": 30
+        },
+        {
+          "type": "text",
+          "content": "{{body}}",
+          "x": 112,
+          "y": 1380,
+          "width": 856,
+          "height": 170,
+          "fontFamily": "Inter",
+          "fontSize": 44,
+          "fontWeight": "medium",
+          "color": "#FFFFFF",
+          "align": "left",
+          "maxLines": 4,
+          "lineHeight": 1.2
+        },
+        {
+          "type": "text",
+          "content": "{{service_areas}}",
+          "x": 112,
+          "y": 1588,
+          "width": 856,
+          "height": 42,
+          "fontFamily": "Inter",
+          "fontSize": 26,
+          "fontWeight": "regular",
+          "color": "#C7D0DB",
+          "align": "left",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1892,
+          "width": 1080,
+          "height": 28,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    },
+    {
+      "durationMs": 2600,
+      "background": { "type": "solid", "color": "#0E131A" },
+      "layers": [
+        {
+          "type": "logo",
+          "x": 350,
+          "y": 320,
+          "width": 380,
+          "height": 220,
+          "fit": "contain",
+          "padding": 10
+        },
+        {
+          "type": "text",
+          "content": "{{company_name}}",
+          "x": 90,
+          "y": 680,
+          "width": 900,
+          "height": 90,
+          "fontFamily": "Inter",
+          "fontSize": 64,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "maxLines": 2,
+          "lineHeight": 1.1
+        },
+        {
+          "type": "text",
+          "content": "{{phone}}",
+          "x": 160,
+          "y": 980,
+          "width": 760,
+          "height": 72,
+          "fontFamily": "Inter",
+          "fontSize": 56,
+          "fontWeight": "bold",
+          "color": "{{primary_colour}}",
+          "align": "center",
+          "maxLines": 1
+        },
+        {
+          "type": "rect",
+          "x": 190,
+          "y": 1110,
+          "width": 700,
+          "height": 116,
+          "fill": "{{primary_colour}}",
+          "borderRadius": 20
+        },
+        {
+          "type": "text",
+          "content": "BOOK NOW",
+          "x": 190,
+          "y": 1132,
+          "width": 700,
+          "height": 72,
+          "fontFamily": "Inter",
+          "fontSize": 36,
+          "fontWeight": "bold",
+          "color": "#FFFFFF",
+          "align": "center",
+          "verticalAlign": "middle",
+          "maxLines": 1,
+          "textTransform": "uppercase",
+          "letterSpacing": 4
+        },
+        {
+          "type": "text",
+          "content": "{{website}}",
+          "x": 140,
+          "y": 1330,
+          "width": 800,
+          "height": 44,
+          "fontFamily": "Inter",
+          "fontSize": 28,
+          "fontWeight": "regular",
+          "color": "#AFBBC8",
+          "align": "center",
+          "maxLines": 1
+        },
+        {
+          "type": "accent_bar",
+          "x": 0,
+          "y": 1892,
+          "width": 1080,
+          "height": 28,
+          "color": "{{primary_colour}}"
+        }
+      ]
+    }
+  ]
+}

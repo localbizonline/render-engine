@@ -17,6 +17,7 @@ function loadBuiltinTemplates() {
     'before-after.json',
     'main-1-image.json',
     'slideshow-base.json',
+    'vertical-reel-base.json',
     'bold-diagonal.json',
     'card-stack.json',
     'hero-banner.json',
@@ -47,6 +48,7 @@ export async function initRegistry(): Promise<void> {
 }
 
 export function getTemplate(id: string): TemplateDefinition | undefined {
+  loadBuiltinTemplates();
   return customTemplates.get(id) || builtinTemplates.get(id);
 }
 
@@ -71,7 +73,7 @@ export async function autoSelectTemplate(
   }
 
   if (postType === 'slideshow' || (preferMp4 && imageCount >= 3)) {
-    return getTemplate('slideshow-base');
+    return getTemplate('vertical-reel-base');
   }
 
   const hash = simpleHash(recordId);
@@ -85,7 +87,7 @@ export async function autoSelectTemplate(
     return getTemplate(options[hash % options.length]);
   }
 
-  const options = ['slideshow-base', 'main-1-image', 'main-2-image'];
+  const options = ['vertical-reel-base', 'main-1-image', 'main-2-image'];
   return getTemplate(options[hash % options.length]);
 }
 

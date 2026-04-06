@@ -143,6 +143,67 @@ export interface DesignRequest {
 export interface DesignResponse {
   template: TemplateDefinition;
   previewBase64?: string;
+  previewPosterBase64?: string;
+  previewKind?: 'image' | 'video';
+  previewUrl?: string;
+  previewWarning?: string;
+  frameIndex?: number;
+}
+
+export interface ReferenceVideoSceneAnalysis {
+  order: number;
+  role: 'hook' | 'problem' | 'proof' | 'detail' | 'offer' | 'cta' | 'brand';
+  visualStyle: 'full_bleed_image' | 'split_image' | 'text_panel' | 'logo_end_card';
+  overlayPlacement: 'top' | 'center' | 'bottom' | 'full';
+  textAmount: 'none' | 'light' | 'medium' | 'heavy';
+  focus: string;
+}
+
+export interface ReferenceVideoAnalysis {
+  orientation: 'portrait' | 'landscape' | 'square';
+  aspectRatio: string;
+  durationBucket: 'very_short' | 'short' | 'medium' | 'long';
+  pacing: 'slow' | 'steady' | 'fast' | 'punchy';
+  majorSceneCount: number;
+  headlineTextDensity: 'none' | 'light' | 'medium' | 'heavy';
+  overlayTreatment: 'minimal' | 'dark_panel' | 'light_panel' | 'gradient_scrim' | 'brand_blocks';
+  ctaTreatment: 'none' | 'phone_banner' | 'button_end_card' | 'logo_end_card' | 'text_only';
+  colorDirection: {
+    mood: string;
+    dominantHex: string;
+    secondaryHex: string;
+    accentHex: string;
+    contrast: 'low' | 'medium' | 'high';
+  };
+  slideshowBlueprint: {
+    recommendedFrameCount: number;
+    transition: 'fade' | 'slide_left' | 'slide_right' | 'zoom' | 'crossfade';
+    openingStyle: string;
+    closingStyle: string;
+  };
+  scenes: ReferenceVideoSceneAnalysis[];
+  confidence: number;
+  notes?: string[];
+}
+
+export interface VideoDesignResponse extends DesignResponse {
+  analysis: ReferenceVideoAnalysis;
+}
+
+export interface VideoCompareIterateRequest {
+  existingTemplate: TemplateDefinition;
+  previewVideoUrl?: string;
+  previewImage?: string;
+  prompt?: string;
+  feedback?: string;
+  iterationHistory?: IterationHistoryEntry[];
+  iterationNumber?: number;
+  maxIterations?: number;
+  currentAnalysis?: ReferenceVideoAnalysis;
+}
+
+export interface VideoCompareIterateResponse extends CompareAndIterateResponse {
+  analysis?: ReferenceVideoAnalysis;
 }
 
 // ── Vision Design Types ──
@@ -198,5 +259,10 @@ export interface CompareAndIterateResponse {
   shouldContinue: boolean;
   template?: TemplateDefinition;
   previewBase64?: string;
+  previewPosterBase64?: string;
+  previewKind?: 'image' | 'video';
+  previewUrl?: string;
+  previewWarning?: string;
+  frameIndex?: number;
   changesApplied: string;
 }

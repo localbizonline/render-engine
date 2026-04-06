@@ -2,7 +2,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { loadImage, type Image } from 'canvas';
 import { renderPng } from '../engine/png-renderer.js';
+import { renderMp4 } from '../engine/mp4-renderer.js';
 import { loadRemoteImage } from '../engine/asset-loader.js';
+import { uploadRender } from './r2-storage.js';
 import type { RenderVariables, TemplateDefinition } from '../types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -27,6 +29,21 @@ type SampleAssets = {
   landscapeCtaImage: Image | null;
 };
 
+export interface TemplatePreviewOptions {
+  frameIndex?: number;
+  mode?: 'poster' | 'video';
+}
+
+export interface TemplatePreviewResult {
+  previewBase64: string;
+  previewPosterBase64: string;
+  previewKind: 'image' | 'video';
+  previewUrl?: string;
+  previewWarning?: string;
+  frameIndex: number;
+  variables: RenderVariables;
+}
+
 let sampleAssetsPromise: Promise<SampleAssets> | null = null;
 
 async function loadSampleAssets(): Promise<SampleAssets> {
@@ -39,7 +56,7 @@ async function loadSampleAssets(): Promise<SampleAssets> {
       ]);
 
       return {
-        userImages: [img1, img2],
+        userImages: [img1, img2, img1, img2, img1, img2, img1, img2],
         landscapeCtaImage,
       };
     })();
@@ -96,11 +113,65 @@ function hasExplicitPreviewAssets(variables: RenderVariables): boolean {
   );
 }
 
+function getRequiredUserImageCount(template: TemplateDefinition): number {
+  let highestIndex = -1;
+
+  for (const frame of template.frames) {
+    if (frame.background.type === 'image') {
+      highestIndex = Math.max(highestIndex, Number(frame.background.index) || 0);
+    }
+
+    for (const layer of frame.layers) {
+      if (layer.type === 'image') {
+        highestIndex = Math.max(highestIndex, Number(layer.index) || 0);
+      }
+    }
+  }
+
+  return Math.max(template.imageCount || 0, highestIndex + 1);
+}
+
+function ensureUserImageCoverage(userImages: Image[], requiredCount: number): Image[] {
+  if (requiredCount <= 0 || userImages.length >= requiredCount || userImages.length === 0) {
+    return userImages;
+  }
+
+  const expanded = [...userImages];
+  while (expanded.length < requiredCount) {
+    expanded.push(userImages[expanded.length % userImages.length]);
+  }
+
+  return expanded;
+}
+
+function clampFrameIndex(template: TemplateDefinition, frameIndex?: number): number {
+  if (!template.frames.length) return 0;
+  if (!Number.isInteger(frameIndex)) return 0;
+  return Math.min(Math.max(Number(frameIndex), 0), template.frames.length - 1);
+}
+
+function toPreviewDataUri(buffer: Buffer): string {
+  return `data:image/png;base64,${buffer.toString('base64')}`;
+}
+
+function buildPreviewVideoKey(template: TemplateDefinition): string {
+  const safeId = String(template.reference || template.id || 'template-preview')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, '-')
+    .replace(/^-|-$/g, '') || 'template-preview';
+  const nonce = Math.random().toString(36).slice(2, 10);
+  return `previews/${safeId}-${Date.now()}-${nonce}.mp4`;
+}
+
 export async function renderTemplatePreview(
   template: TemplateDefinition,
   variables: Partial<RenderVariables> = {},
-): Promise<{ previewBase64: string; variables: RenderVariables }> {
+  options: TemplatePreviewOptions = {},
+): Promise<TemplatePreviewResult> {
   const mergedVariables = mergePreviewVariables(variables);
+  const previewMode = options.mode || 'poster';
+  const frameIndex = clampFrameIndex(template, options.frameIndex);
+  const requiredUserImageCount = getRequiredUserImageCount(template);
 
   let userImages: Image[] = [];
   let logoImage: Image | null = null;
@@ -109,27 +180,70 @@ export async function renderTemplatePreview(
 
   if (hasExplicitPreviewAssets(mergedVariables)) {
     const remoteAssets = await loadRemotePreviewAssets(mergedVariables);
-    userImages = remoteAssets.userImages;
+    userImages = ensureUserImageCoverage(remoteAssets.userImages, requiredUserImageCount);
     logoImage = remoteAssets.logoImage;
     squareCtaImage = remoteAssets.squareCtaImage;
     landscapeCtaImage = remoteAssets.landscapeCtaImage;
   } else {
     const sampleAssets = await loadSampleAssets();
-    userImages = sampleAssets.userImages;
+    userImages = ensureUserImageCoverage(sampleAssets.userImages, requiredUserImageCount);
     landscapeCtaImage = sampleAssets.landscapeCtaImage;
   }
 
-  const previewBuffer = renderPng({
+  const posterBuffer = renderPng({
     template,
     variables: mergedVariables,
     userImages,
     logoImage,
     squareCtaImage,
     landscapeCtaImage,
+    frameIndex,
   });
 
+  const previewBase64 = toPreviewDataUri(posterBuffer);
+
+  if (previewMode === 'video' && template.outputFormat === 'mp4' && template.frames.length > 1) {
+    try {
+      const mp4Buffer = await renderMp4({
+        template,
+        variables: mergedVariables,
+        userImages,
+        logoImage,
+        squareCtaImage,
+        landscapeCtaImage,
+      });
+
+      const previewUrl = await uploadRender(mp4Buffer, buildPreviewVideoKey(template), 'video/mp4');
+
+      return {
+        previewBase64,
+        previewPosterBase64: previewBase64,
+        previewKind: 'video',
+        previewUrl,
+        frameIndex,
+        variables: mergedVariables,
+      };
+    } catch (error) {
+      const previewWarning = error instanceof Error
+        ? `Video preview was unavailable, so a poster frame is shown instead: ${error.message}`
+        : 'Video preview was unavailable, so a poster frame is shown instead.';
+
+      return {
+        previewBase64,
+        previewPosterBase64: previewBase64,
+        previewKind: 'image',
+        previewWarning,
+        frameIndex,
+        variables: mergedVariables,
+      };
+    }
+  }
+
   return {
-    previewBase64: `data:image/png;base64,${previewBuffer.toString('base64')}`,
+    previewBase64,
+    previewPosterBase64: previewBase64,
+    previewKind: 'image',
+    frameIndex,
     variables: mergedVariables,
   };
 }

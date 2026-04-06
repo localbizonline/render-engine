@@ -6,6 +6,7 @@ import { renderRouter } from './routes/render.js';
 import { templatesRouter } from './routes/templates.js';
 import { previewRouter } from './routes/preview.js';
 import { designRouter } from './routes/design.js';
+import { designerRouter, renderDesignerBootstrapScript } from './routes/designer.js';
 import { LOCAL_OUTPUT_DIR } from './services/r2-storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -13,6 +14,14 @@ const PUBLIC_DIR = path.resolve(__dirname, '../public');
 
 export function createApp() {
   const app = express();
+  const designerShellRoutes = [
+    '/designer',
+    '/designer.html',
+    '/designer/reference-video',
+    '/designer/reference-image',
+    '/designer/v2',
+    '/designer/json',
+  ];
 
   app.use(express.json({ limit: '20mb' }));
 
@@ -27,7 +36,7 @@ export function createApp() {
     extensions: ['html'],
   }));
 
-  app.get(['/designer', '/designer.html'], (_req, res) => {
+  app.get(designerShellRoutes, (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, 'designer.html'));
   });
 
@@ -37,6 +46,10 @@ export function createApp() {
 
   app.get('/designer-app.js', (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, 'designer-app.js'));
+  });
+
+  app.get('/designer-bootstrap.js', (req, res) => {
+    res.type('application/javascript').send(renderDesignerBootstrapScript());
   });
 
   // Health check (no auth)
@@ -63,6 +76,7 @@ export function createApp() {
   app.use('/api/templates', templatesRouter);
   app.use('/api/preview', previewRouter);
   app.use('/api/design', designRouter);
+  app.use('/api/designer', designerRouter);
 
   return app;
 }

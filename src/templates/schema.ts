@@ -7,6 +7,8 @@ const backgroundSchema = z.discriminatedUnion('type', [
 ]);
 
 const baseLayerSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().optional(),
   x: z.number(),
   y: z.number(),
   width: z.number(),
@@ -15,6 +17,7 @@ const baseLayerSchema = z.object({
   opacity: z.number().optional(),
   borderRadius: z.number().optional(),
   visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
 });
 
 const imageLayerSchema = baseLayerSchema.extend({
@@ -75,6 +78,21 @@ const ctaImageLayerSchema = baseLayerSchema.extend({
   background: z.string().optional(),
 });
 
+const assetImageLayerSchema = baseLayerSchema.extend({
+  type: z.literal('asset_image'),
+  assetId: z.string().optional(),
+  assetUrl: z.string(),
+  fit: z.enum(['cover', 'contain', 'fill']),
+  background: z.string().optional(),
+  padding: z.number().optional(),
+  shadow: z.object({
+    blur: z.number(),
+    offsetX: z.number(),
+    offsetY: z.number(),
+    color: z.string(),
+  }).optional(),
+});
+
 const layerSchema = z.discriminatedUnion('type', [
   imageLayerSchema,
   textLayerSchema,
@@ -82,6 +100,7 @@ const layerSchema = z.discriminatedUnion('type', [
   logoLayerSchema,
   accentBarLayerSchema,
   ctaImageLayerSchema,
+  assetImageLayerSchema,
 ]);
 
 const frameSchema = z.object({

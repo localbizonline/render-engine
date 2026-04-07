@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { config } from '../config.js';
+import type { DesignerChatTurnRequest } from '../types.js';
+import { runDesignerChatTurn } from '../services/designer-chat.js';
 
 export const designerRouter = Router();
 
@@ -129,5 +131,22 @@ designerRouter.post('/v2/import', async (req, res) => {
       : 500;
     const message = error instanceof Error ? error.message : String(error);
     res.status(status).json({ error: message });
+  }
+});
+
+designerRouter.post('/chat/message', async (req, res) => {
+  const { message } = req.body as DesignerChatTurnRequest;
+  if (!String(message || '').trim()) {
+    res.status(400).json({ error: 'message is required' });
+    return;
+  }
+
+  try {
+    const result = await runDesignerChatTurn(req.body as DesignerChatTurnRequest);
+    res.json(result);
+  } catch (error) {
+    const messageText = error instanceof Error ? error.message : String(error);
+    const status = /required/i.test(messageText) ? 400 : 500;
+    res.status(status).json({ error: messageText });
   }
 });

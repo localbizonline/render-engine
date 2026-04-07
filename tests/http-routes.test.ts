@@ -8,6 +8,10 @@ import {
   setCompareAndIterateReferenceVideoForTests,
   setGenerateReferenceVideoTemplateForTests,
 } from '../src/services/gemini-video.ts';
+import {
+  clearDesignerChatSessionsForTests,
+  setDesignerChatToolOverridesForTests,
+} from '../src/services/designer-chat.ts';
 
 async function withServer(run: (baseUrl: string) => Promise<void>) {
   const app = createApp();
@@ -48,63 +52,177 @@ function closeServer(server: Server) {
 
 test('HTTP route /designer serves the real Template Lab shell', async () => {
   await withServer(async (baseUrl) => {
-    const [designerRes, designerHtmlRes, referenceVideoRes, v2Res] = await Promise.all([
+    const [designerRes, designerHtmlRes, promptRes, referenceVideoRes, v2Res] = await Promise.all([
       fetch(`${baseUrl}/designer`),
       fetch(`${baseUrl}/designer.html`),
+      fetch(`${baseUrl}/designer/prompt?prompt=from%20text`),
       fetch(`${baseUrl}/designer/reference-video?prompt=match%20style`),
       fetch(`${baseUrl}/designer/v2`),
     ]);
 
     assert.equal(designerRes.status, 200);
     assert.equal(designerHtmlRes.status, 200);
+    assert.equal(promptRes.status, 200);
     assert.equal(referenceVideoRes.status, 200);
     assert.equal(v2Res.status, 200);
     assert.match(designerRes.headers.get('content-type') || '', /text\/html/i);
     assert.match(designerHtmlRes.headers.get('content-type') || '', /text\/html/i);
 
-    const [designerHtml, designerHtmlAlias, referenceVideoHtml, v2Html] = await Promise.all([
+    const [designerHtml, designerHtmlAlias, promptHtml, referenceVideoHtml, v2Html] = await Promise.all([
       designerRes.text(),
       designerHtmlRes.text(),
+      promptRes.text(),
       referenceVideoRes.text(),
       v2Res.text(),
     ]);
 
     assert.equal(designerHtml, designerHtmlAlias);
+    assert.equal(designerHtml, promptHtml);
     assert.equal(designerHtml, referenceVideoHtml);
     assert.equal(designerHtml, v2Html);
     assert.match(designerHtml, /<title>Template Lab Designer<\/title>/);
     assert.match(designerHtml, /<script src="\/designer-v2-bridge\.js"><\/script>/);
+    assert.match(designerHtml, /<script src="\/vendor\/konva\.min\.js"><\/script>/);
+    assert.match(designerHtml, /<script src="\/designer-canvas-editor\.js"><\/script>/);
     assert.match(designerHtml, /<script src="\/designer-app\.js"><\/script>/);
     assert.match(designerHtml, /id="btnCopyV2TemplateId"/);
     assert.match(designerHtml, /id="btnCopyV2ExportUrl"/);
+    assert.match(designerHtml, /id="canvasEditorHost"/);
+    assert.match(designerHtml, /id="btnCanvasLayerUp"/);
+    assert.match(designerHtml, /id="btnCanvasLayerHide"/);
+    assert.match(designerHtml, /id="btnCanvasUndo"/);
+    assert.match(designerHtml, /id="btnUploadCanvasAsset"/);
   });
 });
 
 test('HTTP routes serve the extracted Template Lab scripts as JavaScript assets', async () => {
   await withServer(async (baseUrl) => {
-    const [bootstrapRes, bridgeRes, appRes] = await Promise.all([
+    const [bootstrapRes, bridgeRes, canvasEditorRes, konvaRes, appRes] = await Promise.all([
       fetch(`${baseUrl}/designer-bootstrap.js`),
       fetch(`${baseUrl}/designer-v2-bridge.js`),
+      fetch(`${baseUrl}/designer-canvas-editor.js`),
+      fetch(`${baseUrl}/vendor/konva.min.js`),
       fetch(`${baseUrl}/designer-app.js`),
     ]);
 
     assert.equal(bootstrapRes.status, 200);
     assert.equal(bridgeRes.status, 200);
+    assert.equal(canvasEditorRes.status, 200);
+    assert.equal(konvaRes.status, 200);
     assert.equal(appRes.status, 200);
 
-    const [bootstrapSource, bridgeSource, appSource] = await Promise.all([
+    const [bootstrapSource, bridgeSource, canvasEditorSource, konvaSource, appSource] = await Promise.all([
       bootstrapRes.text(),
       bridgeRes.text(),
+      canvasEditorRes.text(),
+      konvaRes.text(),
       appRes.text(),
     ]);
 
     assert.match(bootstrapSource, /__TEMPLATE_LAB_BOOTSTRAP__/);
     assert.doesNotMatch(bridgeSource, /<!DOCTYPE html>/i);
+    assert.doesNotMatch(canvasEditorSource, /<!DOCTYPE html>/i);
+    assert.doesNotMatch(konvaSource, /<!DOCTYPE html>/i);
     assert.doesNotMatch(appSource, /<!DOCTYPE html>/i);
     assert.match(bridgeSource, /function createTemplateLabV2Bridge/);
+    assert.match(canvasEditorSource, /function createTemplateLabCanvasEditor/);
+    assert.match(konvaSource, /Konva/);
     assert.match(appSource, /async function approveTemplateForV2/);
     assert.match(appSource, /btnCopyV2TemplateId/);
   });
+});
+
+test('HTTP designer chat route can generate and continue a draft across turns', async () => {
+  setDesignerChatToolOverridesForTests({
+    async generateTemplate(prompt) {
+      assert.match(prompt, /Create a new template draft/i);
+      assert.match(prompt, /Create a bold plumbing reel/i);
+      return {
+        id: 'chat-generated',
+        reference: 'chat-generated',
+        name: 'Chat Generated',
+        outputFormat: 'png',
+        width: 1080,
+        height: 1080,
+        imageCount: 1,
+        categoryKeys: [],
+        frames: [
+          {
+            durationMs: 1000,
+            background: { type: 'solid', color: '#10151D' },
+            layers: [],
+          },
+        ],
+      };
+    },
+    async iterateTemplate(prompt, existingTemplate) {
+      assert.equal(existingTemplate.id, 'chat-generated');
+      assert.match(prompt, /Make it more premium/i);
+      return {
+        ...existingTemplate,
+        id: 'chat-generated-v2',
+        reference: 'chat-generated-v2',
+        name: 'Chat Generated Refined',
+      };
+    },
+    async renderPreview(template) {
+      return {
+        previewBase64: `data:image/png;base64,${template.id}`,
+        previewPosterBase64: `data:image/png;base64,${template.id}`,
+        previewKind: 'image',
+        previewUrl: '',
+        previewWarning: '',
+        frameIndex: 0,
+      };
+    },
+  });
+
+  try {
+    await withServer(async (baseUrl) => {
+      const firstRes = await fetch(`${baseUrl}/api/designer/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Create a bold plumbing reel',
+          draftContext: {
+            referenceInputMode: 'prompt',
+            prompt: '',
+          },
+        }),
+      });
+
+      assert.equal(firstRes.status, 200);
+      const firstBody = await firstRes.json();
+      assert.equal(firstBody.action, 'generated');
+      assert.equal(firstBody.template.id, 'chat-generated');
+      assert.equal(firstBody.messages.length, 2);
+
+      const secondRes = await fetch(`${baseUrl}/api/designer/chat/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: firstBody.sessionId,
+          message: 'Make it more premium',
+          draftContext: {
+            referenceInputMode: 'prompt',
+            prompt: 'Create a bold plumbing reel',
+            currentTemplate: firstBody.template,
+            currentPreview: firstBody.previewBase64,
+          },
+        }),
+      });
+
+      assert.equal(secondRes.status, 200);
+      const secondBody = await secondRes.json();
+      assert.equal(secondBody.action, 'iterated');
+      assert.equal(secondBody.template.id, 'chat-generated-v2');
+      assert.equal(secondBody.messages.length, 4);
+      assert.match(secondBody.assistantMessage.content, /fresh preview/i);
+    });
+  } finally {
+    setDesignerChatToolOverridesForTests(null);
+    clearDesignerChatSessionsForTests();
+  }
 });
 
 test('HTTP designer bootstrap and V2 proxy routes expose the auto-configured studio defaults', async () => {

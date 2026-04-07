@@ -11,12 +11,14 @@ import { LOCAL_OUTPUT_DIR } from './services/r2-storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
+const NODE_MODULES_DIR = path.resolve(__dirname, '../node_modules');
 
 export function createApp() {
   const app = express();
   const designerShellRoutes = [
     '/designer',
     '/designer.html',
+    '/designer/prompt',
     '/designer/reference-video',
     '/designer/reference-image',
     '/designer/v2',
@@ -46,6 +48,14 @@ export function createApp() {
 
   app.get('/designer-app.js', (_req, res) => {
     res.sendFile(path.join(PUBLIC_DIR, 'designer-app.js'));
+  });
+
+  app.get('/designer-canvas-editor.js', (_req, res) => {
+    res.sendFile(path.join(PUBLIC_DIR, 'designer-canvas-editor.js'));
+  });
+
+  app.get('/vendor/konva.min.js', (_req, res) => {
+    res.sendFile(path.join(NODE_MODULES_DIR, 'konva/konva.min.js'));
   });
 
   app.get('/designer-bootstrap.js', (req, res) => {

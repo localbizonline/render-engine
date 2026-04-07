@@ -15,6 +15,13 @@ Template Lab and preview/design workspace for owned render templates. This repo 
 - prompt-only reel generation for slideshow-style MP4 output
 - reference-image generation and refinement
 - reference-video generation using server-side Gemini video understanding
+- visual frame editing for generated/loaded templates:
+  - drag and resize layers
+  - double-click text for inline editing
+  - reorder, hide, lock, duplicate, delete, and nudge layers
+  - snap to canvas/layer guides
+  - undo and redo visual edits
+  - upload transparent PNG overlays for borders, badges, and decorative elements
 - iterative video auto-review:
   - compares generated preview video against the uploaded reference video
   - returns structured feedback and the next slideshow revision
@@ -41,8 +48,15 @@ Template Lab and preview/design workspace for owned render templates. This repo 
 npm install
 npm run dev
 npm test
+npx playwright test tests/live-production.playwright.spec.js
 npx tsc --noEmit
 npm run build
 ```
+
+## Testing
+
+- `npm test` runs the repo's Node/VM/HTTP smoke coverage for the designer shell, bridge, and core authoring flows.
+- `npx playwright test tests/live-production.playwright.spec.js` runs a real browser smoke check against the live Railway designer URL and validates the shipped visual-editor assets.
+- The live Playwright check also captures a production screenshot at `/tmp/render-engine-live-designer-playwright.png`.
 
 See [AGENTS.md](AGENTS.md) for the fuller environment, API, and deployment guide.

@@ -15,6 +15,12 @@ Template Lab and preview/design workspace for owned render templates. `social-po
   - auto-load the render-engine API key and V2 connection defaults from the server
   - generate slideshow-style MP4 reels from prompt-only, reference-image, or reference-video inputs
   - auto-review generated reels against a reference video and iterate toward a closer slideshow match
+  - visually edit the active frame with a Konva-powered canvas editor
+  - drag, resize, nudge, duplicate, delete, reorder, hide, and lock layers
+  - double-click text layers for inline editing
+  - upload transparent PNG overlays for borders, flourishes, and decorative graphics
+  - snap layers to canvas edges, centers, and nearby layer guides
+  - undo and redo visual edits before re-rendering the server preview
   - send updates back with `Approve for V2`
 
 ## Relationship To `social-posting-v2`
@@ -46,6 +52,8 @@ Template Lab and preview/design workspace for owned render templates. `social-po
   - `/designer/json`
   - `/designer-v2-bridge.js`
   - `/designer-app.js`
+  - `/designer-canvas-editor.js`
+  - `/vendor/konva.min.js`
 
 ## Live Deployment
 
@@ -92,6 +100,7 @@ render-engine/
 │   │   └── font-manager.ts
 │   ├── services/
 │   │   ├── claude.ts
+│   │   ├── designer-chat.ts
 │   │   ├── gemini-video.ts
 │   │   └── r2-storage.ts
 │   ├── templates/
@@ -103,9 +112,12 @@ render-engine/
 │   ├── designer.html                # Template Lab UI
 │   ├── designer-v2-bridge.js        # Extracted V2 bridge helper
 │   ├── designer-app.js              # Extracted non-V2 designer app logic
+│   ├── designer-canvas-editor.js    # Konva-based visual frame editor
 │   └── designer-assets/             # Sample assets for previews
 ├── tests/
-│   └── static-routes.test.mjs       # Node-core smoke tests for Template Lab route wiring and assets
+│   ├── static-routes.test.mjs       # Node-core and VM smoke tests for Template Lab route wiring and browser modules
+│   ├── http-routes.test.ts          # Real Express HTTP smoke tests
+│   └── live-production.playwright.spec.js # Real browser smoke test against the live Railway designer URL
 ├── fonts/
 ├── Dockerfile
 ├── railway.json
@@ -147,6 +159,8 @@ All `/api/*` routes require `X-Api-Key`. Health and static designer routes are p
 | GET | `/designer/v2` | Readable Template Lab route for V2 improvement sessions |
 | GET | `/designer/json` | Readable Template Lab route for JSON workbench sessions |
 | GET | `/designer-v2-bridge.js` | Extracted V2 bridge helper |
+| GET | `/designer-canvas-editor.js` | Konva-powered visual frame editor bundle |
+| GET | `/vendor/konva.min.js` | Served Konva runtime for the visual editor |
 
 ## Template System
 
@@ -176,6 +190,16 @@ Layer types:
 - `logo`
 - `cta_image`
 - `accent_bar`
+- `asset_image`
+
+Layer objects may also carry editor-oriented metadata such as:
+
+- optional stable `id`
+- optional `name`
+- optional `locked`
+- optional `visible`
+- optional `borderRadius`
+- optional `opacity`
 
 Variable substitution supports:
 
@@ -199,26 +223,39 @@ Access locally at `http://localhost:3000/designer`.
 3. Optionally add a text prompt.
 4. Generate or iterate template JSON with Claude or Gemini-backed services.
 5. Render a preview using local sample assets from `public/designer-assets/`.
-6. Load approved templates from V2.
-7. Approve updated templates back into V2.
+6. Optionally switch into `Visual Edit` to adjust the active frame directly.
+7. Upload transparent PNG overlays when you need decorative borders, flourishes, or frame accents.
+8. Load approved templates from V2.
+9. Approve updated templates back into V2.
 
 ### Bridge Notes
 
 - V2 bridge helper lives in `public/designer-v2-bridge.js`.
 - Main UI markup lives in `public/designer.html`.
 - The non-V2 designer app logic lives in `public/designer-app.js`.
+- The Konva-powered visual editor lives in `public/designer-canvas-editor.js`.
 - The designer stores:
   - render-engine API key
   - V2 base URL
   - fallback V2 admin secret
 - Scoped V2 session links remain the preferred path.
 - Source-level smoke tests protect the extracted Template Lab bridge/app behavior and explicit route wiring.
-- HTTP-level smoke tests now hit the real Express app for `/designer`, `/designer.html`, `/designer-v2-bridge.js`, `/designer-app.js`, `/health`, and the legacy `410 Gone` endpoints.
+- HTTP-level smoke tests now hit the real Express app for `/designer`, `/designer.html`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, `/designer-app.js`, `/health`, and the legacy `410 Gone` endpoints.
 
 ### Current UI Behavior
 
 - `Approve for V2` is the primary handoff path.
 - Legacy Airtable save has been removed from the UI.
+- The right rail now includes a `Visual Edit` canvas editor for the active frame.
+- The visual editor supports:
+  - drag/resize handles
+  - snapping guides
+  - arrow-key nudging with larger `Shift` steps
+  - duplicate via `Cmd/Ctrl + D`
+  - delete selected layer
+  - undo/redo controls
+  - inline double-click text editing
+  - transparent PNG overlay upload for decorative graphics
 - The V2 handoff panel no longer shows the unused Categories control.
 - The V2 handoff image count is now a generic numeric PNG image count, not an MP4 selector.
 - The preview pane now shows explicit V2 load status, including the “template loaded but preview needs API key” state.
@@ -226,7 +263,7 @@ Access locally at `http://localhost:3000/designer`.
 - The V2 handoff panel now shows persistent load/approval state, including the linked V2 template id and updated export URL after approval.
 - The V2 handoff panel also includes one-click copy actions for the linked V2 template id and export URL.
 - Explicit server routes for `/designer`, `/designer.html`, and `/designer-v2-bridge.js` were added after a Railway static-route regression during deployment.
-- Explicit server routes protect `/designer`, `/designer.html`, `/designer/reference-video`, `/designer/reference-image`, `/designer/v2`, `/designer/json`, `/designer-v2-bridge.js`, and `/designer-app.js`.
+- Explicit server routes protect `/designer`, `/designer.html`, `/designer/reference-video`, `/designer/reference-image`, `/designer/v2`, `/designer/json`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, and `/designer-app.js`.
 - The designer now supports readable URL modes plus prompt-prefill query strings for direct entry into the right authoring path.
 - The designer now supports a `Reference Video` workflow:
   - multipart MP4/MOV upload
@@ -253,17 +290,19 @@ npm run dev
 npm test
 npm run test:render
 npx tsc --noEmit
+npx playwright test tests/live-production.playwright.spec.js
 npm run build
 ```
 
 ### Automated Tests
 
-- `npm test` runs the Node test runner against `tests/static-routes.test.mjs`.
-- Current automated coverage is intentionally narrow and protects:
+- `npm test` covers both `tests/static-routes.test.mjs` and `tests/http-routes.test.ts`.
+- Current automated coverage protects:
   - explicit public route wiring in `src/app.ts`
   - shared bootstrap usage in `src/index.ts`
   - `public/designer.html`
   - `public/designer-v2-bridge.js`
+  - `public/designer-canvas-editor.js`
   - `public/designer-app.js`
 - The same test file also runs browser-like VM smoke checks for the V2 bridge:
   - scoped session-link bootstrap from `v2ExportUrl` + `v2Token`
@@ -280,7 +319,28 @@ npm run build
   - reference-video compare-iterate loop
   - readable URL mode selection and prompt prefill
   - the live video-analysis summary card state
+- The browser-module smoke coverage also checks the visual editor shell and shipped canvas bundle for:
+  - Konva route wiring
+  - visual-edit controls and upload affordances
+  - visual-editor factory export
+  - inline text-edit support markers
+  - snapping/upload strings that confirm the live build contains this session's editor features
+- `tests/http-routes.test.ts` verifies the real app serves:
+  - `/designer-canvas-editor.js`
+  - `/vendor/konva.min.js`
+  - the updated designer HTML markers for visual edit, upload PNG, and undo controls
+- `tests/live-production.playwright.spec.js` is a real browser smoke test against `https://render-engine-production.up.railway.app/designer`.
+  - It verifies the production page loads in a browser, the visual-editor controls are present, and the shipped canvas/Konva assets return `200`.
+  - It saves a live screenshot to `/tmp/render-engine-live-designer-playwright.png`.
 - `src/app.ts` exists so tests can import the Express app without auto-starting the server.
+
+Recommended test commands:
+
+```bash
+npm test
+npx tsc --noEmit
+npx playwright test tests/live-production.playwright.spec.js
+```
 
 ### Environment Variables
 
@@ -308,6 +368,7 @@ rsync -a \
   --exclude '.git' \
   --exclude 'node_modules' \
   --exclude 'dist' \
+  --exclude '.claude' \
   /Users/jeremymartin/Documents/Cursor/render-engine/ \
   /tmp/render-engine-deploy/
 
@@ -325,6 +386,9 @@ curl -I https://render-engine-production.up.railway.app/designer
 curl -I https://render-engine-production.up.railway.app/designer.html
 curl -I https://render-engine-production.up.railway.app/designer/reference-video
 curl -I https://render-engine-production.up.railway.app/designer-v2-bridge.js
+curl -I https://render-engine-production.up.railway.app/designer-canvas-editor.js
+curl -I https://render-engine-production.up.railway.app/vendor/konva.min.js
+npx playwright test tests/live-production.playwright.spec.js
 ```
 
 ## R2 Storage

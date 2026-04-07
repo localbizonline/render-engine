@@ -35,9 +35,12 @@ export type LayerDefinition =
   | RectLayer
   | LogoLayer
   | AccentBarLayer
-  | CtaImageLayer;
+  | CtaImageLayer
+  | AssetImageLayer;
 
 export interface BaseLayer {
+  id?: string;
+  name?: string;
   x: number;
   y: number;
   width: number;
@@ -46,6 +49,7 @@ export interface BaseLayer {
   opacity?: number;
   borderRadius?: number;
   visible?: boolean;
+  locked?: boolean;
 }
 
 export interface ImageLayer extends BaseLayer {
@@ -96,6 +100,16 @@ export interface CtaImageLayer extends BaseLayer {
   fit: 'contain' | 'cover';
   padding?: number;
   background?: string;
+}
+
+export interface AssetImageLayer extends BaseLayer {
+  type: 'asset_image';
+  assetId?: string;
+  assetUrl: string;
+  fit: 'cover' | 'contain' | 'fill';
+  background?: string;
+  padding?: number;
+  shadow?: { blur: number; offsetX: number; offsetY: number; color: string };
 }
 
 // ── Render Variables ──
@@ -265,4 +279,50 @@ export interface CompareAndIterateResponse {
   previewWarning?: string;
   frameIndex?: number;
   changesApplied: string;
+}
+
+export interface DesignerChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}
+
+export interface DesignerChatDraftContext {
+  prompt?: string;
+  referenceInputMode?: 'image' | 'video' | 'prompt';
+  referenceImage?: string | null;
+  referenceVideoActive?: boolean;
+  currentTemplate?: TemplateDefinition | null;
+  currentPreview?: string | null;
+  currentPreviewKind?: 'image' | 'video';
+  currentPreviewVideoUrl?: string;
+  currentVideoAnalysis?: ReferenceVideoAnalysis | null;
+  previewFrameIndex?: number;
+  handoff?: {
+    exportUrl?: string;
+    saveName?: string;
+    saveId?: string;
+    saveImageCount?: string;
+  };
+}
+
+export interface DesignerChatTurnRequest {
+  sessionId?: string;
+  message: string;
+  draftContext?: DesignerChatDraftContext;
+}
+
+export interface DesignerChatTurnResponse {
+  sessionId: string;
+  messages: DesignerChatMessage[];
+  assistantMessage: DesignerChatMessage;
+  action: 'generated' | 'iterated' | 'info';
+  template?: TemplateDefinition;
+  previewBase64?: string;
+  previewPosterBase64?: string;
+  previewKind?: 'image' | 'video';
+  previewUrl?: string;
+  previewWarning?: string;
+  frameIndex?: number;
 }

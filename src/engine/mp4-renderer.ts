@@ -13,6 +13,7 @@ export interface Mp4RenderContext {
   logoImage: Image | null;
   squareCtaImage?: Image | null;
   landscapeCtaImage?: Image | null;
+  assetImages?: Record<string, Image | null>;
 }
 
 /**
@@ -24,7 +25,7 @@ export interface Mp4RenderContext {
  * 3. Return the MP4 buffer
  */
 export async function renderMp4(ctx: Mp4RenderContext): Promise<Buffer> {
-  const { template, variables, userImages, logoImage, squareCtaImage, landscapeCtaImage } = ctx;
+  const { template, variables, userImages, logoImage, squareCtaImage, landscapeCtaImage, assetImages } = ctx;
   const frameCount = template.frames.length;
 
   if (frameCount < 2) {
@@ -45,6 +46,7 @@ export async function renderMp4(ctx: Mp4RenderContext): Promise<Buffer> {
         logoImage,
         squareCtaImage,
         landscapeCtaImage,
+        assetImages,
         frameIndex: i,
       });
       const framePath = path.join(tmpDir, `frame_${String(i).padStart(3, '0')}.png`);

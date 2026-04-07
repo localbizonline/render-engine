@@ -10,6 +10,7 @@ import type {
   LogoLayer,
   AccentBarLayer,
   CtaImageLayer,
+  AssetImageLayer,
 } from '../types.js';
 import { resolveColor } from '../utils/color.js';
 import { wrapText, applyTextTransform } from '../utils/text.js';
@@ -24,11 +25,21 @@ export interface PngRenderContext {
   logoImage: Image | null;
   squareCtaImage?: Image | null;
   landscapeCtaImage?: Image | null;
+  assetImages?: Record<string, Image | null>;
   frameIndex?: number;
 }
 
 export function renderPng(ctx: PngRenderContext): Buffer {
-  const { template, variables, userImages, logoImage, squareCtaImage, landscapeCtaImage, frameIndex = 0 } = ctx;
+  const {
+    template,
+    variables,
+    userImages,
+    logoImage,
+    squareCtaImage,
+    landscapeCtaImage,
+    assetImages = {},
+    frameIndex = 0,
+  } = ctx;
   const frame = template.frames[frameIndex];
   if (!frame) {
     throw new Error(`Frame ${frameIndex} not found in template "${template.id}"`);
@@ -44,7 +55,7 @@ export function renderPng(ctx: PngRenderContext): Buffer {
   // Draw layers in order (painter's algorithm)
   for (const layer of frame.layers) {
     if (layer.visible === false) continue;
-    drawLayer(c, layer, variables, colorVars, userImages, logoImage, squareCtaImage ?? null, landscapeCtaImage ?? null);
+    drawLayer(c, layer, variables, colorVars, userImages, logoImage, squareCtaImage ?? null, landscapeCtaImage ?? null, assetImages);
   }
 
   return canvas.toBuffer('image/png');
@@ -102,6 +113,7 @@ function drawLayer(
   logoImage: Image | null,
   squareCtaImage: Image | null,
   landscapeCtaImage: Image | null,
+  assetImages: Record<string, Image | null>,
 ) {
   // Apply opacity
   if (layer.opacity !== undefined && layer.opacity < 1) {
@@ -127,6 +139,9 @@ function drawLayer(
       break;
     case 'cta_image':
       drawCtaImage(ctx, layer, squareCtaImage, landscapeCtaImage);
+      break;
+    case 'asset_image':
+      drawAssetImage(ctx, layer, assetImages);
       break;
   }
 
@@ -327,6 +342,55 @@ function drawCtaImage(
     drawImageCover(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
   } else {
     drawImageContain(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
+  }
+}
+
+function drawAssetImage(
+  ctx: CanvasRenderingContext2D,
+  layer: AssetImageLayer,
+  assetImages: Record<string, Image | null>,
+) {
+  const img = assetImages[layer.assetUrl];
+  if (!img) {
+    console.warn(`[png-renderer] No decorative asset available for ${layer.assetUrl}`);
+    return;
+  }
+
+  const padding = layer.padding || 0;
+
+  if (layer.background) {
+    ctx.fillStyle = layer.background;
+    if (layer.borderRadius && layer.borderRadius > 0) {
+      roundedRect(ctx, layer.x, layer.y, layer.width, layer.height, layer.borderRadius);
+      ctx.fill();
+    } else {
+      ctx.fillRect(layer.x, layer.y, layer.width, layer.height);
+    }
+  }
+
+  if (layer.shadow) {
+    ctx.save();
+    ctx.shadowBlur = layer.shadow.blur;
+    ctx.shadowOffsetX = layer.shadow.offsetX;
+    ctx.shadowOffsetY = layer.shadow.offsetY;
+    ctx.shadowColor = layer.shadow.color;
+  }
+
+  const innerX = layer.x + padding;
+  const innerY = layer.y + padding;
+  const innerW = Math.max(0, layer.width - padding * 2);
+  const innerH = Math.max(0, layer.height - padding * 2);
+
+  if (layer.fit === 'fill') {
+    ctx.drawImage(img, innerX, innerY, innerW, innerH);
+  } else if (layer.fit === 'cover') {
+    drawImageCover(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
+  } else {
+    drawImageContain(ctx, img, innerX, innerY, innerW, innerH, layer.borderRadius);
+  }
+
+  if (layer.shadow) {
+    ctx.restore();
   }
 }
 

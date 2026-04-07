@@ -96,6 +96,54 @@ async function loadRemotePreviewAssets(variables: RenderVariables) {
   };
 }
 
+async function loadTemplateAssetImage(assetUrl: string): Promise<Image | null> {
+  if (!assetUrl) return null;
+
+  if (assetUrl.startsWith('data:')) {
+    return loadImage(assetUrl).catch(() => null);
+  }
+
+  if (/^https?:\/\//i.test(assetUrl)) {
+    return loadRemoteImage(assetUrl).catch(() => null);
+  }
+
+  if (assetUrl.startsWith('/designer-assets/')) {
+    const assetName = path.basename(assetUrl);
+    return loadImage(path.join(ASSETS_DIR, assetName)).catch(() => null);
+  }
+
+  if (assetUrl.startsWith('/')) {
+    const localPath = path.resolve(__dirname, '../../public', assetUrl.replace(/^\/+/, ''));
+    return loadImage(localPath).catch(() => null);
+  }
+
+  return loadImage(path.resolve(ASSETS_DIR, assetUrl)).catch(() => null);
+}
+
+async function loadTemplateAssetImages(template: TemplateDefinition): Promise<Record<string, Image | null>> {
+  const assetUrls = new Set<string>();
+
+  for (const frame of template.frames) {
+    for (const layer of frame.layers) {
+      if (layer.type === 'asset_image' && layer.assetUrl) {
+        assetUrls.add(layer.assetUrl);
+      }
+    }
+  }
+
+  if (!assetUrls.size) {
+    return {};
+  }
+
+  const entries = await Promise.all(
+    Array.from(assetUrls).map(async (assetUrl) => {
+      return [assetUrl, await loadTemplateAssetImage(assetUrl)] as const;
+    }),
+  );
+
+  return Object.fromEntries(entries);
+}
+
 function mergePreviewVariables(variables: Partial<RenderVariables> = {}): RenderVariables {
   return {
     ...DEFAULT_PREVIEW_VARIABLES,
@@ -177,6 +225,7 @@ export async function renderTemplatePreview(
   let logoImage: Image | null = null;
   let squareCtaImage: Image | null = null;
   let landscapeCtaImage: Image | null = null;
+  const assetImages = await loadTemplateAssetImages(template);
 
   if (hasExplicitPreviewAssets(mergedVariables)) {
     const remoteAssets = await loadRemotePreviewAssets(mergedVariables);
@@ -197,6 +246,7 @@ export async function renderTemplatePreview(
     logoImage,
     squareCtaImage,
     landscapeCtaImage,
+    assetImages,
     frameIndex,
   });
 
@@ -211,6 +261,7 @@ export async function renderTemplatePreview(
         logoImage,
         squareCtaImage,
         landscapeCtaImage,
+        assetImages,
       });
 
       const previewUrl = await uploadRender(mp4Buffer, buildPreviewVideoKey(template), 'video/mp4');

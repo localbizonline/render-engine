@@ -147,30 +147,38 @@ function createDesignerDom() {
     modeReference: createElement(),
     modeV2: createElement(),
     modeJson: createElement(),
-    sessionModePill: createElement(),
-    draftStatePill: createElement(),
-    sessionSummary: createElement(),
-    sessionMeta: createElement(),
-    pathHelper: createElement(),
-    linkedTemplateBadge: createElement(),
-    previewFreshness: createElement(),
-    publishSummary: createElement(),
-    autosaveStatus: createElement(),
+    progressStepReference: createElement(),
+    progressStepGenerate: createElement(),
+    progressStepApprove: createElement(),
+    apiKeyBanner: createElement(),
+    btnBannerOpenSettings: createElement(),
+    previewTabView: createElement(),
+    previewTabEdit: createElement(),
+    previewTabCompare: createElement(),
+    previewLive: createElement(),
+    previewEdit: createElement(),
+    previewGeneratedLabel: createElement(),
+    approveFooterName: createElement(),
+    approveFooterDetails: createElement(),
     draftRestore: createElement(),
     draftRestoreTitle: createElement(),
     draftRestoreMeta: createElement(),
     btnRestoreDraft: createElement(),
     btnDiscardDraft: createElement(),
     workspaceTitle: createElement(),
-    workspaceLead: createElement(),
     workspaceLinkedLabel: createElement(),
-    historySummary: createElement(),
-    publishLead: createElement(),
     advancedJsonPanel: createElement(),
     referenceModeImage: createElement(),
     referenceModeVideo: createElement(),
+    referenceModePrompt: createElement(),
+    referenceModeBlank: createElement(),
+    referenceModeV2: createElement(),
     referenceImagePanel: createElement(),
     referenceVideoPanel: createElement(),
+    referencePromptPanel: createElement(),
+    referenceBlankPanel: createElement(),
+    referenceV2Panel: createElement(),
+    sourceGenerateRegion: createElement(),
     uploadZone: createElement(),
     fileInput: createElement(),
     uploadClear: createElement(),
@@ -190,8 +198,6 @@ function createDesignerDom() {
     toggleAutoIterate: createElement(),
     maxIterations: createElement({ value: '8' }),
     scoreTarget: createElement({ value: '8' }),
-    feedbackInput: createElement(),
-    btnIterate: createElement(),
     videoInsightsCard: createElement(),
     videoInsightHeadline: createElement(),
     videoInsightSummary: createElement(),
@@ -202,7 +208,6 @@ function createDesignerDom() {
     btnNewBlankTemplate: createElement(),
     btnNewReelTemplate: createElement(),
     historyStrip: createElement(),
-    logArea: createElement(),
     refPlaceholder: createElement(),
     refImage: createElement(),
     refVideo: createElement(),
@@ -213,6 +218,37 @@ function createDesignerDom() {
     previewImage: createElement(),
     previewVideo: createElement(),
     previewStatus: createElement(),
+    canvasEditorHost: createElement({ clientWidth: 640 }),
+    canvasEditorEmpty: createElement(),
+    canvasEditorSummary: createElement(),
+    canvasEditorStatus: createElement(),
+    canvasLayerList: createElement(),
+    btnCanvasLayerUp: createElement(),
+    btnCanvasLayerDown: createElement(),
+    btnCanvasLayerHide: createElement(),
+    btnCanvasLayerLock: createElement(),
+    btnCanvasUndo: createElement(),
+    btnCanvasRedo: createElement(),
+    canvasFieldX: createElement(),
+    canvasFieldY: createElement(),
+    canvasFieldWidth: createElement(),
+    canvasFieldHeight: createElement(),
+    canvasFieldOpacity: createElement(),
+    canvasFieldBorderRadius: createElement(),
+    canvasFieldFontSize: createElement(),
+    canvasFieldLineHeight: createElement(),
+    canvasFieldLetterSpacing: createElement(),
+    canvasFieldAlign: createElement(),
+    canvasFieldFit: createElement(),
+    canvasFieldShadowBlur: createElement(),
+    canvasFieldFontFamily: createElement(),
+    canvasFieldTextColor: createElement(),
+    canvasFieldFillColor: createElement(),
+    canvasFieldContent: createElement(),
+    canvasAssetSelect: createElement(),
+    btnAddCanvasAsset: createElement(),
+    canvasAssetUploadInput: createElement({ files: [] }),
+    btnUploadCanvasAsset: createElement(),
     jsonEditor: createElement(),
     btnRerender: createElement(),
     btnCopyJson: createElement(),
@@ -225,6 +261,11 @@ function createDesignerDom() {
     handoffStatus: createElement(),
     btnCopyV2TemplateId: createElement({ disabled: true }),
     btnCopyV2ExportUrl: createElement({ disabled: true }),
+    chatThread: createElement(),
+    chatEmptyState: createElement(),
+    chatInput: createElement(),
+    btnSendChat: createElement(),
+    chatStatus: createElement(),
   };
 
   const selectorMap = new Map(
@@ -235,11 +276,36 @@ function createDesignerDom() {
 
   const document = {
     body,
+    _listeners: new Map(),
     querySelector(selector) {
       return selectorMap.get(selector) || null;
     },
-    createElement() {
+    createElement(tagName = '') {
+      if (String(tagName).toLowerCase() === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext() {
+            return {
+              drawImage() {},
+            };
+          },
+          toDataURL() {
+            return 'data:image/png;base64,resized-canvas';
+          },
+        };
+      }
       return createElement();
+    },
+    addEventListener(type, handler) {
+      const handlers = this._listeners.get(type) || [];
+      handlers.push(handler);
+      this._listeners.set(type, handlers);
+    },
+    dispatchEvent(type, event = {}) {
+      for (const handler of this._listeners.get(type) || []) {
+        handler(event);
+      }
     },
   };
 
@@ -303,6 +369,7 @@ async function runDesignerApp({
     linkedTemplateId: '',
   };
   let connectedInputs = null;
+  const canvasEditorCalls = [];
 
   const bridge = bridgeFactory
     ? bridgeFactory(bridgeCalls)
@@ -359,6 +426,37 @@ async function runDesignerApp({
     }
   }
 
+  class FakeFileReader {
+    constructor() {
+      this.result = null;
+      this.onload = null;
+    }
+    readAsDataURL(file) {
+      this.result = file?.dataUrl || `data:${file?.type || 'image/png'};base64,stub-reference-image`;
+      if (typeof this.onload === 'function') {
+        this.onload();
+      }
+    }
+  }
+
+  class FakeImage {
+    constructor() {
+      this.width = 1080;
+      this.height = 1080;
+      this.onload = null;
+      this._src = '';
+    }
+    set src(value) {
+      this._src = value;
+      if (typeof this.onload === 'function') {
+        this.onload();
+      }
+    }
+    get src() {
+      return this._src;
+    }
+  }
+
   const URLWithBlobHelpers = Object.assign(URL, {
     createObjectURL(file) {
       return `blob:${file?.name || 'reference-video'}`;
@@ -385,6 +483,14 @@ async function runDesignerApp({
     },
     createTemplateLabV2Bridge() {
       return bridge;
+    },
+    createTemplateLabCanvasEditor(args) {
+      canvasEditorCalls.push(args);
+      return {
+        setDocument() {},
+        clear() {},
+        refresh() {},
+      };
     },
     open() {},
     addEventListener() {},
@@ -417,6 +523,8 @@ async function runDesignerApp({
     URL: URLWithBlobHelpers,
     URLSearchParams,
     FormData: FakeFormData,
+    FileReader: FakeFileReader,
+    Image: FakeImage,
   });
 
   vm.runInContext(source, context);
@@ -427,6 +535,7 @@ async function runDesignerApp({
 
   return {
     bridgeCalls,
+    canvasEditorCalls,
     elements,
     body,
     fetchCalls,
@@ -439,10 +548,13 @@ test('app wiring keeps explicit public routes for the Template Lab entry points'
 
   assert.match(appSource, /\/designer\/reference-video/);
   assert.match(appSource, /\/designer\/reference-image/);
+  assert.match(appSource, /\/designer\/prompt/);
   assert.match(appSource, /\/designer\/v2/);
   assert.match(appSource, /\/designer\/json/);
   assert.match(appSource, /app\.get\(['"]\/designer-v2-bridge\.js['"]/);
   assert.match(appSource, /app\.get\(['"]\/designer-app\.js['"]/);
+  assert.match(appSource, /app\.get\(['"]\/designer-canvas-editor\.js['"]/);
+  assert.match(appSource, /app\.get\(['"]\/vendor\/konva\.min\.js['"]/);
   assert.match(appSource, /app\.get\(['"]\/health['"]/);
   assert.match(appSource, /express\.static\(PUBLIC_DIR/);
 });
@@ -460,30 +572,66 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
 
   assert.match(html, /<title>Template Lab Designer<\/title>/);
   assert.match(html, /<script src="\/designer-v2-bridge\.js"><\/script>/);
+  assert.match(html, /<script src="\/vendor\/konva\.min\.js"><\/script>/);
+  assert.match(html, /<script src="\/designer-canvas-editor\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-app\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-bootstrap\.js"><\/script>/);
   assert.match(html, /Approve for V2/);
-  assert.match(html, /Load from V2/);
-  assert.match(html, /New Blank Template/);
-  assert.match(html, /New Reel Template/);
-  assert.match(html, /Reference Video/);
+  assert.match(html, /Load an approved V2 template/);
+  assert.match(html, /New Blank Post/);
+  assert.match(html, /New Blank Reel/);
   assert.match(html, /id="videoFileInput"/);
   assert.match(html, /id="referenceModeVideo"/);
+  assert.match(html, /id="referenceModePrompt"/);
+  assert.match(html, /id="referenceModeBlank"/);
+  assert.match(html, /id="referenceModeV2"/);
+  assert.match(html, /id="sourceGenerateRegion"/);
   assert.match(html, /Match style from video/i);
+  assert.match(html, /Start from words, not a file/i);
   assert.match(html, /Video Review/);
   assert.match(html, /id="videoInsightsCard"/);
   assert.match(html, /id="videoInsightScore"/);
   assert.match(html, /id="btnNewBlankTemplate"/);
   assert.match(html, /id="btnNewReelTemplate"/);
   assert.match(html, /id="previewStatus"/);
+  assert.match(html, /id="canvasEditorHost"/);
+  assert.match(html, /id="canvasLayerList"/);
+  assert.match(html, /id="btnAddCanvasAsset"/);
+  assert.match(html, /id="btnCanvasLayerUp"/);
+  assert.match(html, /id="btnCanvasLayerDown"/);
+  assert.match(html, /id="btnCanvasLayerHide"/);
+  assert.match(html, /id="btnCanvasLayerLock"/);
+  assert.match(html, /id="btnCanvasUndo"/);
+  assert.match(html, /id="btnCanvasRedo"/);
+  assert.match(html, /id="btnUploadCanvasAsset"/);
+  assert.match(html, /id="canvasAssetUploadInput"/);
+  assert.match(html, /id="canvasFieldAlign"/);
+  assert.match(html, /id="canvasFieldFit"/);
+  assert.match(html, /id="canvasFieldShadowBlur"/);
+  assert.match(html, /id="previewTabView"/);
+  assert.match(html, /id="previewTabEdit"/);
+  assert.match(html, /id="previewTabCompare"/);
+  assert.match(html, /id="previewLive"/);
+  assert.match(html, /id="previewEdit"/);
+  assert.match(html, /id="apiKeyBanner"/);
+  assert.match(html, /id="topbarProgress"/);
+  assert.match(html, /id="approveFooter"/);
   assert.match(html, /id="generateHint"/);
   assert.match(html, /id="btnOpenSettingsHint"/);
+  assert.match(html, /Template Chat/);
+  assert.match(html, /id="chatThread"/);
+  assert.match(html, /id="chatInput"/);
+  assert.match(html, /id="btnSendChat"/);
   assert.match(html, /id="previewFrameControls"/);
   assert.match(html, /id="previewFrameSelect"/);
   assert.match(html, /id="previewVideo"/);
   assert.match(html, /id="handoffStatus"/);
   assert.match(html, /id="btnCopyV2TemplateId"/);
   assert.match(html, /id="btnCopyV2ExportUrl"/);
+  assert.match(html, /Drop or paste image here/);
+  assert.match(html, /\.comparison\s*\{[\s\S]*align-items:\s*start;[\s\S]*flex:\s*0 0 auto;/);
+  assert.match(html, /\.pane-stage\s*\{[\s\S]*height:\s*clamp\(320px,\s*34vw,\s*620px\);/);
+  assert.match(html, /\.comparison-pane img,\s*\.comparison-pane video\s*\{[\s\S]*width:\s*100%;[\s\S]*height:\s*100%;[\s\S]*object-fit:\s*contain;/);
   assert.match(html, /<input type="number" id="saveImageCount"/);
   assert.doesNotMatch(html, /3\+ Images \(MP4\)/);
   assert.doesNotMatch(html, /<label>Categories<\/label>/);
@@ -499,13 +647,34 @@ test('bridge module still exposes the key V2 bridge capabilities', async () => {
   assert.match(bridgeSource, /global\.createTemplateLabV2Bridge = createTemplateLabV2Bridge;/);
 });
 
+test('canvas editor module exposes the visual editor factory', async () => {
+  const canvasEditorSource = await read('public/designer-canvas-editor.js');
+
+  assert.match(canvasEditorSource, /function createTemplateLabCanvasEditor/);
+  assert.match(canvasEditorSource, /global\.createTemplateLabCanvasEditor = createTemplateLabCanvasEditor;/);
+  assert.match(canvasEditorSource, /Added a decorative PNG asset to the frame/);
+  assert.match(canvasEditorSource, /Uploaded a decorative transparent PNG asset to the frame/);
+  assert.match(canvasEditorSource, /dblclick dbltap/);
+  assert.match(canvasEditorSource, /Edited text directly on the canvas/);
+  assert.match(canvasEditorSource, /Lock Layer/);
+  assert.match(canvasEditorSource, /Hide Layer/);
+  assert.match(canvasEditorSource, /Duplicated the selected layer/);
+  assert.match(canvasEditorSource, /Removed the selected layer from the frame/);
+  assert.match(canvasEditorSource, /Drag, resize, nudge with arrow keys/);
+});
+
 test('designer app module contains the extracted non-V2 Template Lab behavior', async () => {
   const designerAppSource = await read('public/designer-app.js');
 
   assert.match(designerAppSource, /const v2Bridge = window\.createTemplateLabV2Bridge/);
+  assert.match(designerAppSource, /const canvasEditor = typeof window\.createTemplateLabCanvasEditor === 'function'/);
+  assert.match(designerAppSource, /function handleCanvasTemplateChange/);
+  assert.match(designerAppSource, /function undoVisualEdit/);
+  assert.match(designerAppSource, /function redoVisualEdit/);
   assert.match(designerAppSource, /function parseStudioUrlState/);
   assert.match(designerAppSource, /function applyStudioUrlState/);
   assert.match(designerAppSource, /function renderVideoInsights/);
+  assert.match(designerAppSource, /async function sendChatMessage/);
   assert.match(designerAppSource, /async function generate/);
   assert.match(designerAppSource, /fetchMultipartApi\('\/video'/);
   assert.match(designerAppSource, /async function autoIterate/);
@@ -525,6 +694,61 @@ test('designer app can preselect the reference-video workflow from a readable UR
   assert.equal(result.elements.referenceImagePanel.classList.contains('active'), false);
   assert.equal(result.elements.promptInput.value, 'match style from video');
   assert.match(result.elements.generateHint.textContent, /reference image\/video|reference video/i);
+});
+
+test('designer app can preselect the prompt-only workflow from a readable URL', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+    locationPath: '/designer/prompt',
+    locationSearch: '?prompt=build%20a%20bold%20roofing%20reel',
+  });
+
+  assert.equal(result.elements.referenceModePrompt.classList.contains('active'), true);
+  assert.equal(result.elements.referencePromptPanel.classList.contains('active'), true);
+  assert.equal(result.elements.referenceImagePanel.classList.contains('active'), false);
+  assert.equal(result.elements.referenceVideoPanel.classList.contains('active'), false);
+  assert.equal(result.elements.promptInput.value, 'build a bold roofing reel');
+  assert.match(result.elements.generateHint.textContent, /prompt-only|from scratch/i);
+  assert.match(result.elements.refPlaceholder.textContent, /prompt-only session/i);
+});
+
+test('designer app accepts a pasted clipboard image for the reference-image workflow', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+  });
+
+  let prevented = false;
+  result.elements.uploadZone.dispatchEvent('paste', {
+    target: result.elements.uploadZone,
+    clipboardData: {
+      items: [
+        {
+          type: 'image/png',
+          getAsFile() {
+            return {
+              name: 'clipboard-image.png',
+              type: 'image/png',
+              dataUrl: 'data:image/png;base64,clipboard-reference',
+            };
+          },
+        },
+      ],
+    },
+    preventDefault() {
+      prevented = true;
+    },
+  });
+
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(prevented, true);
+  assert.equal(result.elements.uploadPreview.src, 'data:image/png;base64,clipboard-reference');
+  assert.equal(result.elements.uploadPreview.style.display, '');
+  assert.equal(result.elements.refImage.src, 'data:image/png;base64,clipboard-reference');
+  assert.equal(result.elements.refPlaceholder.style.display, 'none');
+  assert.equal(result.elements.btnGenerate.disabled, false);
+  assert.match(result.elements.previewStatus.textContent, /pasted from clipboard/i);
 });
 
 test('designer app can generate a reel template from a reference video upload', async () => {
@@ -1371,7 +1595,6 @@ test('designer app restores a saved local draft and keeps the session recoverabl
   });
 
   assert.equal(result.elements.draftRestore.style.display, '');
-  assert.equal(result.elements.autosaveStatus.textContent.includes('Last local recovery snapshot saved'), true);
 
   result.elements.btnRestoreDraft.dispatchEvent('click');
   await Promise.resolve();
@@ -1518,6 +1741,92 @@ test('designer app can generate a prompt-only reel draft without a reference ima
   assert.equal(result.elements.saveImageCount.value, '4');
   assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/prompt-reel.mp4');
   assert.equal(result.elements.jsonEditor.value.includes('"outputFormat": "mp4"'), true);
+});
+
+test('designer app can generate and continue a draft through template chat', async () => {
+  const result = await runDesignerApp({
+    storageSeed: {
+      designer_api_key: 'render-key',
+    },
+    async fetchImpl(url, options = {}) {
+      if (url === '/api/designer/chat/message') {
+        const parsedBody = JSON.parse(options.body);
+        const isFollowUp = Boolean(parsedBody.sessionId);
+        return {
+          ok: true,
+          async json() {
+            return {
+              sessionId: isFollowUp ? parsedBody.sessionId : 'chat-session-1',
+              action: isFollowUp ? 'iterated' : 'generated',
+              messages: [
+                {
+                  id: 'user-1',
+                  role: 'user',
+                  content: isFollowUp ? 'Make it more premium' : 'Create a bold plumbing reel',
+                  createdAt: '2026-04-07T09:00:00.000Z',
+                },
+                {
+                  id: 'assistant-1',
+                  role: 'assistant',
+                  content: isFollowUp
+                    ? 'I updated the current draft and rendered a fresh preview. Tell me what to adjust next.'
+                    : 'I started a new draft from your prompt and rendered a fresh preview. Keep replying with adjustments and I will keep building on this version.',
+                  createdAt: '2026-04-07T09:00:01.000Z',
+                },
+              ],
+              template: {
+                id: isFollowUp ? 'chat-reel-v2' : 'chat-reel',
+                reference: isFollowUp ? 'chat-reel-v2' : 'chat-reel',
+                name: isFollowUp ? 'Chat Reel Refined' : 'Chat Reel',
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
+                imageCount: 4,
+                frames: [
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 0 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 1 }, layers: [] },
+                  { durationMs: 1800, background: { type: 'image', source: 'user_image', index: 2 }, layers: [] },
+                  { durationMs: 2200, background: { type: 'solid', color: '#10151D' }, layers: [] },
+                ],
+              },
+              previewBase64: 'data:image/png;base64,chat-preview',
+              previewPosterBase64: 'data:image/png;base64,chat-preview',
+              previewKind: 'video',
+              previewUrl: isFollowUp ? 'https://cdn.example.com/chat-reel-v2.mp4' : 'https://cdn.example.com/chat-reel.mp4',
+            };
+          },
+        };
+      }
+
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  result.elements.chatInput.value = 'Create a bold plumbing reel';
+  result.elements.chatInput.dispatchEvent('input');
+  result.elements.btnSendChat.dispatchEvent('click');
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(result.fetchCalls[0].url, '/api/designer/chat/message');
+  assert.equal(result.elements.saveName.value, 'Chat Reel');
+  assert.equal(result.elements.promptInput.value, 'Create a bold plumbing reel');
+  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/chat-reel.mp4');
+  assert.match(result.elements.chatThread.innerHTML, /Template Chat|bold plumbing reel|fresh preview/i);
+
+  result.elements.chatInput.value = 'Make it more premium';
+  result.elements.chatInput.dispatchEvent('input');
+  result.elements.btnSendChat.dispatchEvent('click');
+  await Promise.resolve();
+  await Promise.resolve();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  const secondRequest = JSON.parse(result.fetchCalls[1].options.body);
+  assert.equal(secondRequest.sessionId, 'chat-session-1');
+  assert.equal(secondRequest.draftContext.currentTemplate.id, 'chat-reel');
+  assert.equal(result.elements.saveName.value, 'Chat Reel Refined');
+  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/chat-reel-v2.mp4');
 });
 
 test('designer app can generate a reel draft from a restored reference-image session', async () => {

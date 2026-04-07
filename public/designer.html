@@ -36,6 +36,8 @@
     body {
       margin: 0;
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
       background: linear-gradient(180deg, #0b1020 0%, #080d16 100%);
       color: var(--text);
       font-family: var(--font-sans);
@@ -79,42 +81,94 @@
       letter-spacing: -0.03em;
     }
 
-    .topbar-pills {
+    .topbar-progress {
       display: flex;
-      gap: 8px;
-    }
-
-    .status-pill {
-      display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 5px 10px;
+    }
+
+    .progress-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px 5px 6px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      color: var(--text-soft);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-dim);
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
 
-    .status-pill.is-accent {
+    .progress-step .progress-dot {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .progress-step[data-state="active"] {
       background: var(--accent-wash);
-      border-color: rgba(93, 168, 255, 0.22);
+      border-color: rgba(93, 168, 255, 0.34);
       color: #cfe5ff;
     }
 
-    .status-pill.is-success {
-      background: rgba(50, 196, 141, 0.1);
-      border-color: rgba(50, 196, 141, 0.2);
-      color: #c8ffea;
+    .progress-step[data-state="active"] .progress-dot {
+      background: var(--accent);
+      color: #061120;
     }
 
-    .status-pill.is-warning {
-      background: rgba(255, 182, 72, 0.12);
-      border-color: rgba(255, 182, 72, 0.22);
+    .progress-step[data-state="done"] {
+      background: rgba(50, 196, 141, 0.1);
+      border-color: rgba(50, 196, 141, 0.24);
+      color: #d2ffee;
+    }
+
+    .progress-step[data-state="done"] .progress-dot {
+      background: var(--success);
+      color: #052118;
+    }
+
+    .progress-arrow {
+      width: 14px;
+      height: 1px;
+      background: var(--line-strong);
+    }
+
+    /* ── API Key Banner ── */
+    .api-key-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 24px;
+      background: rgba(255, 182, 72, 0.1);
+      border-bottom: 1px solid rgba(255, 182, 72, 0.22);
       color: #ffe2b2;
+      font-size: 12px;
+    }
+
+    .api-key-banner.is-visible {
+      display: flex;
+    }
+
+    .api-key-banner strong {
+      display: block;
+      color: var(--text);
+      margin-bottom: 1px;
+      font-size: 13px;
+    }
+
+    .api-key-banner span {
+      color: var(--text-soft);
     }
 
     .topbar-right {
@@ -192,7 +246,8 @@
     .app-layout {
       display: grid;
       grid-template-columns: 360px minmax(0, 1fr);
-      height: calc(100vh - 52px);
+      flex: 1;
+      min-height: 0;
     }
 
     /* ── Left Panel ── */
@@ -291,14 +346,15 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
-      flex: 1;
-      min-height: 0;
+      align-items: start;
+      flex: 0 0 auto;
     }
 
     .comparison-pane {
       display: flex;
       flex-direction: column;
       gap: 8px;
+      min-width: 0;
       min-height: 0;
     }
 
@@ -311,8 +367,7 @@
     }
 
     .pane-stage {
-      flex: 1;
-      min-height: 400px;
+      height: clamp(320px, 34vw, 620px);
       padding: 16px;
       border-radius: var(--radius-md);
       background: #060a12;
@@ -327,8 +382,9 @@
     .comparison-pane img,
     .comparison-pane video {
       width: 100%;
-      max-height: 620px;
+      height: 100%;
       object-fit: contain;
+      object-position: center;
       border-radius: var(--radius-sm);
     }
 
@@ -432,6 +488,185 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .canvas-editor-card {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .canvas-editor-shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) 280px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .canvas-stage-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .canvas-summary {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .canvas-stage {
+      position: relative;
+      min-height: 360px;
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(225deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(315deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0 / 18px 18px,
+        linear-gradient(45deg, rgba(255,255,255,0.04) 25%, transparent 25%) 0 0 / 18px 18px,
+        #060a12;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .canvas-stage-host {
+      width: 100%;
+      min-height: 320px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .canvas-stage-empty {
+      position: absolute;
+      inset: 14px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      border-radius: var(--radius-sm);
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      color: var(--text-dim);
+      text-align: center;
+      font-size: 13px;
+      background: rgba(5, 8, 15, 0.65);
+      pointer-events: none;
+    }
+
+    .canvas-editor-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .canvas-side-card {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .canvas-side-card h4 {
+      margin: 0;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .canvas-layer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+
+    .canvas-layer-item {
+      appearance: none;
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .canvas-layer-item.active {
+      border-color: rgba(93, 168, 255, 0.34);
+      background: rgba(93, 168, 255, 0.08);
+    }
+
+    .canvas-layer-item strong {
+      font-size: 12px;
+    }
+
+    .canvas-layer-item span,
+    .canvas-layer-empty {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .canvas-layer-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .canvas-history-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .canvas-layer-chip-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .canvas-layer-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-soft);
+    }
+
+    .canvas-field-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .canvas-field-grid .field label {
+      font-size: 11px;
+    }
+
+    .canvas-status {
+      min-height: 18px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
     /* ── History Strip ── */
     .history-strip {
       display: flex;
@@ -485,7 +720,89 @@
 
     .score { color: var(--warning); font-weight: 700; }
 
-    /* ── Approve Section ── */
+    /* ── Preview Tabs ── */
+    .preview-tabs {
+      display: inline-flex;
+      gap: 2px;
+      padding: 3px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--line);
+    }
+
+    .preview-tab {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+
+    .preview-tab:hover:not(.active) {
+      color: var(--text-soft);
+    }
+
+    .preview-tab.active {
+      background: var(--accent-wash);
+      color: #cfe5ff;
+    }
+
+    .preview-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .preview-title-group h2 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+    }
+
+    .preview-title-group .preview-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    /* ── Preview Card ── */
+    .preview-card {
+      padding: 16px;
+    }
+
+    .preview-live {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .preview-live[data-mode="view"] {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .preview-live[data-mode="view"] .reference-pane {
+      display: none;
+    }
+
+    .preview-edit {
+      display: none;
+    }
+
+    .preview-edit.active {
+      display: block;
+    }
+
+    .preview-live.is-hidden {
+      display: none;
+    }
+
+    /* ── Approve Section (inline details) ── */
     .approve-section {
       background: var(--bg-panel);
       border: 1px solid var(--line);
@@ -647,13 +964,17 @@
 
     .reference-mode-switch {
       display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
     }
 
     .reference-mode-switch .btn {
-      flex: 1;
+      flex: 1 1 calc(33.333% - 4px);
       justify-content: center;
+      padding: 8px 6px;
+      font-size: 12px;
+      letter-spacing: 0.02em;
     }
 
     .reference-mode-switch .btn.active {
@@ -668,6 +989,42 @@
 
     .reference-panel.active {
       display: block;
+    }
+
+    .source-generate-region.is-hidden {
+      display: none;
+    }
+
+    .source-advanced {
+      margin-top: 10px;
+      border-top: 1px solid var(--line);
+      padding-top: 6px;
+    }
+
+    .source-advanced summary {
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .source-advanced[open] .auto-row {
+      margin-top: 4px;
+    }
+
+    .prompt-mode-card {
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      border: 1px dashed rgba(93, 168, 255, 0.24);
+      background: rgba(93, 168, 255, 0.08);
+      color: var(--text-soft);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .prompt-mode-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-size: 12px;
     }
 
     .upload-meta {
@@ -872,6 +1229,103 @@
       text-transform: uppercase;
     }
 
+    .chat-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .chat-meta {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .chat-thread {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .chat-empty {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--line);
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .chat-message {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .chat-message.user {
+      background: rgba(93, 168, 255, 0.1);
+      border-color: rgba(93, 168, 255, 0.22);
+    }
+
+    .chat-message.assistant {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .chat-role {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .chat-message.user .chat-role {
+      color: #cfe5ff;
+    }
+
+    .chat-content {
+      white-space: pre-wrap;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .chat-composer {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chat-composer textarea {
+      min-height: 84px;
+      resize: vertical;
+    }
+
+    .chat-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .chat-status {
+      min-height: 18px;
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .chat-status.error {
+      color: #ffd6d6;
+    }
+
     .toggle {
       position: relative;
       width: 42px;
@@ -951,41 +1405,6 @@
       margin-bottom: 8px;
     }
 
-    /* ── Log Area ── */
-    .log-area {
-      min-height: 100px;
-      max-height: 200px;
-      overflow-y: auto;
-      padding: 10px;
-      border-radius: var(--radius-sm);
-      background: #070b12;
-      border: 1px solid rgba(255, 255, 255, 0.07);
-      font-family: var(--font-mono);
-      font-size: 11px;
-      line-height: 1.7;
-      color: var(--text-soft);
-    }
-
-    .log-entry { margin-bottom: 4px; }
-    .log-score { color: #ffe19f; }
-    .log-info { color: #9fc8ff; }
-    .log-error { color: #ffb3b3; }
-    .log-plateau { color: #ffd188; font-weight: 700; }
-
-    .phase-badge {
-      display: inline-flex;
-      padding: 1px 6px;
-      border-radius: 999px;
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .phase-layout { background: rgba(93, 168, 255, 0.12); color: #cfe5ff; }
-    .phase-spacing { background: rgba(255, 182, 72, 0.12); color: #ffe2b2; }
-    .phase-finetune { background: rgba(50, 196, 141, 0.12); color: #d2ffee; }
-
     /* ── Toast ── */
     .toast {
       position: fixed;
@@ -1010,11 +1429,61 @@
       to { transform: translateY(0); opacity: 1; }
     }
 
+    /* ── Approve Footer (sticky) ── */
+    .approve-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 24px;
+      background: rgba(8, 13, 22, 0.92);
+      backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+      position: sticky;
+      bottom: 0;
+      z-index: 40;
+    }
+
+    .approve-footer-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .approve-footer-meta strong {
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .approve-footer-meta span {
+      font-size: 11px;
+      color: var(--text-soft);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .approve-footer-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .approve-footer .btn {
+      padding: 10px 20px;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 960px) {
       .app-layout { grid-template-columns: 1fr; }
       .panel-left { border-right: none; border-bottom: 1px solid var(--line); }
       .comparison { grid-template-columns: 1fr; }
+      .canvas-editor-shell { grid-template-columns: 1fr; }
     }
 
     @media (max-width: 600px) {
@@ -1038,9 +1507,21 @@
   <header class="topbar">
     <div class="topbar-left">
       <h1>Template Lab</h1>
-      <div class="topbar-pills">
-        <div class="status-pill is-accent" id="sessionModePill">Reference Draft</div>
-        <div class="status-pill" id="draftStatePill">Awaiting Draft</div>
+      <div class="topbar-progress" id="topbarProgress">
+        <div class="progress-step" id="progressStepReference" data-state="active">
+          <span class="progress-dot">1</span>
+          <span class="progress-label">Reference</span>
+        </div>
+        <div class="progress-arrow"></div>
+        <div class="progress-step" id="progressStepGenerate" data-state="pending">
+          <span class="progress-dot">2</span>
+          <span class="progress-label">Generate</span>
+        </div>
+        <div class="progress-arrow"></div>
+        <div class="progress-step" id="progressStepApprove" data-state="pending">
+          <span class="progress-dot">3</span>
+          <span class="progress-label">Approve</span>
+        </div>
       </div>
     </div>
     <div class="topbar-right">
@@ -1048,6 +1529,15 @@
       <button class="btn-icon" id="btnToggleSettings" type="button" title="Settings">&#9881;</button>
     </div>
   </header>
+
+  <!-- ── API Key Banner (shows when no key is set) ── -->
+  <div class="api-key-banner" id="apiKeyBanner">
+    <div>
+      <strong>Set your Render API key to start generating.</strong>
+      <span>You can paste the key into the settings drawer.</span>
+    </div>
+    <button class="btn btn-primary btn-sm" id="btnBannerOpenSettings" type="button">Open Settings</button>
+  </div>
 
   <!-- ── Settings Drawer (hidden by default) ── -->
   <div class="settings-drawer" id="settingsDrawer">
@@ -1093,21 +1583,25 @@
       <button class="sr-only" id="modeV2" type="button">V2</button>
       <button class="sr-only" id="modeJson" type="button">JSON</button>
 
-      <!-- Upload Reference -->
+      <!-- Source -->
       <div class="card">
-        <h3 class="card-title">Reference Input</h3>
-        <div class="reference-mode-switch" role="tablist" aria-label="Reference source">
-          <button class="btn btn-secondary active" id="referenceModeImage" type="button">Reference Image</button>
-          <button class="btn btn-secondary" id="referenceModeVideo" type="button">Reference Video</button>
+        <h3 class="card-title">Source</h3>
+        <p class="card-subtitle">Pick where the draft starts, then generate or load.</p>
+        <div class="reference-mode-switch" role="tablist" aria-label="Source">
+          <button class="btn btn-secondary active" id="referenceModeImage" type="button">Image</button>
+          <button class="btn btn-secondary" id="referenceModeVideo" type="button">Video</button>
+          <button class="btn btn-secondary" id="referenceModePrompt" type="button">Prompt</button>
+          <button class="btn btn-secondary" id="referenceModeBlank" type="button">Blank</button>
+          <button class="btn btn-secondary" id="referenceModeV2" type="button">Load V2</button>
         </div>
 
         <div class="reference-panel active" id="referenceImagePanel">
-          <div class="upload-zone" id="uploadZone">
+          <div class="upload-zone" id="uploadZone" tabindex="0" aria-label="Reference image upload zone. Drop or paste an image here.">
             <input type="file" id="fileInput" name="reference_image" accept="image/png,image/jpeg,image/webp" aria-label="Upload a reference image">
             <button class="upload-clear" id="uploadClear" type="button" aria-label="Clear reference">&times;</button>
             <div class="placeholder" id="uploadPlaceholder">
-              <strong>Drop image here</strong>
-              PNG, JPG, or WebP
+              <strong>Drop or paste image here</strong>
+              PNG, JPG, or WebP. On macOS, copy an image and press Command+V here.
             </div>
             <img id="uploadPreview" style="display:none" alt="Reference preview" width="1080" height="1080">
           </div>
@@ -1126,41 +1620,83 @@
           <div class="upload-meta" id="videoUploadMeta" aria-live="polite"></div>
         </div>
 
-        <div class="field" style="margin-top:10px;">
-          <label for="promptInput">Prompt (optional)</label>
-          <textarea id="promptInput" name="prompt" rows="2" placeholder="e.g. keep the same clean pacing, dark overlays, bold hook card, and strong CTA ending"></textarea>
+        <div class="reference-panel" id="referencePromptPanel">
+          <div class="prompt-mode-card">
+            <strong>Start from words, not a file</strong>
+            Describe the layout, tone, offer, pacing, or format you want. Mention terms like reel, slideshow, story, or vertical video when you want an MP4 draft.
+          </div>
         </div>
 
-        <div style="display:flex; gap:8px; margin-top:10px;">
-          <button class="btn btn-primary" id="btnGenerate" type="button" disabled>Generate</button>
-          <button class="btn btn-danger btn-sm" id="btnStop" type="button" disabled>Stop</button>
+        <div class="reference-panel" id="referenceBlankPanel">
+          <div class="prompt-mode-card">
+            <strong>Start from a blank canvas</strong>
+            Skip references and begin with an empty square post or vertical slideshow reel. Approving either one creates a new V2 template record.
+          </div>
+          <div class="inline-row" style="margin-top:10px;">
+            <button class="btn btn-secondary" id="btnNewBlankTemplate" type="button">New Blank Post</button>
+            <button class="btn btn-secondary" id="btnNewReelTemplate" type="button">New Blank Reel</button>
+          </div>
         </div>
 
-        <div class="action-helper" id="generateHint" aria-live="polite">
-          Add a prompt or reference image to start.
+        <div class="reference-panel" id="referenceV2Panel">
+          <div class="prompt-mode-card">
+            <strong>Load an approved V2 template</strong>
+            Paste the V2 export URL to re-open an approved template inside the studio. You can iterate on it and approve updates back to V2.
+          </div>
+          <div class="inline-row" style="margin-top:10px;">
+            <div class="field">
+              <input type="url" id="v2ExportUrlInput" name="v2_export_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="Paste V2 export URL">
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnLoadV2" type="button">Load</button>
+          </div>
         </div>
-        <button class="btn btn-secondary btn-sm" id="btnOpenSettingsHint" type="button" style="display:none;">Open Settings</button>
 
-        <div class="auto-row">
-          <label>Auto-refine</label>
-          <button class="toggle" id="toggleAutoIterate" type="button" aria-pressed="false">
-            <span class="toggle-text">Toggle auto-iterate</span>
-          </button>
-          <label>Max</label>
-          <input type="number" id="maxIterations" name="max_iterations" value="8" min="1" max="20" inputmode="numeric">
-          <label>Target</label>
-          <input type="number" id="scoreTarget" name="score_target" value="8" min="6" max="10" inputmode="numeric">
+        <div class="source-generate-region" id="sourceGenerateRegion">
+          <div class="field" style="margin-top:10px;">
+            <label for="promptInput">Prompt (optional)</label>
+            <textarea id="promptInput" name="prompt" rows="2" placeholder="e.g. keep the same clean pacing, dark overlays, bold hook card, and strong CTA ending"></textarea>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-primary" id="btnGenerate" type="button" disabled>Generate</button>
+            <button class="btn btn-danger btn-sm" id="btnStop" type="button" disabled>Stop</button>
+          </div>
+
+          <div class="action-helper" id="generateHint" aria-live="polite">
+            Add a prompt, reference image, or reference video to start.
+          </div>
+          <button class="btn btn-secondary btn-sm" id="btnOpenSettingsHint" type="button" style="display:none;">Open Settings</button>
+
+          <details class="source-advanced">
+            <summary>Advanced</summary>
+            <div class="auto-row">
+              <label>Auto-refine</label>
+              <button class="toggle" id="toggleAutoIterate" type="button" aria-pressed="false">
+                <span class="toggle-text">Toggle auto-iterate</span>
+              </button>
+              <label>Max</label>
+              <input type="number" id="maxIterations" name="max_iterations" value="8" min="1" max="20" inputmode="numeric">
+              <label>Target</label>
+              <input type="number" id="scoreTarget" name="score_target" value="8" min="6" max="10" inputmode="numeric">
+            </div>
+          </details>
         </div>
       </div>
 
-      <!-- Refine -->
-      <div class="card">
-        <h3 class="card-title">Refine</h3>
-        <div class="inline-row">
-          <div class="field">
-            <input type="text" id="feedbackInput" name="feedback" autocomplete="off" spellcheck="false" placeholder="e.g. make the title larger" disabled>
+      <div class="card chat-card">
+        <div>
+          <h3 class="card-title">Template Chat</h3>
+          <p class="chat-meta">Keep replying with adjustments and the draft context will carry forward across turns.</p>
+        </div>
+        <div class="chat-thread" id="chatThread" aria-live="polite">
+          <div class="chat-empty" id="chatEmptyState">Start here with a prompt like “Build a bold plumbing reel” or use the regular controls, then keep refining the current draft in chat.</div>
+        </div>
+        <div class="chat-composer">
+          <textarea id="chatInput" name="chat_input" rows="3" placeholder="e.g. Make the headline bolder, reduce text density, and give the CTA a stronger ending"></textarea>
+          <div class="chat-actions">
+            <div class="chat-status" id="chatStatus" aria-live="polite"></div>
+            <button class="btn btn-primary" id="btnSendChat" type="button">Send</button>
           </div>
-          <button class="btn btn-secondary btn-sm" id="btnIterate" type="button" disabled>Refine</button>
         </div>
       </div>
 
@@ -1178,75 +1714,180 @@
         <div class="insight-notes" id="videoInsightNotes"></div>
       </div>
 
-      <div class="card">
-        <h3 class="card-title">Start Blank</h3>
-        <p class="card-subtitle">Admin-only shortcuts for starting with a blank square post or a vertical slideshow reel before approving the draft into V2.</p>
-        <div class="inline-row">
-          <button class="btn btn-secondary" id="btnNewBlankTemplate" type="button">New Blank Template</button>
-          <button class="btn btn-secondary" id="btnNewReelTemplate" type="button">New Reel Template</button>
-        </div>
-      </div>
-
-      <!-- Divider -->
-      <div class="divider-label">or load existing</div>
-
-      <!-- Load from V2 -->
-      <div class="card">
-        <h3 class="card-title">Load from V2</h3>
-        <div class="inline-row">
-          <div class="field">
-            <input type="url" id="v2ExportUrlInput" name="v2_export_url" autocomplete="off" inputmode="url" spellcheck="false" placeholder="Paste V2 export URL">
-          </div>
-          <button class="btn btn-secondary btn-sm" id="btnLoadV2" type="button">Load</button>
-        </div>
-      </div>
-
-      <!-- Activity Log (collapsed) -->
-      <details class="card">
-        <summary>Activity Log</summary>
-        <div class="log-area" id="logArea" style="margin-top:8px;">
-          <div class="log-entry log-info">Ready.</div>
-        </div>
-      </details>
-
     </div>
 
     <!-- ── Right Panel: Preview + Approve ── -->
     <div class="panel-right">
 
-      <!-- Preview Header -->
+      <!-- Preview Header with tabs -->
       <div class="preview-header">
-        <h2 id="workspaceTitle">Preview</h2>
-        <span style="font-size:12px; color:var(--text-dim);" id="workspaceLinkedLabel"></span>
+        <div class="preview-title-group">
+          <h2 id="workspaceTitle">Preview</h2>
+          <span class="preview-meta" id="workspaceLinkedLabel"></span>
+        </div>
+        <div class="preview-tabs" role="tablist" aria-label="Preview mode">
+          <button class="preview-tab active" id="previewTabView" type="button" role="tab" aria-selected="true">View</button>
+          <button class="preview-tab" id="previewTabEdit" type="button" role="tab" aria-selected="false">Edit</button>
+          <button class="preview-tab" id="previewTabCompare" type="button" role="tab" aria-selected="false">Compare</button>
+        </div>
       </div>
 
-      <!-- Side-by-side comparison -->
-      <div class="comparison">
-        <div class="comparison-pane">
-          <div class="pane-label">Reference</div>
-          <div class="pane-stage">
-            <div class="placeholder-box" id="refPlaceholder">Upload a reference image or video to start</div>
-            <img id="refImage" style="display:none" alt="Reference" width="1080" height="1080">
-            <video id="refVideo" style="display:none" controls muted playsinline preload="metadata"></video>
+      <div class="card preview-card" id="previewCard">
+        <!-- View + Compare modes share this area. Reference pane is hidden in view mode via CSS. -->
+        <div class="preview-live" id="previewLive" data-mode="view">
+          <div class="comparison-pane reference-pane">
+            <div class="pane-label">Reference</div>
+            <div class="pane-stage">
+              <div class="placeholder-box" id="refPlaceholder">Upload a reference image or video, or switch to Prompt Only to start from text.</div>
+              <img id="refImage" style="display:none" alt="Reference" width="1080" height="1080">
+              <video id="refVideo" style="display:none" controls muted playsinline preload="metadata"></video>
+            </div>
+          </div>
+
+          <div class="comparison-pane">
+            <div class="pane-label" id="previewGeneratedLabel">Preview</div>
+            <div class="pane-stage">
+              <div id="previewPlaceholder" class="placeholder-box">No preview yet</div>
+              <div id="previewLoading" class="generating-state" style="display:none">
+                <div class="spinner"></div>
+                <span>Generating...</span>
+              </div>
+              <img id="previewImage" style="display:none" alt="Preview" width="1080" height="1080">
+              <video id="previewVideo" style="display:none" controls loop muted playsinline></video>
+            </div>
+            <div id="previewFrameControls" class="frame-controls" style="display:none">
+              <label for="previewFrameSelect">Frame</label>
+              <select id="previewFrameSelect" name="preview_frame" disabled></select>
+            </div>
+            <div id="previewStatus" class="preview-status" aria-live="polite"></div>
           </div>
         </div>
 
-        <div class="comparison-pane">
-          <div class="pane-label">Generated Preview</div>
-          <div class="pane-stage">
-            <div id="previewPlaceholder" class="placeholder-box">No preview yet</div>
-            <div id="previewLoading" class="generating-state" style="display:none">
-              <div class="spinner"></div>
-              <span>Generating...</span>
+        <!-- Edit mode: Konva canvas + inline sidebar -->
+        <div class="preview-edit" id="previewEdit">
+          <p class="card-subtitle" style="margin-bottom:10px;">Adjust the current frame visually, then re-render the server preview before approving to V2.</p>
+          <div class="canvas-editor-shell">
+          <div class="canvas-stage-wrap">
+            <div class="canvas-summary" id="canvasEditorSummary">Frame details and layer summary appear here.</div>
+            <div class="canvas-stage">
+              <div class="canvas-stage-host" id="canvasEditorHost"></div>
+              <div class="canvas-stage-empty" id="canvasEditorEmpty">Generate or load a draft to start editing layers.</div>
             </div>
-            <img id="previewImage" style="display:none" alt="Preview" width="1080" height="1080">
-            <video id="previewVideo" style="display:none" controls loop muted playsinline></video>
+            <div class="canvas-status" id="canvasEditorStatus"></div>
           </div>
-          <div id="previewFrameControls" class="frame-controls" style="display:none">
-            <label for="previewFrameSelect">Frame</label>
-            <select id="previewFrameSelect" name="preview_frame" disabled></select>
+          <div class="canvas-editor-sidebar">
+            <div class="canvas-side-card">
+              <h4>Layers</h4>
+              <div class="canvas-layer-list" id="canvasLayerList">
+                <div class="canvas-layer-empty">No layers on this frame yet.</div>
+              </div>
+              <div class="canvas-layer-actions">
+                <button class="btn btn-secondary btn-sm" id="btnCanvasLayerUp" type="button" disabled>Move Up</button>
+                <button class="btn btn-secondary btn-sm" id="btnCanvasLayerDown" type="button" disabled>Move Down</button>
+                <button class="btn btn-secondary btn-sm" id="btnCanvasLayerHide" type="button" disabled>Hide Layer</button>
+                <button class="btn btn-secondary btn-sm" id="btnCanvasLayerLock" type="button" disabled>Lock Layer</button>
+              </div>
+            </div>
+            <div class="canvas-side-card">
+              <h4>Decorative Asset</h4>
+              <div class="inline-row">
+                <div class="field">
+                  <label for="canvasAssetSelect">PNG Asset</label>
+                  <select id="canvasAssetSelect" name="canvas_asset_select"></select>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btnAddCanvasAsset" type="button">Add Asset</button>
+              </div>
+              <div class="inline-row">
+                <input class="sr-only" id="canvasAssetUploadInput" type="file" accept="image/png,image/webp,image/svg+xml,image/*">
+                <button class="btn btn-secondary btn-sm" id="btnUploadCanvasAsset" type="button">Upload PNG</button>
+              </div>
+            </div>
+            <div class="canvas-side-card">
+              <h4>History</h4>
+              <div class="canvas-history-actions">
+                <button class="btn btn-secondary btn-sm" id="btnCanvasUndo" type="button" disabled>Undo</button>
+                <button class="btn btn-secondary btn-sm" id="btnCanvasRedo" type="button" disabled>Redo</button>
+              </div>
+            </div>
+            <div class="canvas-side-card">
+              <h4>Inspector</h4>
+              <div class="canvas-field-grid">
+                <div class="field">
+                  <label for="canvasFieldX">X</label>
+                  <input type="number" id="canvasFieldX" name="canvas_x" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldY">Y</label>
+                  <input type="number" id="canvasFieldY" name="canvas_y" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldWidth">Width</label>
+                  <input type="number" id="canvasFieldWidth" name="canvas_width" min="1" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldHeight">Height</label>
+                  <input type="number" id="canvasFieldHeight" name="canvas_height" min="1" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldOpacity">Opacity</label>
+                  <input type="number" id="canvasFieldOpacity" name="canvas_opacity" min="0" max="1" step="0.05" inputmode="decimal" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldBorderRadius">Radius</label>
+                  <input type="number" id="canvasFieldBorderRadius" name="canvas_radius" min="0" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldFontSize">Font Size</label>
+                  <input type="number" id="canvasFieldFontSize" name="canvas_font_size" min="1" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldLineHeight">Line Height</label>
+                  <input type="number" id="canvasFieldLineHeight" name="canvas_line_height" min="0.5" step="0.05" inputmode="decimal" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldLetterSpacing">Letter Space</label>
+                  <input type="number" id="canvasFieldLetterSpacing" name="canvas_letter_spacing" step="0.5" inputmode="decimal" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldAlign">Align</label>
+                  <select id="canvasFieldAlign" name="canvas_align" disabled>
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldFit">Fit</label>
+                  <select id="canvasFieldFit" name="canvas_fit" disabled>
+                    <option value="cover">Cover</option>
+                    <option value="contain">Contain</option>
+                    <option value="fill">Fill</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldShadowBlur">Shadow Blur</label>
+                  <input type="number" id="canvasFieldShadowBlur" name="canvas_shadow_blur" min="0" step="1" inputmode="numeric" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldFontFamily">Font Family</label>
+                  <input type="text" id="canvasFieldFontFamily" name="canvas_font_family" autocomplete="off" spellcheck="false" placeholder="Avenir Next" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldTextColor">Text Color</label>
+                  <input type="text" id="canvasFieldTextColor" name="canvas_text_color" autocomplete="off" spellcheck="false" placeholder="#FFFFFF or {{primary_colour}}" disabled>
+                </div>
+                <div class="field">
+                  <label for="canvasFieldFillColor">Fill Color</label>
+                  <input type="text" id="canvasFieldFillColor" name="canvas_fill_color" autocomplete="off" spellcheck="false" placeholder="#10151D or {{secondary_colour}}" disabled>
+                </div>
+              </div>
+              <div class="field">
+                <label for="canvasFieldContent">Text Content</label>
+                <textarea id="canvasFieldContent" name="canvas_text_content" rows="4" spellcheck="false" placeholder="Select a text layer to edit its content." disabled></textarea>
+              </div>
+            </div>
           </div>
-          <div id="previewStatus" class="preview-status" aria-live="polite"></div>
+          </div>
         </div>
       </div>
 
@@ -1258,9 +1899,24 @@
         </div>
       </div>
 
-      <!-- Approve for V2 -->
+      <!-- JSON Editor (closed accordion, promoted above approve details) -->
+      <details class="card" id="advancedJsonPanel">
+        <summary>JSON Editor</summary>
+        <div style="margin-top:8px;">
+          <div class="json-actions">
+            <button class="btn btn-secondary btn-sm" id="btnRerender" type="button" disabled>Re-render from JSON</button>
+            <button class="btn btn-secondary btn-sm" id="btnCopyJson" type="button" disabled>Copy JSON</button>
+          </div>
+          <div class="field">
+            <textarea class="json-editor" id="jsonEditor" name="template_json" spellcheck="false" placeholder="Template JSON will appear here..." disabled></textarea>
+          </div>
+        </div>
+      </details>
+
+      <!-- Approve details (no Approve button — that lives in the sticky footer) -->
       <div class="approve-section">
-        <h3 class="card-title">Approve for V2</h3>
+        <h3 class="card-title">Approve Details</h3>
+        <p class="card-subtitle">Confirm the name, id, and image count before approving. The Approve button lives in the footer.</p>
         <div class="approve-grid">
           <div class="field">
             <label for="saveName">Template Name</label>
@@ -1276,45 +1932,29 @@
           </div>
         </div>
         <div class="approve-actions">
-          <button class="btn btn-success" id="btnSaveV2" type="button" disabled>Approve for V2</button>
           <button class="btn btn-secondary btn-sm" id="btnCopyV2TemplateId" type="button" disabled>Copy ID</button>
           <button class="btn btn-secondary btn-sm" id="btnCopyV2ExportUrl" type="button" disabled>Copy URL</button>
         </div>
         <div id="handoffStatus" class="handoff-status" aria-live="polite"></div>
       </div>
-
-      <!-- JSON Editor (collapsed) -->
-      <details class="card" id="advancedJsonPanel">
-        <summary>JSON Editor</summary>
-        <div style="margin-top:8px;">
-          <div class="json-actions">
-            <button class="btn btn-secondary btn-sm" id="btnRerender" type="button" disabled>Re-render from JSON</button>
-            <button class="btn btn-secondary btn-sm" id="btnCopyJson" type="button" disabled>Copy JSON</button>
-          </div>
-          <div class="field">
-            <textarea class="json-editor" id="jsonEditor" name="template_json" spellcheck="false" placeholder="Template JSON will appear here..." disabled></textarea>
-          </div>
-        </div>
-      </details>
     </div>
   </div>
 
-  <!-- Hidden elements that JS expects but aren't shown in simplified UI -->
-  <div class="sr-only" aria-hidden="true">
-    <span id="sessionSummary"></span>
-    <span id="sessionMeta"></span>
-    <span id="pathHelper"></span>
-    <span id="linkedTemplateBadge"></span>
-    <span id="previewFreshness"></span>
-    <span id="publishSummary"></span>
-    <span id="autosaveStatus"></span>
-    <span id="historySummary"></span>
-    <span id="workspaceLead"></span>
-    <span id="publishLead"></span>
+  <!-- ── Sticky Approve Footer ── -->
+  <div class="approve-footer" id="approveFooter">
+    <div class="approve-footer-meta">
+      <strong id="approveFooterName">No draft yet</strong>
+      <span id="approveFooterDetails">Generate or load a template to enable approval.</span>
+    </div>
+    <div class="approve-footer-actions">
+      <button class="btn btn-success" id="btnSaveV2" type="button" disabled>Approve for V2</button>
+    </div>
   </div>
 
   <script src="/designer-bootstrap.js"></script>
   <script src="/designer-v2-bridge.js"></script>
+  <script src="/vendor/konva.min.js"></script>
+  <script src="/designer-canvas-editor.js"></script>
   <script src="/designer-app.js"></script>
 </body>
 </html>

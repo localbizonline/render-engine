@@ -30,6 +30,12 @@
     generatedSaveId: '',
     saveIdTouched: false,
     savedDraftMeta: null,
+    chatSessionId: '',
+    chatMessages: [],
+    isChatSending: false,
+    visualUndoStack: [],
+    visualRedoStack: [],
+    previewMode: localStorage.getItem('designer_preview_mode') || 'view',
   };
 
   const DRAFT_STORAGE_KEY = 'designer_studio_draft_v1';
@@ -49,31 +55,39 @@
   const modeReference = $('#modeReference');
   const modeV2 = $('#modeV2');
   const modeJson = $('#modeJson');
-  const sessionModePill = $('#sessionModePill');
-  const draftStatePill = $('#draftStatePill');
-  const sessionSummary = $('#sessionSummary');
-  const sessionMeta = $('#sessionMeta');
-  const pathHelper = $('#pathHelper');
-  const linkedTemplateBadge = $('#linkedTemplateBadge');
-  const previewFreshness = $('#previewFreshness');
-  const publishSummary = $('#publishSummary');
-  const autosaveStatus = $('#autosaveStatus');
+  const progressStepReference = $('#progressStepReference');
+  const progressStepGenerate = $('#progressStepGenerate');
+  const progressStepApprove = $('#progressStepApprove');
+  const apiKeyBanner = $('#apiKeyBanner');
+  const btnBannerOpenSettings = $('#btnBannerOpenSettings');
   const draftRestore = $('#draftRestore');
   const draftRestoreTitle = $('#draftRestoreTitle');
   const draftRestoreMeta = $('#draftRestoreMeta');
   const btnRestoreDraft = $('#btnRestoreDraft');
   const btnDiscardDraft = $('#btnDiscardDraft');
   const workspaceTitle = $('#workspaceTitle');
-  const workspaceLead = $('#workspaceLead');
   const workspaceLinkedLabel = $('#workspaceLinkedLabel');
-  const historySummary = $('#historySummary');
-  const publishLead = $('#publishLead');
   const advancedJsonPanel = $('#advancedJsonPanel');
+  const previewTabView = $('#previewTabView');
+  const previewTabEdit = $('#previewTabEdit');
+  const previewTabCompare = $('#previewTabCompare');
+  const previewLive = $('#previewLive');
+  const previewEdit = $('#previewEdit');
+  const previewGeneratedLabel = $('#previewGeneratedLabel');
+  const approveFooterName = $('#approveFooterName');
+  const approveFooterDetails = $('#approveFooterDetails');
 
   const referenceModeImage = $('#referenceModeImage');
   const referenceModeVideo = $('#referenceModeVideo');
+  const referenceModePrompt = $('#referenceModePrompt');
+  const referenceModeBlank = $('#referenceModeBlank');
+  const referenceModeV2 = $('#referenceModeV2');
   const referenceImagePanel = $('#referenceImagePanel');
   const referenceVideoPanel = $('#referenceVideoPanel');
+  const referencePromptPanel = $('#referencePromptPanel');
+  const referenceBlankPanel = $('#referenceBlankPanel');
+  const referenceV2Panel = $('#referenceV2Panel');
+  const sourceGenerateRegion = $('#sourceGenerateRegion');
   const uploadZone = $('#uploadZone');
   const fileInput = $('#fileInput');
   const uploadClear = $('#uploadClear');
@@ -93,12 +107,9 @@
   const toggleAutoIterate = $('#toggleAutoIterate');
   const maxIterations = $('#maxIterations');
   const scoreTarget = $('#scoreTarget');
-  const feedbackInput = $('#feedbackInput');
-  const btnIterate = $('#btnIterate');
   const btnNewBlankTemplate = $('#btnNewBlankTemplate');
   const btnNewReelTemplate = $('#btnNewReelTemplate');
   const historyStrip = $('#historyStrip');
-  const logArea = $('#logArea');
   const videoInsightsCard = $('#videoInsightsCard');
   const videoInsightHeadline = $('#videoInsightHeadline');
   const videoInsightSummary = $('#videoInsightSummary');
@@ -116,6 +127,37 @@
   const previewFrameControls = $('#previewFrameControls');
   const previewFrameSelect = $('#previewFrameSelect');
   const previewStatus = $('#previewStatus');
+  const canvasEditorHost = $('#canvasEditorHost');
+  const canvasEditorEmpty = $('#canvasEditorEmpty');
+  const canvasEditorSummary = $('#canvasEditorSummary');
+  const canvasEditorStatus = $('#canvasEditorStatus');
+  const canvasLayerList = $('#canvasLayerList');
+  const btnCanvasLayerUp = $('#btnCanvasLayerUp');
+  const btnCanvasLayerDown = $('#btnCanvasLayerDown');
+  const btnCanvasLayerHide = $('#btnCanvasLayerHide');
+  const btnCanvasLayerLock = $('#btnCanvasLayerLock');
+  const btnCanvasUndo = $('#btnCanvasUndo');
+  const btnCanvasRedo = $('#btnCanvasRedo');
+  const canvasFieldX = $('#canvasFieldX');
+  const canvasFieldY = $('#canvasFieldY');
+  const canvasFieldWidth = $('#canvasFieldWidth');
+  const canvasFieldHeight = $('#canvasFieldHeight');
+  const canvasFieldOpacity = $('#canvasFieldOpacity');
+  const canvasFieldBorderRadius = $('#canvasFieldBorderRadius');
+  const canvasFieldFontSize = $('#canvasFieldFontSize');
+  const canvasFieldLineHeight = $('#canvasFieldLineHeight');
+  const canvasFieldLetterSpacing = $('#canvasFieldLetterSpacing');
+  const canvasFieldAlign = $('#canvasFieldAlign');
+  const canvasFieldFit = $('#canvasFieldFit');
+  const canvasFieldShadowBlur = $('#canvasFieldShadowBlur');
+  const canvasFieldFontFamily = $('#canvasFieldFontFamily');
+  const canvasFieldTextColor = $('#canvasFieldTextColor');
+  const canvasFieldFillColor = $('#canvasFieldFillColor');
+  const canvasFieldContent = $('#canvasFieldContent');
+  const canvasAssetSelect = $('#canvasAssetSelect');
+  const btnAddCanvasAsset = $('#btnAddCanvasAsset');
+  const canvasAssetUploadInput = $('#canvasAssetUploadInput');
+  const btnUploadCanvasAsset = $('#btnUploadCanvasAsset');
   const jsonEditor = $('#jsonEditor');
   const btnRerender = $('#btnRerender');
   const btnCopyJson = $('#btnCopyJson');
@@ -128,6 +170,11 @@
   const handoffStatus = $('#handoffStatus');
   const btnCopyV2TemplateId = $('#btnCopyV2TemplateId');
   const btnCopyV2ExportUrl = $('#btnCopyV2ExportUrl');
+  const chatThread = $('#chatThread');
+  const chatEmptyState = $('#chatEmptyState');
+  const chatInput = $('#chatInput');
+  const btnSendChat = $('#btnSendChat');
+  const chatStatus = $('#chatStatus');
 
   const v2Bridge = window.createTemplateLabV2Bridge({
     storage: window.localStorage,
@@ -136,6 +183,62 @@
     initialBaseUrl: bootstrap.v2BaseUrl || '',
     serverV2Proxy: Boolean(bootstrap.v2ServerProxyEnabled),
   });
+
+  const STUDIO_DECORATIVE_ASSETS = [
+    { label: 'Reference Badge', assetUrl: '/designer-assets/test-reference.png' },
+    { label: 'Landscape CTA', assetUrl: '/designer-assets/landscape_cta.png' },
+  ];
+
+  if (canvasAssetSelect && !canvasAssetSelect.innerHTML.trim()) {
+    canvasAssetSelect.innerHTML = STUDIO_DECORATIVE_ASSETS.map((asset) => {
+      return `<option value="${asset.assetUrl}">${asset.label}</option>`;
+    }).join('');
+  }
+
+  const canvasEditor = typeof window.createTemplateLabCanvasEditor === 'function'
+    ? window.createTemplateLabCanvasEditor({
+        stageHost: canvasEditorHost,
+        emptyState: canvasEditorEmpty,
+        summary: canvasEditorSummary,
+        layerList: canvasLayerList,
+        status: canvasEditorStatus,
+        layerActions: {
+          moveUpButton: btnCanvasLayerUp,
+          moveDownButton: btnCanvasLayerDown,
+          toggleVisibilityButton: btnCanvasLayerHide,
+          toggleLockButton: btnCanvasLayerLock,
+        },
+        historyActions: {
+          onUndoRequest: undoVisualEdit,
+          onRedoRequest: redoVisualEdit,
+        },
+        fields: {
+          x: canvasFieldX,
+          y: canvasFieldY,
+          width: canvasFieldWidth,
+          height: canvasFieldHeight,
+          opacity: canvasFieldOpacity,
+          borderRadius: canvasFieldBorderRadius,
+          fontSize: canvasFieldFontSize,
+          lineHeight: canvasFieldLineHeight,
+          letterSpacing: canvasFieldLetterSpacing,
+          align: canvasFieldAlign,
+          fit: canvasFieldFit,
+          shadowBlur: canvasFieldShadowBlur,
+          fontFamily: canvasFieldFontFamily,
+          textColor: canvasFieldTextColor,
+          fillColor: canvasFieldFillColor,
+          content: canvasFieldContent,
+        },
+        assetPicker: {
+          select: canvasAssetSelect,
+          addButton: btnAddCanvasAsset,
+          uploadInput: canvasAssetUploadInput,
+          uploadButton: btnUploadCanvasAsset,
+        },
+        onTemplateChange: handleCanvasTemplateChange,
+      })
+    : null;
 
   const SESSION_COPY = {
     reference: {
@@ -172,7 +275,9 @@
   refreshSavedDraftMeta();
   setReferenceInputMode('image');
   setSessionMode('reference');
+  setPreviewMode(state.previewMode);
   renderHistory();
+  renderChatMessages();
   updateStatus();
   initializeTemplateLabBridge();
   if (bootstrap.renderApiKey || bootstrap.v2BaseUrl) {
@@ -203,7 +308,12 @@
 
     if (modeReference) {
       modeReference.addEventListener('click', () => {
-        setSessionMode('reference', { focusTarget: state.referenceInputMode === 'video' ? videoFileInput : fileInput });
+        const focusTarget = state.referenceInputMode === 'video'
+          ? videoFileInput
+          : state.referenceInputMode === 'prompt'
+            ? promptInput
+            : fileInput;
+        setSessionMode('reference', { focusTarget });
       });
     }
 
@@ -233,6 +343,37 @@
       });
     }
 
+    if (referenceModePrompt) {
+      referenceModePrompt.addEventListener('click', () => {
+        clearReferenceImage();
+        clearReferenceVideo();
+        if (fileInput) fileInput.value = '';
+        if (videoFileInput) videoFileInput.value = '';
+        setReferenceInputMode('prompt');
+        setSessionMode('reference', { focusTarget: promptInput });
+        renderReferenceState();
+        if (state.sessionMode === 'reference') {
+          setPreviewStatus('Prompt-only input selected. Add a prompt to generate without a visual reference.', 'info');
+        }
+        scheduleDraftSave();
+      });
+    }
+
+    if (referenceModeBlank) {
+      referenceModeBlank.addEventListener('click', () => {
+        setReferenceInputMode('blank');
+        renderReferenceState();
+      });
+    }
+
+    if (referenceModeV2) {
+      referenceModeV2.addEventListener('click', () => {
+        setReferenceInputMode('v2');
+        setSessionMode('v2', { focusTarget: v2ExportUrlInput });
+        renderReferenceState();
+      });
+    }
+
     uploadZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       uploadZone.classList.add('dragover');
@@ -247,6 +388,10 @@
       uploadZone.classList.remove('dragover');
       const file = e.dataTransfer?.files?.[0];
       if (file && file.type.startsWith('image/')) handleImageFile(file);
+    });
+
+    uploadZone.addEventListener('paste', (e) => {
+      handleReferenceImagePaste(e);
     });
 
     fileInput.addEventListener('change', () => {
@@ -316,16 +461,27 @@
       });
     }
 
-    feedbackInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !btnIterate.disabled) manualIterate();
-    });
+    if (btnBannerOpenSettings) {
+      btnBannerOpenSettings.addEventListener('click', () => {
+        openSettingsDrawer({ focusTarget: apiKeyInput });
+      });
+    }
+
+    if (previewTabView) {
+      previewTabView.addEventListener('click', () => setPreviewMode('view'));
+    }
+    if (previewTabEdit) {
+      previewTabEdit.addEventListener('click', () => setPreviewMode('edit'));
+    }
+    if (previewTabCompare) {
+      previewTabCompare.addEventListener('click', () => setPreviewMode('compare'));
+    }
 
     btnGenerate.addEventListener('click', generate);
     btnStop.addEventListener('click', () => {
       state.isAutoIterating = false;
       updateStatus();
     });
-    btnIterate.addEventListener('click', manualIterate);
     btnNewBlankTemplate.addEventListener('click', () => createBlankTemplateSession('png'));
     if (btnNewReelTemplate) {
       btnNewReelTemplate.addEventListener('click', () => createBlankTemplateSession('mp4'));
@@ -407,8 +563,29 @@
 
     btnCopyV2TemplateId.addEventListener('click', () => copyHandoffValue('templateId'));
     btnCopyV2ExportUrl.addEventListener('click', () => copyHandoffValue('exportUrl'));
+    if (btnCanvasUndo) btnCanvasUndo.addEventListener('click', undoVisualEdit);
+    if (btnCanvasRedo) btnCanvasRedo.addEventListener('click', redoVisualEdit);
     btnRestoreDraft.addEventListener('click', restoreSavedDraft);
     btnDiscardDraft.addEventListener('click', discardSavedDraft);
+
+    if (chatInput) {
+      chatInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendChatMessage();
+        }
+      });
+      chatInput.addEventListener('input', () => {
+        if (chatStatus && chatStatus.classList.contains('error')) {
+          setChatStatus('', '');
+        }
+        updateStatus();
+      });
+    }
+
+    if (btnSendChat) {
+      btnSendChat.addEventListener('click', sendChatMessage);
+    }
   }
 
   function slugify(value) {
@@ -419,16 +596,128 @@
     return template ? JSON.stringify(template) : null;
   }
 
+  function cloneJson(value) {
+    return value == null ? value : JSON.parse(JSON.stringify(value));
+  }
+
+  function generateStudioLayerId(frameIndex, layerIndex) {
+    return `layer_${frameIndex + 1}_${layerIndex + 1}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function ensureTemplateLayerIds(template) {
+    if (!template || !Array.isArray(template.frames)) return template;
+
+    template.frames.forEach((frame, frameIndex) => {
+      if (!Array.isArray(frame.layers)) return;
+      frame.layers.forEach((layer, layerIndex) => {
+        if (!layer.id) {
+          layer.id = generateStudioLayerId(frameIndex, layerIndex);
+        }
+      });
+    });
+
+    return template;
+  }
+
+  function syncCanvasEditor() {
+    if (!canvasEditor) return;
+    if (!state.currentTemplate) {
+      canvasEditor.clear();
+      return;
+    }
+
+    canvasEditor.setDocument(state.currentTemplate, {
+      frameIndex: state.previewFrameIndex,
+    });
+  }
+
+  function pushVisualUndoSnapshot(template) {
+    if (!template) return;
+    state.visualUndoStack.push(cloneJson(template));
+    if (state.visualUndoStack.length > 60) {
+      state.visualUndoStack.shift();
+    }
+    state.visualRedoStack = [];
+  }
+
+  function updateVisualHistoryControls() {
+    if (btnCanvasUndo) btnCanvasUndo.disabled = state.visualUndoStack.length === 0;
+    if (btnCanvasRedo) btnCanvasRedo.disabled = state.visualRedoStack.length === 0;
+  }
+
+  function applyVisualHistoryTemplate(template, message) {
+    if (!template) return;
+    ensureTemplateLayerIds(template);
+    state.currentTemplate = template;
+    state.previewStale = true;
+    state.sessionDirty = computeDirty(template);
+    showJson(template);
+    updatePreviewFrameControls(template);
+    setPreviewStatus(message, 'warning');
+    updateStatus();
+    scheduleDraftSave();
+  }
+
+  function undoVisualEdit() {
+    if (!state.visualUndoStack.length || !state.currentTemplate) return;
+    state.visualRedoStack.push(cloneJson(state.currentTemplate));
+    const previousTemplate = state.visualUndoStack.pop();
+    applyVisualHistoryTemplate(previousTemplate, 'Undid the latest visual edit. Re-render the preview before approving this draft.');
+  }
+
+  function redoVisualEdit() {
+    if (!state.visualRedoStack.length || !state.currentTemplate) return;
+    state.visualUndoStack.push(cloneJson(state.currentTemplate));
+    const nextTemplate = state.visualRedoStack.pop();
+    applyVisualHistoryTemplate(nextTemplate, 'Redid the visual edit. Re-render the preview before approving this draft.');
+  }
+
+  function handleCanvasTemplateChange(nextTemplate, details = {}) {
+    if (!nextTemplate) return;
+
+    if (state.currentTemplate && serializeTemplate(state.currentTemplate) !== serializeTemplate(nextTemplate)) {
+      pushVisualUndoSnapshot(state.currentTemplate);
+    }
+    ensureTemplateLayerIds(nextTemplate);
+    state.currentTemplate = nextTemplate;
+    state.previewFrameIndex = Number.isInteger(details.frameIndex) ? details.frameIndex : state.previewFrameIndex;
+    state.previewStale = true;
+    state.sessionDirty = computeDirty(nextTemplate);
+    showJson(nextTemplate);
+    updatePreviewFrameControls(nextTemplate);
+    setPreviewStatus(
+      details.message || 'Visual edits changed the layer JSON. Re-render the preview before approving this draft.',
+      'warning',
+    );
+    updateStatus();
+    scheduleDraftSave();
+  }
+
   function focusElement(el) {
     if (el && typeof el.focus === 'function') el.focus();
   }
 
   function setReferenceInputMode(mode) {
-    state.referenceInputMode = mode === 'video' ? 'video' : 'image';
-    if (referenceModeImage) referenceModeImage.classList.toggle('active', state.referenceInputMode === 'image');
-    if (referenceModeVideo) referenceModeVideo.classList.toggle('active', state.referenceInputMode === 'video');
-    if (referenceImagePanel) referenceImagePanel.classList.toggle('active', state.referenceInputMode === 'image');
-    if (referenceVideoPanel) referenceVideoPanel.classList.toggle('active', state.referenceInputMode === 'video');
+    const validModes = new Set(['image', 'video', 'prompt', 'blank', 'v2']);
+    state.referenceInputMode = validModes.has(mode) ? mode : 'image';
+    const current = state.referenceInputMode;
+
+    if (referenceModeImage) referenceModeImage.classList.toggle('active', current === 'image');
+    if (referenceModeVideo) referenceModeVideo.classList.toggle('active', current === 'video');
+    if (referenceModePrompt) referenceModePrompt.classList.toggle('active', current === 'prompt');
+    if (referenceModeBlank) referenceModeBlank.classList.toggle('active', current === 'blank');
+    if (referenceModeV2) referenceModeV2.classList.toggle('active', current === 'v2');
+
+    if (referenceImagePanel) referenceImagePanel.classList.toggle('active', current === 'image');
+    if (referenceVideoPanel) referenceVideoPanel.classList.toggle('active', current === 'video');
+    if (referencePromptPanel) referencePromptPanel.classList.toggle('active', current === 'prompt');
+    if (referenceBlankPanel) referenceBlankPanel.classList.toggle('active', current === 'blank');
+    if (referenceV2Panel) referenceV2Panel.classList.toggle('active', current === 'v2');
+
+    const showGenerate = current === 'image' || current === 'video' || current === 'prompt';
+    if (sourceGenerateRegion) sourceGenerateRegion.classList.toggle('is-hidden', !showGenerate);
+
+    renderReferenceState();
     updateStatus();
   }
 
@@ -440,13 +729,14 @@
     const prompt = params.get('prompt');
 
     let routeMode = '';
-    if (pathname.endsWith('/designer/reference-video')) routeMode = 'video';
+    if (pathname.endsWith('/designer/prompt')) routeMode = 'prompt';
+    else if (pathname.endsWith('/designer/reference-video')) routeMode = 'video';
     else if (pathname.endsWith('/designer/reference-image')) routeMode = 'image';
     else if (pathname.endsWith('/designer/v2')) routeMode = 'v2';
     else if (pathname.endsWith('/designer/json')) routeMode = 'json';
 
     const normalizedMode = routeMode || queryMode;
-    const allowedModes = new Set(['video', 'image', 'v2', 'json', 'reference']);
+    const allowedModes = new Set(['prompt', 'video', 'image', 'v2', 'json', 'reference']);
 
     return {
       mode: allowedModes.has(normalizedMode) ? normalizedMode : '',
@@ -461,13 +751,17 @@
       promptInput.value = urlState.prompt;
     }
 
-    if (urlState.mode === 'video') {
+    if (urlState.mode === 'prompt') {
+      setReferenceInputMode('prompt');
+      setSessionMode('reference', { focusTarget: promptInput });
+    } else if (urlState.mode === 'video') {
       setReferenceInputMode('video');
       setSessionMode('reference');
     } else if (urlState.mode === 'image' || urlState.mode === 'reference') {
       setReferenceInputMode('image');
       setSessionMode('reference');
     } else if (urlState.mode === 'v2') {
+      setReferenceInputMode('v2');
       setSessionMode('v2', { focusTarget: v2ExportUrlInput });
     } else if (urlState.mode === 'json') {
       setSessionMode('json', { focusTarget: jsonEditor, openAdvanced: true });
@@ -495,6 +789,15 @@
   }
 
   function getReferenceSessionDetails() {
+    if (state.referenceInputMode === 'prompt' && !state.referenceImage && !state.referenceVideoFile) {
+      return {
+        pill: 'Prompt Draft',
+        helper: 'Start with a text prompt when you want the first template pass to come from description alone.',
+        title: 'Prompt-led draft',
+        lead: 'Describe the structure, tone, offer, and output format you want, then refine the generated draft with more text or raw JSON edits.',
+      };
+    }
+
     const isVideoMode = state.referenceInputMode === 'video' || !!state.referenceVideoFile;
     return isVideoMode
       ? {
@@ -577,6 +880,8 @@
       sessionDirty: state.sessionDirty,
       generatedSaveId: state.generatedSaveId,
       saveIdTouched: state.saveIdTouched,
+      chatSessionId: state.chatSessionId,
+      chatMessages: state.chatMessages,
       jsonEditorValue: jsonEditor.value,
       handoff: {
         exportUrl: v2ExportUrlInput.value.trim(),
@@ -606,7 +911,6 @@
       };
       updateDraftRecoveryUI();
     } catch (err) {
-      autosaveStatus.textContent = 'Autosave could not be written in this browser.';
       log(`Autosave failed: ${err.message || err}`, 'error');
     }
   }
@@ -624,21 +928,16 @@
     const hasCurrentDraft = hasRecoverableState();
 
     if (!savedMeta) {
-      autosaveStatus.textContent = hasCurrentDraft
-        ? 'This session has changes but no saved recovery snapshot yet.'
-        : 'Autosave is idle until this session has something to recover.';
       draftRestore.style.display = 'none';
       return;
     }
-
-    const templateLabel = savedMeta.templateName ? ` for ${savedMeta.templateName}` : '';
-    autosaveStatus.textContent = `Last local recovery snapshot saved ${formatTimestamp(savedMeta.savedAt)}${templateLabel}.`;
 
     if (hasCurrentDraft) {
       draftRestore.style.display = 'none';
       return;
     }
 
+    const templateLabel = savedMeta.templateName ? ` for ${savedMeta.templateName}` : '';
     draftRestoreTitle.textContent = 'Saved draft available';
     draftRestoreMeta.textContent = `A ${savedMeta.sessionMode || 'studio'} session was saved ${formatTimestamp(savedMeta.savedAt)}${templateLabel}. Restore it or discard it before starting a new draft.`;
     draftRestore.style.display = '';
@@ -687,8 +986,6 @@
 
     btnGenerate.disabled = missingApiKey || missingInput || busy;
     btnStop.disabled = !state.isAutoIterating;
-    feedbackInput.disabled = !hasTemplate || !hasReference || busy;
-    btnIterate.disabled = !hasTemplate || !hasReference || busy;
     btnRerender.disabled = !hasTemplate || busy;
     btnCopyJson.disabled = !hasTemplate;
     btnSaveV2.disabled = !hasTemplate || busy;
@@ -696,13 +993,20 @@
     jsonEditor.disabled = !hasTemplate || (busy && !state.previewStale);
     if (previewFrameSelect) previewFrameSelect.disabled = !hasTemplate || busy || previewFrameControls.style.display === 'none';
     if (toggleAutoIterate) toggleAutoIterate.disabled = busy;
+    if (btnSendChat) btnSendChat.disabled = state.isChatSending || !chatInput || !chatInput.value.trim();
 
     if (btnGenerate) {
-      btnGenerate.textContent = hasReferenceVideo ? 'Match Style from Video' : 'Generate';
+      btnGenerate.textContent = hasReferenceVideo
+        ? 'Match Style from Video'
+        : state.referenceInputMode === 'prompt' || (!hasReference && hasPrompt)
+          ? 'Generate from Prompt'
+          : 'Generate';
       btnGenerate.title = missingApiKey
         ? 'Add the Render API Key in Settings to enable Generate.'
         : missingInput
-          ? 'Add a prompt or upload a reference image or video to enable Generate.'
+          ? state.referenceInputMode === 'prompt'
+            ? 'Add a prompt to enable prompt-only generation.'
+            : 'Add a prompt or upload a reference image or video to enable Generate.'
           : '';
     }
 
@@ -717,13 +1021,17 @@
       } else if (missingApiKey) {
         hintText = 'Open Settings and paste the Render API Key to start generating.';
       } else if (missingInput) {
-        hintText = 'Add a prompt or reference image/video to start.';
+        hintText = state.referenceInputMode === 'prompt'
+          ? 'Add a prompt to start a prompt-only draft.'
+          : 'Add a prompt or reference image/video to start.';
       } else if (hasReferenceVideo && hasPrompt) {
         hintText = 'Ready to analyze the reference video and match its style with a slideshow reel.';
       } else if (hasReferenceVideo) {
         hintText = 'Reference video ready. Generate will analyze scenes, pacing, and overlays to build an MP4 reel blueprint.';
       } else if (!hasReference && hasPrompt && state.referenceInputMode === 'video') {
         hintText = 'Prompt ready. Upload a short reference video to match style, or generate from prompt only if you want a generic reel draft.';
+      } else if (!hasReference && hasPrompt && state.referenceInputMode === 'prompt') {
+        hintText = 'Prompt ready. Generate will create a draft from scratch without needing a visual reference.';
       } else if (hasReferenceImage && hasPrompt) {
         hintText = 'Ready to generate from the reference image and prompt.';
       } else if (hasReferenceImage) {
@@ -747,6 +1055,8 @@
     updateStudioStatus();
     renderVideoInsights();
     updateDraftRecoveryUI();
+    updateVisualHistoryControls();
+    syncCanvasEditor();
   }
 
   function openSettingsDrawer({ focusTarget } = {}) {
@@ -766,95 +1076,94 @@
     const copy = state.sessionMode === 'reference'
       ? getReferenceSessionDetails()
       : (SESSION_COPY[state.sessionMode] || SESSION_COPY.reference);
-    const { linkedTemplateId, exportUrl } = getHandoffContext();
+    const { linkedTemplateId } = getHandoffContext();
     const hasTemplate = !!state.currentTemplate;
     const hasPreview = !!state.currentPreview || !!state.currentPreviewVideoUrl;
     const currentName = state.currentTemplate?.name || state.currentTemplate?.id || 'Untitled draft';
-    const latestEntry = state.history[state.activeHistoryIndex] || null;
+    const hasReference = !!state.referenceImage || !!state.referenceVideoFile
+      || state.referenceInputMode === 'prompt' || state.referenceInputMode === 'blank'
+      || state.referenceInputMode === 'v2';
+    const hasPrompt = !!promptInput?.value?.trim();
 
-    setStatusPill(sessionModePill, copy.pill, 'accent');
+    // Progress step states
+    const refDone = hasReference || hasPrompt || hasTemplate;
+    const genActive = refDone && !hasTemplate;
+    const genDone = hasTemplate && !state.previewStale;
+    const approveReady = hasTemplate && !state.previewStale;
+    const approveDone = !!linkedTemplateId && !state.sessionDirty;
 
-    let draftLabel = 'Awaiting Draft';
-    let draftTone = '';
+    setProgressStep(progressStepReference,
+      refDone ? 'done' : 'active');
+    setProgressStep(progressStepGenerate,
+      approveDone ? 'done' : genDone ? 'done' : genActive ? 'active' : 'pending');
+    setProgressStep(progressStepApprove,
+      approveDone ? 'done' : approveReady ? 'active' : 'pending');
 
-    if (state.isApproving) {
-      draftLabel = 'Approving';
-      draftTone = 'warning';
-    } else if (state.isAutoIterating) {
-      draftLabel = 'Auto-Refining';
-      draftTone = 'accent';
-    } else if (state.isGenerating) {
-      draftLabel = 'Working';
-      draftTone = 'accent';
-    } else if (state.previewStale) {
-      draftLabel = 'Preview Stale';
-      draftTone = 'warning';
-    } else if (!hasTemplate) {
-      draftLabel = 'Awaiting Draft';
-    } else if (!state.sessionDirty && linkedTemplateId) {
-      draftLabel = 'V2-Synced';
-      draftTone = 'success';
-    } else if (state.sessionDirty) {
-      draftLabel = 'Draft Updated';
-      draftTone = 'warning';
-    } else if (hasPreview) {
-      draftLabel = 'Preview Current';
-      draftTone = 'success';
+    workspaceLinkedLabel.textContent = linkedTemplateId ? `Linked to ${linkedTemplateId}` : 'Not linked yet';
+    workspaceTitle.textContent = hasTemplate ? currentName : copy.title;
+
+    // Sticky approve footer summary
+    if (approveFooterName) {
+      approveFooterName.textContent = hasTemplate ? currentName : 'No draft yet';
+    }
+    if (approveFooterDetails) {
+      if (!hasTemplate) {
+        approveFooterDetails.textContent = 'Generate or load a template to enable approval.';
+      } else {
+        const imageCount = parseInt(saveImageCount?.value, 10);
+        const imageLabel = Number.isFinite(imageCount) && imageCount > 0
+          ? `${imageCount} image${imageCount === 1 ? '' : 's'}`
+          : '1 image';
+        const idLabel = saveId?.value?.trim() ? ` · ${saveId.value.trim()}` : '';
+        const linkedLabel = linkedTemplateId ? ` · V2: ${linkedTemplateId}` : '';
+        approveFooterDetails.textContent = `${imageLabel}${idLabel}${linkedLabel}`;
+      }
     }
 
-    setStatusPill(draftStatePill, draftLabel, draftTone);
-
-    sessionSummary.textContent = hasTemplate
-      ? `Working on “${currentName}”.`
-      : 'Choose a session path and create the first preview.';
-
-    sessionMeta.textContent = linkedTemplateId
-      ? `Linked to V2 template ${linkedTemplateId}.${exportUrl ? ` Export URL: ${exportUrl}` : ''}`
-      : 'No V2 template is linked yet. Use V2 load when you want to improve an existing approved template.';
-
-    pathHelper.textContent = copy.helper;
-    linkedTemplateBadge.textContent = linkedTemplateId ? linkedTemplateId : 'Not linked';
-    workspaceLinkedLabel.textContent = linkedTemplateId ? `Linked to ${linkedTemplateId}` : 'Not linked yet';
-
-    previewFreshness.textContent = state.previewStale
-      ? 'Preview needs rerender'
-      : hasPreview
-        ? 'Preview current'
-        : hasTemplate
-          ? 'Template loaded, no preview yet'
-          : 'No preview yet';
-
-    publishSummary.textContent = !hasTemplate
-      ? 'Nothing ready to approve yet.'
-      : state.previewStale
-        ? 'Re-render the edited JSON before approving.'
-        : linkedTemplateId
-          ? 'Current draft can update the linked V2 template when you approve.'
-          : 'Current draft can create or link a V2 template when you approve.';
-
-    workspaceTitle.textContent = hasTemplate ? currentName : copy.title;
-    workspaceLead.textContent = !hasTemplate
-      ? copy.lead
-      : latestEntry
-        ? `${latestEntry.label}. ${state.sessionDirty ? 'Local edits are not yet approved back into V2.' : 'This version matches the current clean checkpoint.'}`
-        : copy.lead;
-
-    historySummary.textContent = latestEntry
-      ? `${latestEntry.label}${latestEntry.score != null ? ` • ${latestEntry.score}/10` : ''}`
-      : 'No versions yet. The first render will create the first restorable checkpoint.';
-
-    publishLead.innerHTML = linkedTemplateId
-      ? `This session is linked to <strong>${escapeHtml(linkedTemplateId)}</strong>. Approving now updates that V2 record and refreshes the export link.`
-      : 'Use <strong>Load from V2</strong> when you want to reopen an approved template. MP4 templates now try to preview here as local videos, with poster-frame fallback when video rendering is unavailable.';
+    // API key banner
+    if (apiKeyBanner) {
+      apiKeyBanner.classList.toggle('is-visible', !state.apiKey);
+    }
   }
 
-  function setStatusPill(el, label, tone) {
+  function setProgressStep(el, stateValue) {
     if (!el) return;
-    el.textContent = label;
-    el.className = 'status-pill';
-    if (tone === 'accent') el.classList.add('is-accent');
-    if (tone === 'success') el.classList.add('is-success');
-    if (tone === 'warning') el.classList.add('is-warning');
+    el.setAttribute('data-state', stateValue);
+  }
+
+  function setPreviewMode(mode) {
+    const validModes = ['view', 'edit', 'compare'];
+    state.previewMode = validModes.includes(mode) ? mode : 'view';
+    try {
+      localStorage.setItem('designer_preview_mode', state.previewMode);
+    } catch (_err) {
+      // ignore storage errors
+    }
+    if (previewTabView) {
+      previewTabView.classList.toggle('active', state.previewMode === 'view');
+      previewTabView.setAttribute('aria-selected', state.previewMode === 'view' ? 'true' : 'false');
+    }
+    if (previewTabEdit) {
+      previewTabEdit.classList.toggle('active', state.previewMode === 'edit');
+      previewTabEdit.setAttribute('aria-selected', state.previewMode === 'edit' ? 'true' : 'false');
+    }
+    if (previewTabCompare) {
+      previewTabCompare.classList.toggle('active', state.previewMode === 'compare');
+      previewTabCompare.setAttribute('aria-selected', state.previewMode === 'compare' ? 'true' : 'false');
+    }
+    if (previewLive) {
+      previewLive.setAttribute('data-mode', state.previewMode === 'compare' ? 'compare' : 'view');
+      previewLive.classList.toggle('is-hidden', state.previewMode === 'edit');
+    }
+    if (previewEdit) {
+      previewEdit.classList.toggle('active', state.previewMode === 'edit');
+    }
+    if (previewGeneratedLabel) {
+      previewGeneratedLabel.textContent = state.previewMode === 'compare' ? 'Generated Preview' : 'Preview';
+    }
+    if (state.previewMode === 'edit') {
+      syncCanvasEditor();
+    }
   }
 
   function clearReferenceImage() {
@@ -876,6 +1185,42 @@
       videoUploadPreview.removeAttribute?.('src');
       videoUploadPreview.style.display = 'none';
     }
+  }
+
+  function extractImageFileFromClipboardData(clipboardData) {
+    if (!clipboardData) return null;
+
+    const fileMatch = Array.from(clipboardData.files || []).find((file) => {
+      return String(file?.type || '').toLowerCase().startsWith('image/');
+    });
+    if (fileMatch) return fileMatch;
+
+    const itemMatch = Array.from(clipboardData.items || []).find((item) => {
+      return String(item?.type || '').toLowerCase().startsWith('image/');
+    });
+    if (!itemMatch || typeof itemMatch.getAsFile !== 'function') return null;
+    return itemMatch.getAsFile();
+  }
+
+  function isEditableTarget(target) {
+    const tagName = String(target?.tagName || '').toUpperCase();
+    return tagName === 'INPUT' || tagName === 'TEXTAREA' || Boolean(target?.isContentEditable);
+  }
+
+  function handleReferenceImagePaste(event) {
+    if (state.referenceInputMode !== 'image') return;
+    if (isEditableTarget(event?.target) && event?.target !== fileInput) return;
+
+    const file = extractImageFileFromClipboardData(event?.clipboardData);
+    if (!file) return;
+
+    if (typeof event?.preventDefault === 'function') {
+      event.preventDefault();
+    }
+
+    handleImageFile(file);
+    setPreviewStatus('Reference image pasted from clipboard.', 'info');
+    showToast('Reference image pasted', 'success');
   }
 
   function handleImageFile(file) {
@@ -1006,6 +1351,31 @@
       return;
     }
 
+    if (state.referenceInputMode === 'prompt') {
+      uploadPreview.src = '';
+      uploadPreview.style.display = 'none';
+      uploadPlaceholder.style.display = '';
+      uploadZone.classList.remove('has-image');
+      refImage.src = '';
+      refImage.style.display = 'none';
+      if (refVideo) {
+        if (typeof refVideo.pause === 'function') refVideo.pause();
+        refVideo.src = '';
+        refVideo.style.display = 'none';
+      }
+      if (videoUploadPreview) {
+        if (typeof videoUploadPreview.pause === 'function') videoUploadPreview.pause();
+        videoUploadPreview.src = '';
+        videoUploadPreview.style.display = 'none';
+      }
+      if (videoUploadPlaceholder) videoUploadPlaceholder.style.display = '';
+      if (videoUploadMeta) videoUploadMeta.textContent = '';
+      if (videoUploadZone) videoUploadZone.classList.remove('has-video');
+      refPlaceholder.textContent = 'Prompt-only session. Add a prompt to generate a draft from scratch, or switch modes if you want image or video guidance.';
+      refPlaceholder.style.display = '';
+      return;
+    }
+
     uploadPreview.src = '';
     uploadPreview.style.display = 'none';
     uploadPlaceholder.style.display = '';
@@ -1025,6 +1395,7 @@
     if (videoUploadPlaceholder) videoUploadPlaceholder.style.display = '';
     if (videoUploadMeta) videoUploadMeta.textContent = '';
     if (videoUploadZone) videoUploadZone.classList.remove('has-video');
+    refPlaceholder.textContent = 'Upload a reference image or video, or switch to Prompt Only to start from text.';
     refPlaceholder.style.display = '';
   }
 
@@ -1267,6 +1638,7 @@
     } = options;
 
     if (resetHistory) clearHistory();
+    ensureTemplateLayerIds(template);
 
     const normalizedPreview = normalizePreviewResult(preview);
 
@@ -1277,6 +1649,8 @@
     if (analysis) state.currentVideoAnalysis = analysis;
     state.previewStale = false;
     state.previewFrameIndex = frameIndex;
+    state.visualUndoStack = [];
+    state.visualRedoStack = [];
 
     if (cleanCheckpoint) {
       state.lastApprovedSnapshot = serializeTemplate(template);
@@ -1331,6 +1705,138 @@
       showToast(kind === 'templateId' ? 'V2 template ID copied' : 'V2 export URL copied', 'success');
     } catch (err) {
       showToast(err.message || 'Clipboard copy failed', 'error');
+    }
+  }
+
+  function setChatStatus(message, tone) {
+    if (!chatStatus) return;
+    chatStatus.textContent = message || '';
+    chatStatus.className = 'chat-status';
+    if (tone) chatStatus.classList.add(tone);
+  }
+
+  function renderChatMessages() {
+    if (!chatThread) return;
+
+    if (!state.chatMessages.length) {
+      chatThread.innerHTML = '';
+      if (chatEmptyState) {
+        chatThread.appendChild(chatEmptyState);
+        chatEmptyState.style.display = '';
+      }
+      return;
+    }
+
+    const html = state.chatMessages.map((message) => `
+      <div class="chat-message ${message.role}">
+        <div class="chat-role">${message.role === 'assistant' ? 'Template Chat' : 'You'}</div>
+        <div class="chat-content">${escapeHtml(message.content)}</div>
+      </div>
+    `).join('');
+    chatThread.innerHTML = html;
+    chatThread.scrollTop = chatThread.scrollHeight;
+  }
+
+  function setChatSending(isSending, message) {
+    state.isChatSending = isSending;
+    if (chatInput) chatInput.disabled = isSending;
+    if (isSending) {
+      setChatStatus(message || 'Working on your draft…', '');
+    }
+    updateStatus();
+  }
+
+  function buildChatDraftContext() {
+    return {
+      prompt: promptInput.value.trim(),
+      referenceInputMode: state.referenceInputMode,
+      referenceImage: state.referenceImage,
+      referenceVideoActive: Boolean(state.referenceVideoFile),
+      currentTemplate: state.currentTemplate,
+      currentPreview: state.currentPreview,
+      currentPreviewKind: state.currentPreviewKind,
+      currentPreviewVideoUrl: state.currentPreviewVideoUrl,
+      currentVideoAnalysis: state.currentVideoAnalysis,
+      previewFrameIndex: state.previewFrameIndex,
+      handoff: {
+        exportUrl: v2ExportUrlInput.value.trim(),
+        saveName: saveName.value.trim(),
+        saveId: saveId.value.trim(),
+        saveImageCount: saveImageCount.value,
+      },
+    };
+  }
+
+  async function sendChatMessage() {
+    const message = chatInput ? chatInput.value.trim() : '';
+    if (!message || state.isChatSending) return;
+
+    const localUserMessage = {
+      id: `local-${Date.now()}`,
+      role: 'user',
+      content: message,
+      createdAt: new Date().toISOString(),
+    };
+
+    state.chatMessages = [...state.chatMessages, localUserMessage];
+    renderChatMessages();
+    if (chatInput) chatInput.value = '';
+    updateStatus();
+    setChatSending(true, state.currentTemplate ? 'Applying your adjustment…' : 'Generating from chat…');
+
+    try {
+      const res = await fetch('/api/designer/chat/message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Api-Key': state.apiKey,
+        },
+        body: JSON.stringify({
+          sessionId: state.chatSessionId || undefined,
+          message,
+          draftContext: buildChatDraftContext(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+      state.chatSessionId = data.sessionId || state.chatSessionId;
+      state.chatMessages = Array.isArray(data.messages) ? data.messages : state.chatMessages;
+      renderChatMessages();
+
+      if (!promptInput.value.trim() && !state.currentTemplate) {
+        promptInput.value = message;
+      }
+
+      if (data.template) {
+        applyTemplateState(data.template, data, {
+          label: data.action === 'generated' ? 'Chat Draft' : 'Chat Revision',
+          feedback: message,
+          analysis: data.analysis || null,
+        });
+        setPreviewStatus(
+          buildPreviewStatusMessage(
+            data.action === 'generated'
+              ? 'Generated a draft from chat.'
+              : 'Applied the latest chat adjustment.',
+            data,
+          ),
+          'info',
+        );
+        log(data.action === 'generated' ? 'Generated a draft from chat.' : 'Applied a chat-driven draft update.', 'info');
+      } else if (data.assistantMessage?.content) {
+        setPreviewStatus(data.assistantMessage.content, 'info');
+      }
+
+      scheduleDraftSave();
+      setChatSending(false);
+      setChatStatus('', '');
+    } catch (err) {
+      state.chatMessages = state.chatMessages.filter((entry) => entry.id !== localUserMessage.id);
+      renderChatMessages();
+      setChatSending(false);
+      setChatStatus(err.message || 'Chat request failed.', 'error');
+      showToast(err.message || 'Chat request failed.', 'error');
     }
   }
 
@@ -1416,7 +1922,8 @@
   function buildTemplateFromForm({ forceOutputFormat } = {}) {
     if (!state.currentTemplate) return null;
 
-    const template = { ...state.currentTemplate };
+    const template = cloneJson(state.currentTemplate);
+    ensureTemplateLayerIds(template);
     if (saveName.value.trim()) template.name = saveName.value.trim();
     if (saveId.value.trim()) {
       template.id = saveId.value.trim();
@@ -1502,7 +2009,7 @@
 
     clearCurrentDraftState();
 
-    const template = buildBlankTemplate(format);
+    const template = ensureTemplateLayerIds(buildBlankTemplate(format));
     state.currentTemplate = template;
     state.currentPreview = null;
     state.currentPreviewKind = 'image';
@@ -1560,6 +2067,7 @@
   }
 
   async function renderLoadedV2Template(template, meta = {}) {
+    ensureTemplateLayerIds(template);
     showJson(template);
     syncApprovalFieldsFromTemplate(template, meta);
     state.previewFrameIndex = 0;
@@ -1653,9 +2161,14 @@
     state.sessionDirty = false;
     state.generatedSaveId = '';
     state.saveIdTouched = false;
+    state.chatSessionId = '';
+    state.chatMessages = [];
+    state.isChatSending = false;
+    state.visualUndoStack = [];
+    state.visualRedoStack = [];
 
     promptInput.value = '';
-    feedbackInput.value = '';
+    if (chatInput) chatInput.value = '';
     jsonEditor.value = '';
     jsonEditor.disabled = true;
     saveName.value = '';
@@ -1679,6 +2192,8 @@
     renderReferenceState();
     updatePreviewFrameControls(null);
     renderHistory();
+    renderChatMessages();
+    setChatStatus('', '');
   }
 
   function restoreSavedDraft() {
@@ -1704,6 +2219,8 @@
     state.currentVideoAnalysis = draft.currentVideoAnalysis || null;
     state.generatedSaveId = draft.generatedSaveId || '';
     state.saveIdTouched = Boolean(draft.saveIdTouched);
+    state.chatSessionId = draft.chatSessionId || '';
+    state.chatMessages = Array.isArray(draft.chatMessages) ? draft.chatMessages : [];
     setReferenceInputMode(draft.referenceInputMode || 'image');
 
     if (draft.handoff?.exportUrl) {
@@ -1716,6 +2233,7 @@
     renderReferenceState();
 
     if (draft.currentTemplate) {
+      ensureTemplateLayerIds(draft.currentTemplate);
       state.currentTemplate = draft.currentTemplate;
       state.currentPreview = draft.currentPreview || null;
       showJson(draft.currentTemplate);
@@ -1741,6 +2259,7 @@
       }
     }
 
+    renderChatMessages();
     setSessionMode(draft.sessionMode || 'reference', { openAdvanced: draft.sessionMode === 'json' });
 
     if (state.previewStale && state.currentTemplate) {
@@ -1853,78 +2372,6 @@
     }
   }
 
-  async function manualIterate() {
-    const feedback = feedbackInput.value.trim();
-    if (!feedback || !state.currentTemplate) return;
-    if (state.referenceVideoFile) {
-      setSessionMode('reference');
-      setGenerating(true, 'Reviewing generated reel against reference video…');
-      log(`Iterating video draft: "${feedback}"`, 'info');
-
-      try {
-        const result = await fetchMultipartApi('/video/compare-iterate', buildVideoIterationFormData({
-          feedback,
-          iterationHistory: state.iterationHistory,
-          iterationNumber: state.iterationHistory.length + 1,
-          maxIterations: parseInt(maxIterations.value, 10) || 8,
-        }));
-
-        if (result.template) {
-          applyTemplateState(result.template, result, {
-            feedback: result.feedback || feedback,
-            label: 'Manual Video Refinement',
-            analysis: result.analysis || null,
-          });
-          if (result.analysis) {
-            log(`Video analysis: ${result.analysis.majorSceneCount} scenes, ${result.analysis.pacing} pacing.`, 'info');
-          }
-          setPreviewStatus('Reference video review applied. Preview updated to reflect the revised reel blueprint.', 'info');
-        }
-
-        feedbackInput.value = '';
-        log(`Video iteration complete (${result.score || 'n/a'}/10)`, 'info');
-        setGenerating(false);
-        return;
-      } catch (err) {
-        setGenerating(false);
-        log(`Video iteration failed: ${err.message}`, 'error');
-        showToast(err.message, 'error');
-        return;
-      }
-    }
-
-    if (!state.referenceImage) {
-      setPreviewStatus('Add a reference image before running another refinement pass.', 'warning');
-      showToast('Add a reference image before refining', 'error');
-      return;
-    }
-
-    setSessionMode('reference');
-    setGenerating(true, 'Iterating template…');
-    log(`Iterating: "${feedback}"`, 'info');
-
-    try {
-      const result = await fetchApi('/vision/iterate', {
-        referenceImage: state.referenceImage,
-        previewImage: state.currentPreview,
-        feedback,
-        existingTemplate: state.currentTemplate,
-      });
-
-      applyTemplateState(result.template, result, {
-        feedback,
-        label: 'Manual Refinement',
-      });
-      feedbackInput.value = '';
-      log('Iteration complete', 'info');
-      setGenerating(false);
-    } catch (err) {
-      setGenerating(false);
-      log(`Iteration failed: ${err.message}`, 'error');
-      showToast(err.message, 'error');
-    }
-  }
-
   async function autoIterate() {
     if ((!state.referenceImage && !state.referenceVideoFile) || !state.currentTemplate) return;
 
@@ -2032,6 +2479,8 @@
       showToast('Invalid JSON', 'error');
       return;
     }
+
+    ensureTemplateLayerIds(template);
 
     setSessionMode('json', { openAdvanced: true });
     setGenerating(true, 'Re-rendering JSON draft…');
@@ -2157,6 +2606,7 @@
   }
 
   function showJson(template) {
+    ensureTemplateLayerIds(template);
     jsonEditor.value = JSON.stringify(template, null, 2);
     jsonEditor.disabled = false;
   }
@@ -2213,6 +2663,7 @@
     if (!entry) return;
 
     state.activeHistoryIndex = idx;
+    ensureTemplateLayerIds(entry.template);
     state.currentTemplate = entry.template;
     state.currentPreview = entry.previewBase64;
     state.currentPreviewKind = entry.previewKind || 'image';
@@ -2280,6 +2731,7 @@
 
     state.previewFrameIndex = nextFrameIndex;
     updatePreviewFrameControls(state.currentTemplate);
+    syncCanvasEditor();
 
     if (!state.apiKey) {
       setPreviewStatus(`Frame ${nextFrameIndex + 1} selected. Add the render-engine API key to render that poster frame locally.`, 'warning');
@@ -2310,25 +2762,13 @@
   }
 
   function log(msg, type) {
-    const cls = type === 'score'
-      ? 'log-score'
-      : type === 'error'
-        ? 'log-error'
-        : type === 'plateau'
-          ? 'log-plateau'
-          : 'log-info';
-    const time = new Intl.DateTimeFormat([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    }).format(new Date());
-    const div = document.createElement('div');
-    div.className = 'log-entry';
-    const safeMsg = msg.includes('<span') ? msg : escapeHtml(msg);
-    div.innerHTML = `<span style="color:var(--text-dim)">${time}</span> <span class="${cls}">${safeMsg}</span>`;
-    logArea.appendChild(div);
-    logArea.scrollTop = logArea.scrollHeight;
+    if (typeof console === 'undefined') return;
+    const text = String(msg).replace(/<[^>]+>/g, '');
+    if (type === 'error') {
+      console.error(`[designer] ${text}`);
+    } else {
+      console.info(`[designer] ${text}`);
+    }
   }
 
   function escapeHtml(str) {

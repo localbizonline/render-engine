@@ -3,3 +3,5 @@ dist/
 .env
 test-output-*.png
 *.log
+.claude/
+test-results/

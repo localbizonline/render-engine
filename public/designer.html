@@ -661,6 +661,54 @@
       font-size: 11px;
     }
 
+    .inspector-group {
+      border-top: 1px solid var(--line);
+      padding: 2px 0;
+    }
+
+    .inspector-group:first-of-type {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .inspector-group > summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-soft);
+    }
+
+    .inspector-group > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .inspector-group > summary::after {
+      content: "+";
+      font-size: 14px;
+      color: var(--text-dim);
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .inspector-group[open] > summary::after {
+      content: "−";
+    }
+
+    .inspector-group > *:not(summary) {
+      margin-top: 4px;
+    }
+
+    .inspector-group > .field + .field {
+      margin-top: 8px;
+    }
+
     .canvas-status {
       min-height: 18px;
       font-size: 12px;
@@ -1811,67 +1859,60 @@
             </div>
             <div class="canvas-side-card">
               <h4>Inspector</h4>
-              <div class="canvas-field-grid">
-                <div class="field">
-                  <label for="canvasFieldX">X</label>
-                  <input type="number" id="canvasFieldX" name="canvas_x" inputmode="numeric" disabled>
+              <details class="inspector-group" open>
+                <summary>Position &amp; Size</summary>
+                <div class="canvas-field-grid">
+                  <div class="field">
+                    <label for="canvasFieldX">X</label>
+                    <input type="number" id="canvasFieldX" name="canvas_x" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldY">Y</label>
+                    <input type="number" id="canvasFieldY" name="canvas_y" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldWidth">Width</label>
+                    <input type="number" id="canvasFieldWidth" name="canvas_width" min="1" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldHeight">Height</label>
+                    <input type="number" id="canvasFieldHeight" name="canvas_height" min="1" inputmode="numeric" disabled>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="canvasFieldY">Y</label>
-                  <input type="number" id="canvasFieldY" name="canvas_y" inputmode="numeric" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldWidth">Width</label>
-                  <input type="number" id="canvasFieldWidth" name="canvas_width" min="1" inputmode="numeric" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldHeight">Height</label>
-                  <input type="number" id="canvasFieldHeight" name="canvas_height" min="1" inputmode="numeric" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldOpacity">Opacity</label>
-                  <input type="number" id="canvasFieldOpacity" name="canvas_opacity" min="0" max="1" step="0.05" inputmode="decimal" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldBorderRadius">Radius</label>
-                  <input type="number" id="canvasFieldBorderRadius" name="canvas_radius" min="0" inputmode="numeric" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldFontSize">Font Size</label>
-                  <input type="number" id="canvasFieldFontSize" name="canvas_font_size" min="1" inputmode="numeric" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldLineHeight">Line Height</label>
-                  <input type="number" id="canvasFieldLineHeight" name="canvas_line_height" min="0.5" step="0.05" inputmode="decimal" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldLetterSpacing">Letter Space</label>
-                  <input type="number" id="canvasFieldLetterSpacing" name="canvas_letter_spacing" step="0.5" inputmode="decimal" disabled>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldAlign">Align</label>
-                  <select id="canvasFieldAlign" name="canvas_align" disabled>
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldFit">Fit</label>
-                  <select id="canvasFieldFit" name="canvas_fit" disabled>
-                    <option value="cover">Cover</option>
-                    <option value="contain">Contain</option>
-                    <option value="fill">Fill</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="canvasFieldShadowBlur">Shadow Blur</label>
-                  <input type="number" id="canvasFieldShadowBlur" name="canvas_shadow_blur" min="0" step="1" inputmode="numeric" disabled>
+              </details>
+
+              <details class="inspector-group">
+                <summary>Typography</summary>
+                <div class="canvas-field-grid">
+                  <div class="field">
+                    <label for="canvasFieldFontSize">Font Size</label>
+                    <input type="number" id="canvasFieldFontSize" name="canvas_font_size" min="1" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldLineHeight">Line Height</label>
+                    <input type="number" id="canvasFieldLineHeight" name="canvas_line_height" min="0.5" step="0.05" inputmode="decimal" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldLetterSpacing">Letter Space</label>
+                    <input type="number" id="canvasFieldLetterSpacing" name="canvas_letter_spacing" step="0.5" inputmode="decimal" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldAlign">Align</label>
+                    <select id="canvasFieldAlign" name="canvas_align" disabled>
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
                 </div>
                 <div class="field">
                   <label for="canvasFieldFontFamily">Font Family</label>
                   <input type="text" id="canvasFieldFontFamily" name="canvas_font_family" autocomplete="off" spellcheck="false" placeholder="Avenir Next" disabled>
                 </div>
+              </details>
+
+              <details class="inspector-group">
+                <summary>Color</summary>
                 <div class="field">
                   <label for="canvasFieldTextColor">Text Color</label>
                   <input type="text" id="canvasFieldTextColor" name="canvas_text_color" autocomplete="off" spellcheck="false" placeholder="#FFFFFF or {{primary_colour}}" disabled>
@@ -1880,11 +1921,41 @@
                   <label for="canvasFieldFillColor">Fill Color</label>
                   <input type="text" id="canvasFieldFillColor" name="canvas_fill_color" autocomplete="off" spellcheck="false" placeholder="#10151D or {{secondary_colour}}" disabled>
                 </div>
-              </div>
-              <div class="field">
-                <label for="canvasFieldContent">Text Content</label>
-                <textarea id="canvasFieldContent" name="canvas_text_content" rows="4" spellcheck="false" placeholder="Select a text layer to edit its content." disabled></textarea>
-              </div>
+              </details>
+
+              <details class="inspector-group">
+                <summary>Effects</summary>
+                <div class="canvas-field-grid">
+                  <div class="field">
+                    <label for="canvasFieldOpacity">Opacity</label>
+                    <input type="number" id="canvasFieldOpacity" name="canvas_opacity" min="0" max="1" step="0.05" inputmode="decimal" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldBorderRadius">Radius</label>
+                    <input type="number" id="canvasFieldBorderRadius" name="canvas_radius" min="0" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldShadowBlur">Shadow Blur</label>
+                    <input type="number" id="canvasFieldShadowBlur" name="canvas_shadow_blur" min="0" step="1" inputmode="numeric" disabled>
+                  </div>
+                  <div class="field">
+                    <label for="canvasFieldFit">Fit</label>
+                    <select id="canvasFieldFit" name="canvas_fit" disabled>
+                      <option value="cover">Cover</option>
+                      <option value="contain">Contain</option>
+                      <option value="fill">Fill</option>
+                    </select>
+                  </div>
+                </div>
+              </details>
+
+              <details class="inspector-group">
+                <summary>Content</summary>
+                <div class="field">
+                  <label for="canvasFieldContent">Text Content</label>
+                  <textarea id="canvasFieldContent" name="canvas_text_content" rows="4" spellcheck="false" placeholder="Select a text layer to edit its content." disabled></textarea>
+                </div>
+              </details>
             </div>
           </div>
           </div>

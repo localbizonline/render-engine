@@ -16,7 +16,17 @@ test('live production designer exposes the shipped visual editor assets', async 
   });
 
   await expect(page).toHaveTitle(/Template Lab Designer/i);
-  await expect(page.getByText('Visual Edit')).toBeVisible();
+
+  // Phase 1-3 redesign: topbar progress, preview tabs, sticky approve footer
+  await expect(page.locator('#topbarProgress')).toBeVisible();
+  await expect(page.locator('#previewTabView')).toBeVisible();
+  await expect(page.locator('#previewTabEdit')).toBeVisible();
+  await expect(page.locator('#previewTabCompare')).toBeVisible();
+  await expect(page.locator('#approveFooter')).toBeVisible();
+
+  // Canvas editor controls live inside the preview-edit panel which is hidden
+  // until the Edit tab is active. Switch to Edit mode before asserting them.
+  await page.locator('#previewTabEdit').click();
   await expect(page.locator('#btnUploadCanvasAsset')).toBeVisible();
   await expect(page.locator('#btnCanvasUndo')).toBeVisible();
   await expect(page.locator('#btnCanvasRedo')).toBeVisible();

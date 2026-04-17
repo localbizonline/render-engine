@@ -143,6 +143,69 @@
       background: var(--line-strong);
     }
 
+    /* ── Deprecation / Status Banner (added 2026-04-17) ── */
+    .deprecation-banner {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 24px;
+      background: rgba(93, 168, 255, 0.08);
+      border-bottom: 1px solid rgba(93, 168, 255, 0.2);
+      color: var(--text-soft);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .deprecation-banner[hidden] { display: none; }
+
+    .deprecation-banner .deprecation-body {
+      flex: 1;
+    }
+
+    .deprecation-banner strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .deprecation-banner code {
+      font-family: var(--font-mono);
+      background: rgba(93, 168, 255, 0.14);
+      color: #cfe5ff;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .deprecation-banner a {
+      color: var(--accent);
+      text-decoration: none;
+      border-bottom: 1px dotted rgba(93, 168, 255, 0.4);
+    }
+
+    .deprecation-banner a:hover {
+      color: #cfe5ff;
+      border-bottom-color: var(--accent);
+    }
+
+    .deprecation-banner .deprecation-dismiss {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-dim);
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .deprecation-banner .deprecation-dismiss:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text);
+    }
+
     /* ── API Key Banner ── */
     .api-key-banner {
       display: none;
@@ -1553,26 +1616,40 @@
 
   <!-- ── Deprecation / status notice (added 2026-04-17) ──
        Production reel rendering in social-posting-v2 now bypasses Template Lab
-       entirely: v2's queue calls `POST /api/render` directly and the
-       render-engine uploads MP4 + poster straight to R2. This authoring
-       surface remains live only to approve new owned PNG/MP4 templates and
-       is scheduled for removal after broader theme rollout completes. See
-       PLAN_2026-04-17_NATIVE_FFMPEG_REEL_RENDERER.md + EXECUTION_2026-04-17
-       _RENDER_ENGINE_MP4_CUTOVER.md in social-posting-v2/docs/. -->
-  <div id="deprecationNotice" role="note" style="
-    background: #fff4e5;
-    border-bottom: 1px solid #f3c78b;
-    color: #8a4b00;
-    padding: 10px 16px;
-    font-size: 13px;
-    line-height: 1.5;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  ">
-    <strong>Authoring-only surface.</strong>
-    Production reel rendering now routes through <code style="background:#f6ddbb;padding:1px 4px;border-radius:3px;">POST&nbsp;/api/render</code>
-    called directly by the <code>social-posting-v2</code> queue — this page is kept for approving new owned PNG/MP4 templates and is scheduled for removal after broader theme rollout.
-    Rolled out on Home Services (2026-04-17) for 5/6/8-image reels.
+       entirely: v2's queue calls POST /api/render directly and render-engine
+       uploads MP4 + poster straight to R2. This page stays live for owned
+       template approval and is scheduled for removal after broader theme
+       rollout completes. Dismissable per browser via localStorage. -->
+  <div class="deprecation-banner" id="deprecationBanner" role="note" hidden>
+    <div class="deprecation-body">
+      <strong>Authoring-only surface.</strong>
+      Production reels now render via <code>POST&nbsp;/api/render</code>
+      called directly by the <code>social-posting-v2</code> queue —
+      this page is kept for approving new owned PNG/MP4 templates and is
+      scheduled for removal after broader theme rollout.
+      Live on Home Services (2026-04-17) for 5-, 6-, and 8-image reels.
+    </div>
+    <button type="button" class="deprecation-dismiss" id="deprecationDismiss" aria-label="Dismiss notice">
+      Got it
+    </button>
   </div>
+  <script>
+    (function () {
+      var KEY = 'template-lab:deprecation-dismissed-v1';
+      var banner = document.getElementById('deprecationBanner');
+      var dismiss = document.getElementById('deprecationDismiss');
+      if (!banner || !dismiss) return;
+      try {
+        if (localStorage.getItem(KEY) !== '1') banner.hidden = false;
+      } catch (err) {
+        banner.hidden = false;
+      }
+      dismiss.addEventListener('click', function () {
+        banner.hidden = true;
+        try { localStorage.setItem(KEY, '1'); } catch (err) { /* noop */ }
+      });
+    })();
+  </script>
 
   <!-- ── Top Bar ── -->
   <header class="topbar">

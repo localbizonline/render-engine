@@ -1,0 +1,65 @@
+{
+  "templateJson": {
+    "id": "smoke-render",
+    "name": "R2 Write Smoke",
+    "reference": "smoke-render",
+    "outputFormat": "mp4",
+    "width": 1080,
+    "height": 1920,
+    "imageCount": 2,
+    "categoryKeys": ["smoke"],
+    "fps": 30,
+    "transition": { "type": "fade", "durationMs": 400 },
+    "frames": [
+      {
+        "durationMs": 800,
+        "background": { "type": "solid", "color": "#0F1720" },
+        "layers": [
+          {
+            "type": "text",
+            "content": "{{title}}",
+            "x": 60,
+            "y": 900,
+            "width": 960,
+            "height": 120,
+            "fontFamily": "Inter",
+            "fontSize": 64,
+            "fontWeight": "bold",
+            "color": "#FFFFFF",
+            "align": "center"
+          }
+        ]
+      },
+      {
+        "durationMs": 800,
+        "background": { "type": "solid", "color": "#2563EB" },
+        "layers": [
+          {
+            "type": "text",
+            "content": "OK",
+            "x": 60,
+            "y": 900,
+            "width": 960,
+            "height": 120,
+            "fontFamily": "Inter",
+            "fontSize": 80,
+            "fontWeight": "bold",
+            "color": "#FFFFFF",
+            "align": "center"
+          }
+        ]
+      }
+    ]
+  },
+  "outputFormat": "mp4",
+  "variables": {
+    "title": "R2 write smoke",
+    "primary_colour": "#2563EB",
+    "secondary_colour": "#F59E0B",
+    "company_name": "Smoke Test"
+  },
+  "assets": {
+    "userImageUrls": [],
+    "logoUrl": null
+  }
+}

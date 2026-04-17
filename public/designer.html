@@ -1551,6 +1551,29 @@
 </head>
 <body data-session-mode="reference">
 
+  <!-- ── Deprecation / status notice (added 2026-04-17) ──
+       Production reel rendering in social-posting-v2 now bypasses Template Lab
+       entirely: v2's queue calls `POST /api/render` directly and the
+       render-engine uploads MP4 + poster straight to R2. This authoring
+       surface remains live only to approve new owned PNG/MP4 templates and
+       is scheduled for removal after broader theme rollout completes. See
+       PLAN_2026-04-17_NATIVE_FFMPEG_REEL_RENDERER.md + EXECUTION_2026-04-17
+       _RENDER_ENGINE_MP4_CUTOVER.md in social-posting-v2/docs/. -->
+  <div id="deprecationNotice" role="note" style="
+    background: #fff4e5;
+    border-bottom: 1px solid #f3c78b;
+    color: #8a4b00;
+    padding: 10px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  ">
+    <strong>Authoring-only surface.</strong>
+    Production reel rendering now routes through <code style="background:#f6ddbb;padding:1px 4px;border-radius:3px;">POST&nbsp;/api/render</code>
+    called directly by the <code>social-posting-v2</code> queue — this page is kept for approving new owned PNG/MP4 templates and is scheduled for removal after broader theme rollout.
+    Rolled out on Home Services (2026-04-17) for 5/6/8-image reels.
+  </div>
+
   <!-- ── Top Bar ── -->
   <header class="topbar">
     <div class="topbar-left">

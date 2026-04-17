@@ -104,6 +104,12 @@ const layerSchema = z.discriminatedUnion('type', [
 ]);
 
 const frameSchema = z.object({
+  // Added 2026-04-17: a frame tagged kind:'photoSlot' is expanded at
+  // render time into N copies of the template's `photoFrame`, one per
+  // uploaded user image. A photoSlot frame is a pure marker — its
+  // background/layers are ignored. See
+  // social-posting-v2/docs/PLAN_2026-04-17_SOUNDTRACKS_AND_DYNAMIC_TEMPLATES.md.
+  kind: z.enum(['photoSlot']).optional(),
   durationMs: z.number().optional(),
   background: backgroundSchema,
   layers: z.array(layerSchema),
@@ -121,6 +127,10 @@ export const templateSchema = z.object({
   fps: z.number().optional(),
   duration: z.number().optional(),
   frames: z.array(frameSchema).min(1),
+  // Repeated once per uploaded photo at render time, replacing any
+  // frame whose kind is 'photoSlot'. When absent, frames array is
+  // rendered as-is (legacy static-count behaviour).
+  photoFrame: frameSchema.optional(),
   transition: z.object({
     type: z.enum(['fade', 'slide_left', 'slide_right', 'zoom', 'crossfade']),
     durationMs: z.number(),

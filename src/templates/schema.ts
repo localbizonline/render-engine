@@ -119,7 +119,7 @@ export const templateSchema = z.object({
   id: z.string(),
   name: z.string(),
   reference: z.string(),
-  outputFormat: z.enum(['png', 'mp4']),
+  outputFormat: z.enum(['mp4']),
   width: z.number().int().positive(),
   height: z.number().int().positive(),
   imageCount: z.number().int().min(0),

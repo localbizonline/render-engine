@@ -13,17 +13,8 @@ function loadBuiltinTemplates() {
   if (builtinTemplates.size > 0) return;
 
   const files = [
-    'main-2-image.json',
-    'before-after.json',
-    'main-1-image.json',
     'slideshow-base.json',
     'vertical-reel-base.json',
-    'bold-diagonal.json',
-    'card-stack.json',
-    'hero-banner.json',
-    'minimal-split.json',
-    'gradient-overlay.json',
-    'left-panel-before-after.json',
   ];
 
   for (const file of files) {
@@ -69,25 +60,15 @@ export async function autoSelectTemplate(
   postType?: string,
 ): Promise<TemplateDefinition | undefined> {
   if (postType === 'before_after' || categoryKeys?.includes('before_after')) {
-    return getTemplate('before-after');
+    return getTemplate('slideshow-base');
   }
 
-  if (postType === 'slideshow' || (preferMp4 && imageCount >= 3)) {
+  if (postType === 'slideshow' || preferMp4 || imageCount >= 3) {
     return getTemplate('vertical-reel-base');
   }
 
   const hash = simpleHash(recordId);
-
-  if (imageCount <= 1) {
-    return getTemplate('main-1-image');
-  }
-
-  if (imageCount === 2) {
-    const options = ['main-2-image', 'before-after', 'left-panel-before-after'];
-    return getTemplate(options[hash % options.length]);
-  }
-
-  const options = ['vertical-reel-base', 'main-1-image', 'main-2-image'];
+  const options = ['vertical-reel-base', 'slideshow-base'];
   return getTemplate(options[hash % options.length]);
 }
 

@@ -23,6 +23,12 @@ previewRouter.post('/', async (req, res) => {
   let template: TemplateDefinition | undefined;
 
   if (templateJson) {
+    if (templateJson.outputFormat !== 'mp4') {
+      res.status(400).json({
+        error: 'Static image authoring has been removed. All templates must output MP4.',
+      });
+      return;
+    }
     // Validate inline template JSON
     const result = templateSchema.safeParse(templateJson);
     if (!result.success) {
@@ -36,6 +42,13 @@ previewRouter.post('/', async (req, res) => {
 
   if (!template) {
     res.status(404).json({ error: 'Template not found' });
+    return;
+  }
+
+  if (template.outputFormat !== 'mp4') {
+    res.status(400).json({
+      error: 'Static image authoring has been removed. All templates must output MP4.',
+    });
     return;
   }
 

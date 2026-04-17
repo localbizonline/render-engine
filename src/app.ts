@@ -20,7 +20,6 @@ export function createApp() {
     '/designer.html',
     '/designer/prompt',
     '/designer/reference-video',
-    '/designer/reference-image',
     '/designer/v2',
     '/designer/json',
   ];

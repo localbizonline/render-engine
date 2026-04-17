@@ -1,35 +1,37 @@
 # Render Engine
 
-Template Lab and preview/design workspace for owned render templates. `social-posting-v2` is the durable source of truth for approved templates, rollout, and production orchestration.
+Reel Template Studio and preview/design workspace for owned MP4 render templates. `social-posting-v2` is the durable source of truth for approved templates, rollout, soundtrack assignment, and production orchestration.
 
 ## Current State
 
 - Repo path for the main app: `/Users/jeremymartin/Documents/Cursor/In Production/social-posting-v2`
-- This repo is used for authoring UX, preview rendering UX, JSON editing UX, and the V2 bridge flow.
-- The current Template Lab bridge supports approved PNG and MP4 owned templates.
+- This repo handles reel authoring UX, preview rendering UX, JSON editing UX, reference-video analysis, and the V2 bridge flow.
+- User-facing output is MP4 only. Static-image authoring and reference-image workflows are retired.
 - Airtable integration has been removed from the active runtime in this repo.
-- The designer can:
+- The studio can:
   - open an approved V2 template via `v2ExportUrl`
   - use `v2Token` for short-lived scoped auth
   - fall back to a manually entered V2 admin secret if needed
   - auto-load the render-engine API key and V2 connection defaults from the server
-  - generate slideshow-style MP4 reels from prompt-only, reference-image, or reference-video inputs
+  - generate slideshow-style MP4 reels from prompt-only or reference-video inputs
   - auto-review generated reels against a reference video and iterate toward a closer slideshow match
   - visually edit the active frame with a Konva-powered canvas editor
   - drag, resize, nudge, duplicate, delete, reorder, hide, and lock layers
   - double-click text layers for inline editing
-  - upload transparent PNG overlays for borders, flourishes, and decorative graphics
+  - upload decorative overlay assets for borders, flourishes, and frame accents
   - snap layers to canvas edges, centers, and nearby layer guides
   - undo and redo visual edits before re-rendering the server preview
   - send updates back with `Approve for V2`
 
 ## Relationship To `social-posting-v2`
 
-- `social-posting-v2` is the durable source of truth for approved owned templates, theme/category linking, rollout, and production render decisions.
-- `render-engine` is the Template Lab and preview/design workspace.
+- `social-posting-v2` is the durable source of truth for approved owned templates, theme/category linking, soundtrack assignment, rollout, and production render decisions.
+- `render-engine` is the reel authoring studio and preview/design workspace.
 - Work here when the task is about:
   - `public/designer.html`
   - `public/designer-v2-bridge.js`
+  - `public/designer-app.js`
+  - `public/designer-canvas-editor.js`
   - preview rendering UX
   - authoring flow
   - V2 bridge behavior
@@ -40,14 +42,14 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 - V2 export endpoint: `GET /api/admin/render-templates/:id/export`
 - V2 import endpoint: `POST /api/admin/render-templates/import`
 - V2 Template Lab session endpoint: `POST /api/admin/render-templates/:id/template-lab-session`
-- The designer accepts:
+- The studio accepts:
   - `v2ExportUrl`
   - `v2Token`
-- The designer serves:
+- The studio serves:
   - `/designer`
   - `/designer.html`
+  - `/designer/prompt`
   - `/designer/reference-video`
-  - `/designer/reference-image`
   - `/designer/v2`
   - `/designer/json`
   - `/designer-v2-bridge.js`
@@ -67,11 +69,10 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 | Component | Technology |
 |-----------|-----------|
 | Runtime | Node.js 22 + Express 5 + TypeScript (ESM) |
-| PNG rendering | node-canvas (Cairo bindings) + sharp (WebP conversion) |
+| Frame compositing | node-canvas (Cairo bindings) + sharp |
 | MP4 rendering | FFmpeg via fluent-ffmpeg |
 | Storage | Cloudflare R2 (S3-compatible) |
 | Template design (text) | Anthropic SDK (`src/services/claude.ts`) |
-| Template design (vision) | Anthropic SDK vision messages |
 | Reference-video analysis | Google Gemini Files API + structured JSON output (`src/services/gemini-video.ts`) |
 | Template source | Local built-in templates + V2 export/import bridge |
 | Validation | Zod |
@@ -82,18 +83,18 @@ Template Lab and preview/design workspace for owned render templates. `social-po
 ```text
 render-engine/
 ├── src/
-│   ├── app.ts                       # Express app factory for runtime + tests
-│   ├── index.ts                     # Runtime bootstrap / listen entrypoint
-│   ├── config.ts                    # Env var loader
-│   ├── types.ts                     # Shared TypeScript interfaces
-│   ├── test-render.ts               # Local built-in render check
+│   ├── app.ts
+│   ├── index.ts
+│   ├── config.ts
+│   ├── types.ts
+│   ├── test-render.ts
 │   ├── routes/
-│   │   ├── render.ts                # Legacy Airtable-style render endpoints now return 410
-│   │   ├── templates.ts             # Local template endpoints + removed Airtable endpoint stubs
-│   │   ├── preview.ts               # POST /api/preview
-│   │   └── design.ts                # POST /api/design*
+│   │   ├── render.ts
+│   │   ├── templates.ts
+│   │   ├── preview.ts
+│   │   └── design.ts
 │   ├── engine/
-│   │   ├── png-renderer.ts
+│   │   ├── png-renderer.ts          # internal frame compositor used by the MP4 path
 │   │   ├── mp4-renderer.ts
 │   │   ├── layout-engine.ts
 │   │   ├── asset-loader.ts
@@ -104,20 +105,20 @@ render-engine/
 │   │   ├── gemini-video.ts
 │   │   └── r2-storage.ts
 │   ├── templates/
-│   │   ├── registry.ts              # Local built-ins + in-memory custom templates
+│   │   ├── registry.ts
 │   │   ├── schema.ts
 │   │   └── builtin/
 │   └── utils/
 ├── public/
-│   ├── designer.html                # Template Lab UI
-│   ├── designer-v2-bridge.js        # Extracted V2 bridge helper
-│   ├── designer-app.js              # Extracted non-V2 designer app logic
-│   ├── designer-canvas-editor.js    # Konva-based visual frame editor
-│   └── designer-assets/             # Sample assets for previews
+│   ├── designer.html
+│   ├── designer-v2-bridge.js
+│   ├── designer-app.js
+│   ├── designer-canvas-editor.js
+│   └── designer-assets/
 ├── tests/
-│   ├── static-routes.test.mjs       # Node-core and VM smoke tests for Template Lab route wiring and browser modules
-│   ├── http-routes.test.ts          # Real Express HTTP smoke tests
-│   └── live-production.playwright.spec.js # Real browser smoke test against the live Railway designer URL
+│   ├── static-routes.test.mjs
+│   ├── http-routes.test.ts
+│   └── live-production.playwright.spec.js
 ├── fonts/
 ├── Dockerfile
 ├── railway.json
@@ -127,12 +128,12 @@ render-engine/
 
 ## API Endpoints
 
-All `/api/*` routes require `X-Api-Key`. Health and static designer routes are public.
+All `/api/*` routes require `X-Api-Key`. Health and static studio routes are public.
 
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/health` | Railway health check |
-| POST | `/api/preview` | Render a preview from inline template JSON |
+| POST | `/api/preview` | Render a preview from inline MP4 template JSON |
 | GET | `/api/templates` | List local templates |
 | GET | `/api/templates/:id` | Get a local template definition |
 | POST | `/api/templates` | Save a custom template to local in-memory registry |
@@ -141,39 +142,35 @@ All `/api/*` routes require `X-Api-Key`. Health and static designer routes are p
 | POST | `/api/templates/save-to-airtable` | Returns `410` (old Airtable path removed) |
 | PUT | `/api/templates/:recordId/activate` | Returns `410` (old Airtable path removed) |
 | PUT | `/api/templates/:recordId/rotation` | Returns `410` (old Airtable path removed) |
-| POST | `/api/design` | Generate template JSON from text prompt |
-| POST | `/api/design/iterate` | Refine an existing template via text prompt |
-| POST | `/api/design/vision` | Generate template from reference image |
-| POST | `/api/design/vision/iterate` | Iterate template from reference + preview |
-| POST | `/api/design/vision/compare` | Rate similarity between reference + preview |
-| POST | `/api/design/vision/compare-iterate` | Combined compare + iterate loop |
+| POST | `/api/design` | Generate an MP4 reel template from text prompt |
+| POST | `/api/design/iterate` | Refine an existing MP4 reel template via text prompt |
 | POST | `/api/design/video` | Generate an MP4 reel template from an uploaded reference video |
 | POST | `/api/design/video/compare-iterate` | Compare generated MP4 preview vs uploaded reference video and return the next revision |
 | POST | `/api/design/save` | Save designed template to local in-memory registry |
 | POST | `/api/render/sync` | Returns `410` (old Airtable path removed) |
 | POST | `/api/render/test` | Returns `410` (old Airtable path removed) |
-| GET | `/designer` | Template Lab UI |
-| GET | `/designer.html` | Template Lab UI direct file route |
-| GET | `/designer/reference-video` | Readable Template Lab route for the reference-video workflow |
-| GET | `/designer/reference-image` | Readable Template Lab route for the reference-image workflow |
-| GET | `/designer/v2` | Readable Template Lab route for V2 improvement sessions |
-| GET | `/designer/json` | Readable Template Lab route for JSON workbench sessions |
+| GET | `/designer` | Reel Template Studio |
+| GET | `/designer.html` | Reel Template Studio direct file route |
+| GET | `/designer/prompt` | Readable route for prompt-led authoring |
+| GET | `/designer/reference-video` | Readable route for reference-video authoring |
+| GET | `/designer/v2` | Readable route for V2 improvement sessions |
+| GET | `/designer/json` | Readable route for JSON workbench sessions |
 | GET | `/designer-v2-bridge.js` | Extracted V2 bridge helper |
 | GET | `/designer-canvas-editor.js` | Konva-powered visual frame editor bundle |
 | GET | `/vendor/konva.min.js` | Served Konva runtime for the visual editor |
 
 ## Template System
 
-Templates are declarative JSON for static posts and slideshow-style reels. Width and height now vary by template type.
+Templates are declarative JSON for slideshow-style reels.
 
 ```ts
 {
   id: string;
   name: string;
   reference: string;
-  outputFormat: "png" | "mp4";
+  outputFormat: "mp4";
   width: 1080;
-  height: 1080;
+  height: 1920;
   imageCount: number;
   categoryKeys: string[];
   fps?: number;
@@ -212,21 +209,20 @@ Variable substitution supports:
 - Custom templates saved through `/api/design/save` or `POST /api/templates` are kept in local in-memory registry only.
 - `autoSelectTemplate()` now uses local built-ins and a simple hash-based fallback rather than Airtable rotation state.
 
-## Template Designer UI
+## Reel Template Studio
 
 Access locally at `http://localhost:3000/designer`.
 
 ### What It Does
 
-1. Upload a reference image.
-2. Upload a short reference video when you want slideshow-style matching from video.
-3. Optionally add a text prompt.
-4. Generate or iterate template JSON with Claude or Gemini-backed services.
-5. Render a preview using local sample assets from `public/designer-assets/`.
-6. Optionally switch into `Visual Edit` to adjust the active frame directly.
-7. Upload transparent PNG overlays when you need decorative borders, flourishes, or frame accents.
-8. Load approved templates from V2.
-9. Approve updated templates back into V2.
+1. Upload a short reference video when you want slideshow-style matching from video.
+2. Optionally add a text prompt.
+3. Generate or iterate MP4 template JSON with Claude or Gemini-backed services.
+4. Render a preview using local sample assets from `public/designer-assets/`.
+5. Optionally switch into `Visual Edit` to adjust the active frame directly.
+6. Upload decorative overlay assets when you need borders, flourishes, or frame accents.
+7. Load approved templates from V2.
+8. Approve updated templates back into V2.
 
 ### Bridge Notes
 
@@ -234,19 +230,19 @@ Access locally at `http://localhost:3000/designer`.
 - Main UI markup lives in `public/designer.html`.
 - The non-V2 designer app logic lives in `public/designer-app.js`.
 - The Konva-powered visual editor lives in `public/designer-canvas-editor.js`.
-- The designer stores:
+- The studio stores:
   - render-engine API key
   - V2 base URL
   - fallback V2 admin secret
 - Scoped V2 session links remain the preferred path.
-- Source-level smoke tests protect the extracted Template Lab bridge/app behavior and explicit route wiring.
-- HTTP-level smoke tests now hit the real Express app for `/designer`, `/designer.html`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, `/designer-app.js`, `/health`, and the legacy `410 Gone` endpoints.
+- Source-level smoke tests protect the extracted studio bridge/app behavior and explicit route wiring.
+- HTTP-level smoke tests hit the real Express app for `/designer`, `/designer.html`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, `/designer-app.js`, `/health`, and the legacy `410 Gone` endpoints.
 
 ### Current UI Behavior
 
 - `Approve for V2` is the primary handoff path.
 - Legacy Airtable save has been removed from the UI.
-- The right rail now includes a `Visual Edit` canvas editor for the active frame.
+- The right rail includes a `Visual Edit` canvas editor for the active frame.
 - The visual editor supports:
   - drag/resize handles
   - snapping guides
@@ -255,24 +251,23 @@ Access locally at `http://localhost:3000/designer`.
   - delete selected layer
   - undo/redo controls
   - inline double-click text editing
-  - transparent PNG overlay upload for decorative graphics
+  - decorative overlay upload for frame accents
 - The V2 handoff panel no longer shows the unused Categories control.
-- The V2 handoff image count is now a generic numeric PNG image count, not an MP4 selector.
-- The preview pane now shows explicit V2 load status, including the “template loaded but preview needs API key” state.
-- `Approve for V2` now rejects missing template name, missing template id, and invalid image counts before posting to V2.
-- The V2 handoff panel now shows persistent load/approval state, including the linked V2 template id and updated export URL after approval.
-- The V2 handoff panel also includes one-click copy actions for the linked V2 template id and export URL.
-- Explicit server routes for `/designer`, `/designer.html`, and `/designer-v2-bridge.js` were added after a Railway static-route regression during deployment.
-- Explicit server routes protect `/designer`, `/designer.html`, `/designer/reference-video`, `/designer/reference-image`, `/designer/v2`, `/designer/json`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, and `/designer-app.js`.
-- The designer now supports readable URL modes plus prompt-prefill query strings for direct entry into the right authoring path.
-- The designer now supports a `Reference Video` workflow:
+- The V2 handoff panel uses a single reel photo-count field.
+- The preview pane shows explicit V2 load status, including the “template loaded but preview needs API key” state.
+- `Approve for V2` rejects missing template name, missing template id, and invalid photo counts before posting to V2.
+- The V2 handoff panel shows persistent load/approval state, including the linked V2 template id and updated export URL after approval.
+- The V2 handoff panel includes one-click copy actions for the linked V2 template id and export URL.
+- Explicit server routes protect `/designer`, `/designer.html`, `/designer/prompt`, `/designer/reference-video`, `/designer/v2`, `/designer/json`, `/designer-v2-bridge.js`, `/designer-canvas-editor.js`, `/vendor/konva.min.js`, and `/designer-app.js`.
+- The studio supports readable URL modes plus prompt-prefill query strings for direct entry into the right authoring path.
+- The `Reference Video` workflow supports:
   - multipart MP4/MOV upload
   - server-side Gemini analysis
   - local slideshow template synthesis
   - preview through the existing `/api/preview` flow
-- Reference-video drafts now support auto-review and iterative refinement against the uploaded reference video.
-- The left rail now includes a `Video Review` card with score, confidence, structure tags, and notes from the latest analysis/review pass.
-- The normal live designer flow no longer requires manual entry of the render-engine API key or V2 base URL.
+- Reference-video drafts support auto-review and iterative refinement against the uploaded reference video.
+- The left rail includes a `Video Review` card with score, confidence, structure tags, and notes from the latest analysis/review pass.
+- The normal live designer flow no longer requires manual entry of the render-engine API key or V2 base URL when server defaults are configured.
 - Current MP4 output remains slideshow-style and inspiration-based:
   - no frame-perfect recreation
   - no audio extraction
@@ -307,7 +302,7 @@ npm run build
 - The same test file also runs browser-like VM smoke checks for the V2 bridge:
   - scoped session-link bootstrap from `v2ExportUrl` + `v2Token`
   - V2 export loading and normalization
-  - PNG approval payload creation and export-context refresh
+  - MP4 approval payload creation and export-context refresh
   - connected-input syncing/persistence and `Open V2 Admin` URL behavior
 - The same test file also runs browser-like VM smoke checks for `public/designer-app.js`:
   - auto-loading an approved V2 template from a scoped session link
@@ -328,7 +323,7 @@ npm run build
 - `tests/http-routes.test.ts` verifies the real app serves:
   - `/designer-canvas-editor.js`
   - `/vendor/konva.min.js`
-  - the updated designer HTML markers for visual edit, upload PNG, and undo controls
+  - the updated designer HTML markers for visual edit, overlay upload, and undo controls
 - `tests/live-production.playwright.spec.js` is a real browser smoke test against `https://render-engine-production.up.railway.app/designer`.
   - It verifies the production page loads in a browser, the visual-editor controls are present, and the shipped canvas/Konva assets return `200`.
   - It saves a live screenshot to `/tmp/render-engine-live-designer-playwright.png`.
@@ -339,7 +334,6 @@ Recommended test commands:
 ```bash
 npm test
 npx tsc --noEmit
-npx playwright test tests/live-production.playwright.spec.js
 ```
 
 ### Environment Variables
@@ -385,6 +379,7 @@ curl https://render-engine-production.up.railway.app/health
 curl -I https://render-engine-production.up.railway.app/designer
 curl -I https://render-engine-production.up.railway.app/designer.html
 curl -I https://render-engine-production.up.railway.app/designer/reference-video
+curl -I https://render-engine-production.up.railway.app/designer/prompt
 curl -I https://render-engine-production.up.railway.app/designer-v2-bridge.js
 curl -I https://render-engine-production.up.railway.app/designer-canvas-editor.js
 curl -I https://render-engine-production.up.railway.app/vendor/konva.min.js

@@ -15,7 +15,7 @@ test('live production designer exposes the shipped visual editor assets', async 
     timeout: 120000,
   });
 
-  await expect(page).toHaveTitle(/Template Lab Designer/i);
+  await expect(page).toHaveTitle(/Reel Template Studio/i);
 
   // Phase 1-3 redesign: topbar progress, preview tabs, sticky approve footer
   await expect(page.locator('#topbarProgress')).toBeVisible();
@@ -40,19 +40,19 @@ test('live production designer exposes the shipped visual editor assets', async 
     const konvaJs = await konvaRes.text();
 
     return {
-      hasUploadPng: document.body.innerText.includes('Upload PNG'),
+      hasUploadOverlay: document.body.innerText.includes('Upload Overlay'),
       hasUndo: Boolean(document.querySelector('#btnCanvasUndo')),
       hasRedo: Boolean(document.querySelector('#btnCanvasRedo')),
       canvasStatus: canvasRes.status,
       konvaStatus: konvaRes.status,
       canvasHasFactory: canvasJs.includes('createTemplateLabCanvasEditor'),
-      canvasHasUploadMessage: canvasJs.includes('Uploaded a decorative transparent PNG asset to the frame.'),
+      canvasHasUploadMessage: canvasJs.includes('Uploaded a decorative transparent overlay asset to the frame.'),
       canvasHasSnapping: canvasJs.includes('applySnapping'),
       konvaHasSymbol: konvaJs.includes('Konva'),
     };
   });
 
-  expect(checks.hasUploadPng).toBe(true);
+  expect(checks.hasUploadOverlay).toBe(true);
   expect(checks.hasUndo).toBe(true);
   expect(checks.hasRedo).toBe(true);
   expect(checks.canvasStatus).toBe(200);

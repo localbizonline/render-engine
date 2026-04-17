@@ -312,6 +312,89 @@ test('HTTP health route stays public while the Template Lab runtime still expose
   });
 });
 
+test('HTTP POST /api/render validates the request envelope before doing any rendering work', async () => {
+  await withServer(async (baseUrl) => {
+    // Missing renderOptions
+    const missingOptions = await fetch(`${baseUrl}/api/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        templateJson: { outputFormat: 'mp4' },
+        outputFormat: 'mp4',
+      }),
+    });
+    assert.equal(missingOptions.status, 400);
+    const missingOptionsBody = await missingOptions.json() as { success: boolean; error: string };
+    assert.equal(missingOptionsBody.success, false);
+    assert.match(missingOptionsBody.error, /renderOptions/);
+
+    // outputFormat must be mp4 (v1 scope)
+    const wrongFormat = await fetch(`${baseUrl}/api/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        templateJson: { outputFormat: 'mp4' },
+        outputFormat: 'png',
+        renderOptions: {
+          outputVideoKey: 'orgX/video/test.mp4',
+          outputPosterKey: 'orgX/video/test-poster.jpg',
+        },
+      }),
+    });
+    assert.equal(wrongFormat.status, 400);
+    const wrongFormatBody = await wrongFormat.json() as { success: boolean; error: string };
+    assert.equal(wrongFormatBody.success, false);
+
+    // Malformed templateJson is rejected before we even try to load assets
+    const badTemplate = await fetch(`${baseUrl}/api/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        templateJson: { not: 'a template' },
+        outputFormat: 'mp4',
+        renderOptions: {
+          outputVideoKey: 'orgX/video/test.mp4',
+          outputPosterKey: 'orgX/video/test-poster.jpg',
+        },
+      }),
+    });
+    assert.equal(badTemplate.status, 400);
+    const badTemplateBody = await badTemplate.json() as { success: boolean; error: string };
+    assert.equal(badTemplateBody.success, false);
+    assert.match(badTemplateBody.error, /templateJson/);
+
+    // Valid-shaped MP4 template with only 1 frame → rejected (needs at least 2)
+    const singleFrame = await fetch(`${baseUrl}/api/render`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        templateJson: {
+          id: 'single-frame',
+          name: 'Single Frame',
+          reference: 'single-frame',
+          outputFormat: 'mp4',
+          width: 1080,
+          height: 1920,
+          imageCount: 0,
+          categoryKeys: [],
+          fps: 30,
+          frames: [
+            { durationMs: 1000, background: { type: 'solid', color: '#000000' }, layers: [] },
+          ],
+        },
+        outputFormat: 'mp4',
+        renderOptions: {
+          outputVideoKey: 'orgX/video/test.mp4',
+          outputPosterKey: 'orgX/video/test-poster.jpg',
+        },
+      }),
+    });
+    assert.equal(singleFrame.status, 400);
+    const singleFrameBody = await singleFrame.json() as { success: boolean; error: string };
+    assert.match(singleFrameBody.error, /at least 2 frames/i);
+  });
+});
+
 test('HTTP legacy Airtable-backed routes still return 410 Gone', async () => {
   await withServer(async (baseUrl) => {
     const [managedTemplatesRes, syncRenderRes, testRenderRes] = await Promise.all([

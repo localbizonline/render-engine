@@ -14,6 +14,25 @@ Template Lab and preview/design workspace for owned render templates. `social-po
   - fall back to a manually entered V2 admin secret if needed
   - send updates back with `Approve for V2`
 
+### Production MP4 render endpoint (added 2026-04-17)
+
+- `POST /api/render` is the production owned-MP4 render endpoint called by
+  `social-posting-v2`. See `VIDEO_ONLY_REFACTOR_PLAN.md` for the scope and
+  keep/refactor/remove inventory that drives the video-only cutover.
+- Contract: request carries `templateJson`, `variables`, `assets`, and
+  `renderOptions.outputVideoKey` + `renderOptions.outputPosterKey`. Renderer
+  uploads the MP4 and a poster JPG directly to R2 at those exact keys and
+  returns `{ success, r2Key, posterR2Key, meta }`. No base64 MP4 payload
+  round-trips through HTTP on this path.
+- v2 owns R2 key conventions. `R2_BUCKET_NAME` in this repo must point at
+  the v2 media bucket (`social-posting-media`) — not the default
+  `render-engine-output` bucket.
+- Auth: `x-api-key` header, same shared secret that already guards
+  `/api/*` routes.
+- Authoring surface (`/api/design*`, `/api/designer*`, Template Lab static
+  assets) is scheduled for removal in Phase 5 of the cutover plan, after
+  production MP4 is live on at least one theme.
+
 ## Relationship To `social-posting-v2`
 
 - `social-posting-v2` is the durable source of truth for approved owned templates, theme/category linking, rollout, and production render decisions.

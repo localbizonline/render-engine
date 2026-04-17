@@ -5,7 +5,7 @@ import type { Image } from 'canvas';
 import { templateSchema } from '../templates/schema.js';
 import type { RenderVariables, TemplateDefinition } from '../types.js';
 import { loadRemoteImage } from '../engine/asset-loader.js';
-import { renderMp4 } from '../engine/mp4-renderer.js';
+import { renderMp4, expandPhotoFrames } from '../engine/mp4-renderer.js';
 import { renderPng } from '../engine/png-renderer.js';
 import { putAt } from '../services/r2-storage.js';
 
@@ -41,6 +41,10 @@ const assetsSchema = z.object({
   squareLogoUrl: z.string().url().nullable().optional(),
   squareCtaUrl: z.string().url().nullable().optional(),
   landscapeCtaUrl: z.string().url().nullable().optional(),
+  // Optional audio track muxed into the final MP4. When absent or when
+  // fetch/mux fails, the render completes silent with a warning — a
+  // silent reel is a safer fallback than none.
+  soundtrackUrl: z.string().url().nullable().optional(),
 }).optional();
 
 const variablesSchema = z.record(z.string(), z.unknown()).optional();
@@ -149,12 +153,18 @@ renderRouter.post('/', async (req, res) => {
       logoImage,
       squareCtaImage,
       landscapeCtaImage,
+      soundtrackUrl: assets?.soundtrackUrl ?? null,
     });
 
     // Poster = first frame re-rendered deterministically, encoded as JPEG.
-    // Cheaper and more reliable than a second ffmpeg invocation.
+    // Cheaper and more reliable than a second ffmpeg invocation. For
+    // dynamic templates we render from the *expanded* frame set so we
+    // never serve a photoSlot marker as the poster.
+    const resolvedFrames = expandPhotoFrames(template, userImages.length);
+    const posterTemplate = { ...template, frames: resolvedFrames };
+    delete (posterTemplate as { photoFrame?: unknown }).photoFrame;
     const posterPng = renderPng({
-      template,
+      template: posterTemplate,
       variables: renderVariables,
       userImages,
       logoImage,

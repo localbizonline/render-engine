@@ -12,6 +12,13 @@ export interface TemplateDefinition {
   fps?: number;
   duration?: number;
   frames: FrameDefinition[];
+  /**
+   * Repeated once per uploaded user photo at render time. Replaces any
+   * frame in `frames` whose `kind === 'photoSlot'`. Absent = legacy
+   * static-count behaviour (frames rendered as-is).
+   * See social-posting-v2/docs/PLAN_2026-04-17_SOUNDTRACKS_AND_DYNAMIC_TEMPLATES.md.
+   */
+  photoFrame?: FrameDefinition;
   transition?: {
     type: 'fade' | 'slide_left' | 'slide_right' | 'zoom' | 'crossfade';
     durationMs: number;
@@ -19,6 +26,12 @@ export interface TemplateDefinition {
 }
 
 export interface FrameDefinition {
+  /**
+   * Tagged 'photoSlot' to mark the insertion point for photoFrame
+   * expansion in dynamic-count templates. The frame's own background
+   * and layers are ignored when kind === 'photoSlot'.
+   */
+  kind?: 'photoSlot';
   durationMs?: number;
   background: BackgroundDef;
   layers: LayerDefinition[];

@@ -7,8 +7,9 @@
     "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsx --test tests/static-routes.test.mjs tests/http-routes.test.ts",
-    "test:render": "tsx src/test-render.ts"
+    "test": "tsx --test tests/static-routes.test.mjs tests/http-routes.test.ts tests/expand-photo-frames.test.ts",
+    "test:render": "tsx src/test-render.ts",
+    "smoke:r2": "bash scripts/smoke-r2-write.sh"
   },
   "keywords": [],
   "author": "",

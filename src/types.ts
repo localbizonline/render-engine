@@ -4,7 +4,7 @@ export interface TemplateDefinition {
   id: string;
   name: string;
   reference: string;
-  outputFormat: 'png' | 'mp4';
+  outputFormat: 'mp4';
   width: number;
   height: number;
   imageCount: number;
@@ -154,7 +154,7 @@ export interface RenderRequest {
 export interface RenderResponse {
   success: boolean;
   outputUrl?: string;
-  outputFormat?: 'png' | 'mp4';
+  outputFormat?: 'mp4';
   templateUsed?: string;
   renderTimeMs?: number;
   error?: string;
@@ -233,51 +233,13 @@ export interface VideoCompareIterateResponse extends CompareAndIterateResponse {
   analysis?: ReferenceVideoAnalysis;
 }
 
-// ── Vision Design Types ──
-
-export interface VisionDesignRequest {
-  referenceImage: string;   // data:image/...;base64,... URI
-  prompt?: string;
-  width?: number;
-  height?: number;
-}
-
-export interface VisionIterateRequest {
-  referenceImage: string;
-  previewImage: string;
-  feedback: string;
-  existingTemplate: TemplateDefinition;
-}
-
-export interface VisionCompareRequest {
-  referenceImage: string;
-  previewImage: string;
-  currentTemplate: TemplateDefinition;
-}
-
-export interface VisionCompareResponse {
-  score: number;
-  feedback: string;
-  shouldContinue: boolean;
-}
-
-// ── Combined Compare + Iterate (auto-iterate loop) ──
+// ── Review / Iteration Types ──
 
 export interface IterationHistoryEntry {
   iteration: number;
   score: number;
   feedback: string;
   changesApplied: string;
-}
-
-export interface CompareAndIterateRequest {
-  referenceImage: string;
-  previewImage: string;
-  existingTemplate: TemplateDefinition;
-  iterationHistory: IterationHistoryEntry[];
-  iterationNumber: number;
-  maxIterations: number;
-  plateauWarning?: boolean;
 }
 
 export interface CompareAndIterateResponse {
@@ -303,8 +265,7 @@ export interface DesignerChatMessage {
 
 export interface DesignerChatDraftContext {
   prompt?: string;
-  referenceInputMode?: 'image' | 'video' | 'prompt';
-  referenceImage?: string | null;
+  referenceInputMode?: 'video' | 'prompt' | 'blank' | 'v2';
   referenceVideoActive?: boolean;
   currentTemplate?: TemplateDefinition | null;
   currentPreview?: string | null;

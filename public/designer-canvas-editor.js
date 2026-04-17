@@ -210,8 +210,8 @@
           reader.onload = () => {
             const assetUrl = String(reader.result || '');
             if (!assetUrl) return;
-            appendAssetOption(file.name || 'Uploaded PNG', assetUrl);
-            addAssetLayer(assetUrl, file.name || 'Uploaded PNG');
+            appendAssetOption(file.name || 'Uploaded Overlay', assetUrl);
+            addAssetLayer(assetUrl, file.name || 'Uploaded Overlay');
             assetPicker.uploadInput.value = '';
           };
           reader.readAsDataURL(file);
@@ -368,9 +368,7 @@
       updateInspector(selectedLayer);
       updateLayerActionButtons(selectedLayer);
       setEmptyState('');
-      setSummary(template.outputFormat === 'mp4'
-        ? `Editing frame ${state.frameIndex + 1} of ${template.frames.length} on a ${template.width}x${template.height} reel.`
-        : `Editing a ${template.width}x${template.height} PNG template frame.`);
+      setSummary(`Editing frame ${state.frameIndex + 1} of ${template.frames.length} on a ${template.width}x${template.height} reel.`);
       setStatus(state.selectedLayerId
         ? 'Drag, resize, nudge with arrow keys, or double-click text to edit directly on the canvas.'
         : 'Select a layer to edit its bounds, styling, and decorative asset settings.');
@@ -577,8 +575,8 @@
       frame.layers.push(layer);
       state.selectedLayerId = layer.id;
       commitTemplate(nextTemplate, assetUrl.startsWith('data:')
-        ? 'Uploaded a decorative transparent PNG asset to the frame.'
-        : 'Added a decorative PNG asset to the frame.');
+        ? 'Uploaded a decorative transparent overlay asset to the frame.'
+        : 'Added a decorative overlay asset to the frame.');
     }
 
     function appendAssetOption(label, assetUrl) {

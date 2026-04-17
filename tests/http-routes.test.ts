@@ -80,7 +80,7 @@ test('HTTP route /designer serves the real Template Lab shell', async () => {
     assert.equal(designerHtml, promptHtml);
     assert.equal(designerHtml, referenceVideoHtml);
     assert.equal(designerHtml, v2Html);
-    assert.match(designerHtml, /<title>Template Lab Designer<\/title>/);
+    assert.match(designerHtml, /<title>Reel Template Studio<\/title>/);
     assert.match(designerHtml, /<script src="\/designer-v2-bridge\.js"><\/script>/);
     assert.match(designerHtml, /<script src="\/vendor\/konva\.min\.js"><\/script>/);
     assert.match(designerHtml, /<script src="\/designer-canvas-editor\.js"><\/script>/);
@@ -135,21 +135,26 @@ test('HTTP routes serve the extracted Template Lab scripts as JavaScript assets'
 test('HTTP designer chat route can generate and continue a draft across turns', async () => {
   setDesignerChatToolOverridesForTests({
     async generateTemplate(prompt) {
-      assert.match(prompt, /Create a new template draft/i);
+      assert.match(prompt, /Create a new MP4 reel template draft/i);
       assert.match(prompt, /Create a bold plumbing reel/i);
       return {
         id: 'chat-generated',
         reference: 'chat-generated',
         name: 'Chat Generated',
-        outputFormat: 'png',
+        outputFormat: 'mp4',
         width: 1080,
-        height: 1080,
-        imageCount: 1,
+        height: 1920,
+        imageCount: 4,
         categoryKeys: [],
         frames: [
           {
             durationMs: 1000,
             background: { type: 'solid', color: '#10151D' },
+            layers: [],
+          },
+          {
+            durationMs: 1000,
+            background: { type: 'solid', color: '#18212D' },
             layers: [],
           },
         ],
@@ -307,7 +312,7 @@ test('HTTP health route stays public while the Template Lab runtime still expose
     assert.equal(health.status, 'ok');
     assert.ok(Date.parse(health.timestamp));
     assert.ok(templates.templates.length > 0);
-    assert.ok(templates.templates.some((template) => template.id === 'main-1-image'));
+    assert.ok(templates.templates.some((template) => template.id === 'slideshow-base' && template.outputFormat === 'mp4'));
     assert.ok(templates.templates.some((template) => template.id === 'vertical-reel-base' && template.outputFormat === 'mp4'));
   });
 });

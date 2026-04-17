@@ -5,8 +5,7 @@
 
   const state = {
     apiKey: localStorage.getItem('designer_api_key') || String(bootstrap.renderApiKey || '').trim(),
-    referenceInputMode: 'image',
-    referenceImage: null,
+    referenceInputMode: 'video',
     referenceVideoFile: null,
     referenceVideoObjectUrl: '',
     referenceVideoMeta: null,
@@ -77,22 +76,15 @@
   const approveFooterName = $('#approveFooterName');
   const approveFooterDetails = $('#approveFooterDetails');
 
-  const referenceModeImage = $('#referenceModeImage');
   const referenceModeVideo = $('#referenceModeVideo');
   const referenceModePrompt = $('#referenceModePrompt');
   const referenceModeBlank = $('#referenceModeBlank');
   const referenceModeV2 = $('#referenceModeV2');
-  const referenceImagePanel = $('#referenceImagePanel');
   const referenceVideoPanel = $('#referenceVideoPanel');
   const referencePromptPanel = $('#referencePromptPanel');
   const referenceBlankPanel = $('#referenceBlankPanel');
   const referenceV2Panel = $('#referenceV2Panel');
   const sourceGenerateRegion = $('#sourceGenerateRegion');
-  const uploadZone = $('#uploadZone');
-  const fileInput = $('#fileInput');
-  const uploadClear = $('#uploadClear');
-  const uploadPlaceholder = $('#uploadPlaceholder');
-  const uploadPreview = $('#uploadPreview');
   const videoUploadZone = $('#videoUploadZone');
   const videoFileInput = $('#videoFileInput');
   const videoUploadClear = $('#videoUploadClear');
@@ -107,7 +99,6 @@
   const toggleAutoIterate = $('#toggleAutoIterate');
   const maxIterations = $('#maxIterations');
   const scoreTarget = $('#scoreTarget');
-  const btnNewBlankTemplate = $('#btnNewBlankTemplate');
   const btnNewReelTemplate = $('#btnNewReelTemplate');
   const historyStrip = $('#historyStrip');
   const videoInsightsCard = $('#videoInsightsCard');
@@ -118,7 +109,6 @@
   const videoInsightMetrics = $('#videoInsightMetrics');
   const videoInsightNotes = $('#videoInsightNotes');
   const refPlaceholder = $('#refPlaceholder');
-  const refImage = $('#refImage');
   const refVideo = $('#refVideo');
   const previewPlaceholder = $('#previewPlaceholder');
   const previewLoading = $('#previewLoading');
@@ -242,10 +232,10 @@
 
   const SESSION_COPY = {
     reference: {
-      pill: 'Reference Draft',
-      helper: 'Start with a reference image or reference video to create a new template session.',
+      pill: 'Reel Draft',
+      helper: 'Start with a reference video to create a new reel template session.',
       title: 'Reference-led draft',
-      lead: 'Generate a first pass from a target image or video style, then use the local preview to decide when the draft is ready.',
+      lead: 'Generate a first pass from a target reel style, then use the local preview to decide when the draft is ready.',
     },
     v2: {
       pill: 'V2 Improvement',
@@ -273,7 +263,7 @@
 
   bindEvents();
   refreshSavedDraftMeta();
-  setReferenceInputMode('image');
+  setReferenceInputMode('video');
   setSessionMode('reference');
   setPreviewMode(state.previewMode);
   renderHistory();
@@ -308,11 +298,11 @@
 
     if (modeReference) {
       modeReference.addEventListener('click', () => {
-        const focusTarget = state.referenceInputMode === 'video'
-          ? videoFileInput
-          : state.referenceInputMode === 'prompt'
-            ? promptInput
-            : fileInput;
+        const focusTarget = state.referenceInputMode === 'prompt'
+          ? promptInput
+          : state.referenceInputMode === 'v2'
+            ? v2ExportUrlInput
+            : videoFileInput;
         setSessionMode('reference', { focusTarget });
       });
     }
@@ -329,13 +319,6 @@
       });
     }
 
-    if (referenceModeImage) {
-      referenceModeImage.addEventListener('click', () => {
-        setReferenceInputMode('image');
-        setSessionMode('reference', { focusTarget: fileInput });
-      });
-    }
-
     if (referenceModeVideo) {
       referenceModeVideo.addEventListener('click', () => {
         setReferenceInputMode('video');
@@ -345,9 +328,7 @@
 
     if (referenceModePrompt) {
       referenceModePrompt.addEventListener('click', () => {
-        clearReferenceImage();
         clearReferenceVideo();
-        if (fileInput) fileInput.value = '';
         if (videoFileInput) videoFileInput.value = '';
         setReferenceInputMode('prompt');
         setSessionMode('reference', { focusTarget: promptInput });
@@ -374,31 +355,6 @@
       });
     }
 
-    uploadZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadZone.classList.add('dragover');
-    });
-
-    uploadZone.addEventListener('dragleave', () => {
-      uploadZone.classList.remove('dragover');
-    });
-
-    uploadZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadZone.classList.remove('dragover');
-      const file = e.dataTransfer?.files?.[0];
-      if (file && file.type.startsWith('image/')) handleImageFile(file);
-    });
-
-    uploadZone.addEventListener('paste', (e) => {
-      handleReferenceImagePaste(e);
-    });
-
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files?.[0];
-      if (file) handleImageFile(file);
-    });
-
     videoUploadZone.addEventListener('dragover', (e) => {
       e.preventDefault();
       videoUploadZone.classList.add('dragover');
@@ -418,18 +374,6 @@
     videoFileInput.addEventListener('change', () => {
       const file = videoFileInput.files?.[0];
       if (file) handleVideoFile(file);
-    });
-
-    uploadClear.addEventListener('click', (e) => {
-      e.stopPropagation();
-      clearReferenceImage();
-      renderReferenceState();
-      fileInput.value = '';
-      if (state.sessionMode === 'reference') {
-        setPreviewStatus('Reference removed. Add a new reference before running another refinement pass.', 'warning');
-      }
-      updateStatus();
-      scheduleDraftSave();
     });
 
     videoUploadClear.addEventListener('click', (e) => {
@@ -482,9 +426,8 @@
       state.isAutoIterating = false;
       updateStatus();
     });
-    btnNewBlankTemplate.addEventListener('click', () => createBlankTemplateSession('png'));
     if (btnNewReelTemplate) {
-      btnNewReelTemplate.addEventListener('click', () => createBlankTemplateSession('mp4'));
+      btnNewReelTemplate.addEventListener('click', () => createBlankTemplateSession());
     }
     btnLoadV2.addEventListener('click', () => loadApprovedTemplateFromV2());
     btnSaveV2.addEventListener('click', approveTemplateForV2);
@@ -698,23 +641,21 @@
   }
 
   function setReferenceInputMode(mode) {
-    const validModes = new Set(['image', 'video', 'prompt', 'blank', 'v2']);
-    state.referenceInputMode = validModes.has(mode) ? mode : 'image';
+    const validModes = new Set(['video', 'prompt', 'blank', 'v2']);
+    state.referenceInputMode = validModes.has(mode) ? mode : 'video';
     const current = state.referenceInputMode;
 
-    if (referenceModeImage) referenceModeImage.classList.toggle('active', current === 'image');
     if (referenceModeVideo) referenceModeVideo.classList.toggle('active', current === 'video');
     if (referenceModePrompt) referenceModePrompt.classList.toggle('active', current === 'prompt');
     if (referenceModeBlank) referenceModeBlank.classList.toggle('active', current === 'blank');
     if (referenceModeV2) referenceModeV2.classList.toggle('active', current === 'v2');
 
-    if (referenceImagePanel) referenceImagePanel.classList.toggle('active', current === 'image');
     if (referenceVideoPanel) referenceVideoPanel.classList.toggle('active', current === 'video');
     if (referencePromptPanel) referencePromptPanel.classList.toggle('active', current === 'prompt');
     if (referenceBlankPanel) referenceBlankPanel.classList.toggle('active', current === 'blank');
     if (referenceV2Panel) referenceV2Panel.classList.toggle('active', current === 'v2');
 
-    const showGenerate = current === 'image' || current === 'video' || current === 'prompt';
+    const showGenerate = current === 'video' || current === 'prompt';
     if (sourceGenerateRegion) sourceGenerateRegion.classList.toggle('is-hidden', !showGenerate);
 
     renderReferenceState();
@@ -731,12 +672,11 @@
     let routeMode = '';
     if (pathname.endsWith('/designer/prompt')) routeMode = 'prompt';
     else if (pathname.endsWith('/designer/reference-video')) routeMode = 'video';
-    else if (pathname.endsWith('/designer/reference-image')) routeMode = 'image';
     else if (pathname.endsWith('/designer/v2')) routeMode = 'v2';
     else if (pathname.endsWith('/designer/json')) routeMode = 'json';
 
     const normalizedMode = routeMode || queryMode;
-    const allowedModes = new Set(['prompt', 'video', 'image', 'v2', 'json', 'reference']);
+    const allowedModes = new Set(['prompt', 'video', 'v2', 'json', 'reference']);
 
     return {
       mode: allowedModes.has(normalizedMode) ? normalizedMode : '',
@@ -757,8 +697,8 @@
     } else if (urlState.mode === 'video') {
       setReferenceInputMode('video');
       setSessionMode('reference');
-    } else if (urlState.mode === 'image' || urlState.mode === 'reference') {
-      setReferenceInputMode('image');
+    } else if (urlState.mode === 'reference') {
+      setReferenceInputMode('video');
       setSessionMode('reference');
     } else if (urlState.mode === 'v2') {
       setReferenceInputMode('v2');
@@ -789,12 +729,12 @@
   }
 
   function getReferenceSessionDetails() {
-    if (state.referenceInputMode === 'prompt' && !state.referenceImage && !state.referenceVideoFile) {
+    if (state.referenceInputMode === 'prompt' && !state.referenceVideoFile) {
       return {
         pill: 'Prompt Draft',
         helper: 'Start with a text prompt when you want the first template pass to come from description alone.',
         title: 'Prompt-led draft',
-        lead: 'Describe the structure, tone, offer, and output format you want, then refine the generated draft with more text or raw JSON edits.',
+        lead: 'Describe the structure, tone, offer, and pacing you want, then refine the generated draft with more text or raw JSON edits.',
       };
     }
 
@@ -825,7 +765,6 @@
 
   function hasRecoverableState() {
     return Boolean(
-      state.referenceImage ||
       promptInput.value.trim() ||
       state.currentTemplate ||
       jsonEditor.value.trim() ||
@@ -867,7 +806,6 @@
       savedAt: new Date().toISOString(),
       sessionMode: state.sessionMode,
       referenceInputMode: state.referenceInputMode,
-      referenceImage: state.referenceImage,
       prompt: promptInput.value,
       currentTemplate: state.currentTemplate,
       currentPreview: state.currentPreview,
@@ -976,9 +914,8 @@
     statusDot.classList.toggle('connected', connected);
 
     const hasTemplate = !!state.currentTemplate;
-    const hasReferenceImage = !!state.referenceImage;
     const hasReferenceVideo = !!state.referenceVideoFile;
-    const hasReference = hasReferenceImage || hasReferenceVideo;
+    const hasReference = hasReferenceVideo;
     const hasPrompt = !!promptInput.value.trim();
     const busy = state.isGenerating || state.isApproving;
     const missingApiKey = !connected;
@@ -1006,7 +943,7 @@
         : missingInput
           ? state.referenceInputMode === 'prompt'
             ? 'Add a prompt to enable prompt-only generation.'
-            : 'Add a prompt or upload a reference image or video to enable Generate.'
+            : 'Add a prompt or upload a reference video to enable Generate.'
           : '';
     }
 
@@ -1023,7 +960,7 @@
       } else if (missingInput) {
         hintText = state.referenceInputMode === 'prompt'
           ? 'Add a prompt to start a prompt-only draft.'
-          : 'Add a prompt or reference image/video to start.';
+          : 'Add a prompt or reference video to start.';
       } else if (hasReferenceVideo && hasPrompt) {
         hintText = 'Ready to analyze the reference video and match its style with a slideshow reel.';
       } else if (hasReferenceVideo) {
@@ -1032,10 +969,6 @@
         hintText = 'Prompt ready. Upload a short reference video to match style, or generate from prompt only if you want a generic reel draft.';
       } else if (!hasReference && hasPrompt && state.referenceInputMode === 'prompt') {
         hintText = 'Prompt ready. Generate will create a draft from scratch without needing a visual reference.';
-      } else if (hasReferenceImage && hasPrompt) {
-        hintText = 'Ready to generate from the reference image and prompt.';
-      } else if (hasReferenceImage) {
-        hintText = 'Reference image ready. You can generate now or add a prompt for more control.';
       } else {
         hintText = 'Prompt ready. Generate will create a draft from scratch.';
       }
@@ -1080,7 +1013,7 @@
     const hasTemplate = !!state.currentTemplate;
     const hasPreview = !!state.currentPreview || !!state.currentPreviewVideoUrl;
     const currentName = state.currentTemplate?.name || state.currentTemplate?.id || 'Untitled draft';
-    const hasReference = !!state.referenceImage || !!state.referenceVideoFile
+    const hasReference = !!state.referenceVideoFile
       || state.referenceInputMode === 'prompt' || state.referenceInputMode === 'blank'
       || state.referenceInputMode === 'v2';
     const hasPrompt = !!promptInput?.value?.trim();
@@ -1112,8 +1045,8 @@
       } else {
         const imageCount = parseInt(saveImageCount?.value, 10);
         const imageLabel = Number.isFinite(imageCount) && imageCount > 0
-          ? `${imageCount} image${imageCount === 1 ? '' : 's'}`
-          : '1 image';
+          ? `${imageCount} photo${imageCount === 1 ? '' : 's'}`
+          : '5 photos';
         const idLabel = saveId?.value?.trim() ? ` · ${saveId.value.trim()}` : '';
         const linkedLabel = linkedTemplateId ? ` · V2: ${linkedTemplateId}` : '';
         approveFooterDetails.textContent = `${imageLabel}${idLabel}${linkedLabel}`;
@@ -1166,10 +1099,6 @@
     }
   }
 
-  function clearReferenceImage() {
-    state.referenceImage = null;
-  }
-
   function revokeReferenceVideoObjectUrl() {
     if (!state.referenceVideoObjectUrl || !URL || typeof URL.revokeObjectURL !== 'function') return;
     URL.revokeObjectURL(state.referenceVideoObjectUrl);
@@ -1185,58 +1114,6 @@
       videoUploadPreview.removeAttribute?.('src');
       videoUploadPreview.style.display = 'none';
     }
-  }
-
-  function extractImageFileFromClipboardData(clipboardData) {
-    if (!clipboardData) return null;
-
-    const fileMatch = Array.from(clipboardData.files || []).find((file) => {
-      return String(file?.type || '').toLowerCase().startsWith('image/');
-    });
-    if (fileMatch) return fileMatch;
-
-    const itemMatch = Array.from(clipboardData.items || []).find((item) => {
-      return String(item?.type || '').toLowerCase().startsWith('image/');
-    });
-    if (!itemMatch || typeof itemMatch.getAsFile !== 'function') return null;
-    return itemMatch.getAsFile();
-  }
-
-  function isEditableTarget(target) {
-    const tagName = String(target?.tagName || '').toUpperCase();
-    return tagName === 'INPUT' || tagName === 'TEXTAREA' || Boolean(target?.isContentEditable);
-  }
-
-  function handleReferenceImagePaste(event) {
-    if (state.referenceInputMode !== 'image') return;
-    if (isEditableTarget(event?.target) && event?.target !== fileInput) return;
-
-    const file = extractImageFileFromClipboardData(event?.clipboardData);
-    if (!file) return;
-
-    if (typeof event?.preventDefault === 'function') {
-      event.preventDefault();
-    }
-
-    handleImageFile(file);
-    setPreviewStatus('Reference image pasted from clipboard.', 'info');
-    showToast('Reference image pasted', 'success');
-  }
-
-  function handleImageFile(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      resizeImage(reader.result, 1500, (resized) => {
-        clearReferenceVideo();
-        state.referenceImage = resized;
-        setReferenceInputMode('image');
-        setSessionMode('reference');
-        renderReferenceState();
-        updateStatus();
-        scheduleDraftSave();
-      });
-    };
-    reader.readAsDataURL(file);
   }
 
   function formatFileSize(sizeBytes) {
@@ -1262,7 +1139,6 @@
       return;
     }
 
-    clearReferenceImage();
     clearReferenceVideo();
 
     state.referenceVideoFile = file;
@@ -1282,52 +1158,7 @@
     scheduleDraftSave();
   }
 
-  function resizeImage(dataUri, maxDim, callback) {
-    const img = new Image();
-    img.onload = () => {
-      if (img.width <= maxDim && img.height <= maxDim) {
-        callback(dataUri);
-        return;
-      }
-
-      const scale = maxDim / Math.max(img.width, img.height);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      callback(canvas.toDataURL('image/png'));
-    };
-    img.src = dataUri;
-  }
-
   function renderReferenceState() {
-    if (state.referenceImage) {
-      uploadPreview.src = state.referenceImage;
-      uploadPreview.style.display = '';
-      uploadPlaceholder.style.display = 'none';
-      uploadZone.classList.add('has-image');
-      uploadZone.classList.remove('has-video');
-      refImage.src = state.referenceImage;
-      refImage.style.display = '';
-      if (refVideo) {
-        if (typeof refVideo.pause === 'function') refVideo.pause();
-        refVideo.style.display = 'none';
-        if ('src' in refVideo) refVideo.src = '';
-      }
-      refPlaceholder.style.display = 'none';
-      if (videoUploadMeta) videoUploadMeta.textContent = '';
-      if (videoUploadPreview) videoUploadPreview.style.display = 'none';
-      if (videoUploadPlaceholder) videoUploadPlaceholder.style.display = '';
-      if (videoUploadZone) videoUploadZone.classList.remove('has-video');
-      return;
-    }
-
-    uploadPreview.src = '';
-    uploadPreview.style.display = 'none';
-    uploadPlaceholder.style.display = '';
-    uploadZone.classList.remove('has-image');
-
     if (state.referenceVideoObjectUrl) {
       if (videoUploadPreview) {
         videoUploadPreview.src = state.referenceVideoObjectUrl;
@@ -1341,8 +1172,6 @@
         videoUploadMeta.textContent = parts.join(' • ');
       }
 
-      refImage.src = '';
-      refImage.style.display = 'none';
       if (refVideo) {
         refVideo.src = state.referenceVideoObjectUrl;
         refVideo.style.display = '';
@@ -1352,12 +1181,6 @@
     }
 
     if (state.referenceInputMode === 'prompt') {
-      uploadPreview.src = '';
-      uploadPreview.style.display = 'none';
-      uploadPlaceholder.style.display = '';
-      uploadZone.classList.remove('has-image');
-      refImage.src = '';
-      refImage.style.display = 'none';
       if (refVideo) {
         if (typeof refVideo.pause === 'function') refVideo.pause();
         refVideo.src = '';
@@ -1371,17 +1194,11 @@
       if (videoUploadPlaceholder) videoUploadPlaceholder.style.display = '';
       if (videoUploadMeta) videoUploadMeta.textContent = '';
       if (videoUploadZone) videoUploadZone.classList.remove('has-video');
-      refPlaceholder.textContent = 'Prompt-only session. Add a prompt to generate a draft from scratch, or switch modes if you want image or video guidance.';
+      refPlaceholder.textContent = 'Prompt-only session. Add a prompt to generate a reel from scratch, or switch modes if you want reference-video guidance.';
       refPlaceholder.style.display = '';
       return;
     }
 
-    uploadPreview.src = '';
-    uploadPreview.style.display = 'none';
-    uploadPlaceholder.style.display = '';
-    uploadZone.classList.remove('has-image');
-    refImage.src = '';
-    refImage.style.display = 'none';
     if (refVideo) {
       if (typeof refVideo.pause === 'function') refVideo.pause();
       refVideo.src = '';
@@ -1395,8 +1212,43 @@
     if (videoUploadPlaceholder) videoUploadPlaceholder.style.display = '';
     if (videoUploadMeta) videoUploadMeta.textContent = '';
     if (videoUploadZone) videoUploadZone.classList.remove('has-video');
-    refPlaceholder.textContent = 'Upload a reference image or video, or switch to Prompt Only to start from text.';
+    if (state.referenceInputMode === 'v2') {
+      refPlaceholder.textContent = 'Load a V2 export URL to reopen an approved reel template.';
+      refPlaceholder.style.display = '';
+      return;
+    }
+    if (state.referenceInputMode === 'blank') {
+      refPlaceholder.textContent = 'Blank reel session. Start a new empty template, then shape the layout in the JSON and canvas editors.';
+      refPlaceholder.style.display = '';
+      return;
+    }
+    refPlaceholder.textContent = 'Upload a reference video or switch to Prompt mode to start from text.';
     refPlaceholder.style.display = '';
+  }
+
+  function normalizeReferenceInputMode(mode) {
+    return ['video', 'prompt', 'blank', 'v2'].includes(mode) ? mode : 'video';
+  }
+
+  function normalizeSavedImageCount(value) {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? String(parsed) : '5';
+  }
+
+  function getDraftRestoreWarnings(draft) {
+    const warnings = [];
+    if (draft?.referenceImage) {
+      warnings.push('Legacy reference-image input is no longer supported, so that source was dropped.');
+    }
+    if (draft?.referenceInputMode === 'image') {
+      warnings.push('The saved session used the retired image workflow and was moved to the default video-first mode.');
+    }
+    return warnings;
+  }
+
+  function formatDraftRestoreWarning(warnings) {
+    if (!warnings.length) return '';
+    return ` ${warnings.join(' ')}`;
   }
 
   function stopPreviewVideo() {
@@ -1476,7 +1328,7 @@
   function syncApprovalFieldsFromTemplate(template, meta = {}) {
     const derivedName = meta.name || template.name || '';
     const derivedReference = meta.reference || template.reference || template.id || '';
-    const derivedImageCount = meta.image_count || template.imageCount || 1;
+    const derivedImageCount = meta.image_count || template.imageCount || 5;
 
     saveName.value = derivedName;
     saveId.value = derivedReference;
@@ -1750,7 +1602,6 @@
     return {
       prompt: promptInput.value.trim(),
       referenceInputMode: state.referenceInputMode,
-      referenceImage: state.referenceImage,
       referenceVideoActive: Boolean(state.referenceVideoFile),
       currentTemplate: state.currentTemplate,
       currentPreview: state.currentPreview,
@@ -1914,7 +1765,6 @@
   function getTemplateSourceMode() {
     if (state.sessionMode === 'v2') return 'v2_template';
     if (state.referenceVideoFile) return 'reference_video';
-    if (state.referenceImage) return 'reference_image';
     if (promptInput.value.trim()) return 'prompt';
     return 'manual_json';
   }
@@ -1938,78 +1788,47 @@
     if (forceOutputFormat) {
       template.outputFormat = forceOutputFormat;
     } else if (!template.outputFormat) {
-      template.outputFormat = 'png';
+      template.outputFormat = 'mp4';
     }
 
     return template;
   }
 
-  function buildBlankTemplate(format = 'png') {
-    if (format === 'mp4') {
-      return {
-        id: 'untitled-reel-template',
-        reference: 'untitled-reel-template',
-        name: 'Untitled Reel Template',
-        outputFormat: 'mp4',
-        width: 1080,
-        height: 1920,
-        imageCount: 4,
-        fps: 30,
-        transition: { type: 'fade', durationMs: 600 },
-        frames: [
-          {
-            durationMs: 2000,
-            background: { type: 'image', source: 'user_image', index: 0 },
-            layers: [],
-          },
-          {
-            durationMs: 2000,
-            background: { type: 'image', source: 'user_image', index: 1 },
-            layers: [],
-          },
-          {
-            durationMs: 2000,
-            background: { type: 'image', source: 'user_image', index: 2 },
-            layers: [],
-          },
-          {
-            durationMs: 2400,
-            background: { type: 'solid', color: '#10151D' },
-            layers: [],
-          },
-        ],
-        categoryKeys: ['slideshow', 'reel', 'vertical_video'],
-      };
-    }
-
+  function buildBlankTemplate() {
+    const photoCount = 5;
     return {
-      id: 'untitled-template',
-      reference: 'untitled-template',
-      name: 'Untitled Template',
-      outputFormat: 'png',
+      id: 'untitled-reel-template',
+      reference: 'untitled-reel-template',
+      name: 'Untitled Reel Template',
+      outputFormat: 'mp4',
       width: 1080,
-      height: 1080,
-      imageCount: 1,
-      frames: [
+      height: 1920,
+      imageCount: photoCount,
+      fps: 30,
+      transition: { type: 'fade', durationMs: 600 },
+      frames: Array.from({ length: photoCount }, (_, index) => ({
+        durationMs: index === 0 ? 1800 : 2000,
+        background: { type: 'image', source: 'user_image', index },
+        layers: [],
+      })).concat([
         {
-          durationMs: 1000,
+          durationMs: 2400,
           background: { type: 'solid', color: '#10151D' },
           layers: [],
         },
-      ],
-      categoryKeys: [],
+      ]),
+      categoryKeys: ['slideshow', 'reel', 'vertical_video'],
     };
   }
 
-  function createBlankTemplateSession(format = 'png') {
-    const isReelTemplate = format === 'mp4';
-    if (hasRecoverableState() && !confirmAction(`Replace the current studio session with a new blank ${isReelTemplate ? 'reel' : 'template'}?`)) {
+  function createBlankTemplateSession() {
+    if (hasRecoverableState() && !confirmAction('Replace the current studio session with a new blank reel?')) {
       return;
     }
 
     clearCurrentDraftState();
 
-    const template = ensureTemplateLayerIds(buildBlankTemplate(format));
+    const template = ensureTemplateLayerIds(buildBlankTemplate());
     state.currentTemplate = template;
     state.currentPreview = null;
     state.currentPreviewKind = 'image';
@@ -2031,29 +1850,12 @@
     }
     previewLoading.style.display = 'none';
     previewPlaceholder.style.display = '';
-    previewPlaceholder.textContent = isReelTemplate
-      ? 'Blank reel template ready. Re-render from JSON when you want a local video or poster-frame preview.'
-      : 'Blank template ready. Re-render from JSON when you want a local preview.';
+    previewPlaceholder.textContent = 'Blank reel template ready. Re-render from JSON when you want a local video or poster-frame preview.';
 
     setSessionMode('json', { focusTarget: saveName, openAdvanced: true });
-    setPreviewStatus(
-      isReelTemplate
-        ? 'Blank reel draft ready. Approving from this session will create a new V2 video template when the studio connection is configured.'
-        : 'Blank draft ready. Approving from this session will create a new V2 template when the studio connection is configured.',
-      'info',
-    );
-    setHandoffStatus(
-      isReelTemplate
-        ? 'Blank reel draft ready. This session is not linked to an existing V2 template, so approval will create a new V2 video record.'
-        : 'Blank draft ready. This session is not linked to an existing V2 template, so approval will create a new V2 record.',
-      'info',
-    );
-    log(
-      isReelTemplate
-        ? 'Started a new blank reel draft for admin approval into V2.'
-        : 'Started a new blank template draft for admin approval into V2.',
-      'info',
-    );
+    setPreviewStatus('Blank reel draft ready. Approving from this session will create a new V2 video template when the studio connection is configured.', 'info');
+    setHandoffStatus('Blank reel draft ready. This session is not linked to an existing V2 template, so approval will create a new V2 video record.', 'info');
+    log('Started a new blank reel draft for admin approval into V2.', 'info');
     updateStatus();
     scheduleDraftSave();
   }
@@ -2073,7 +1875,10 @@
     state.previewFrameIndex = 0;
     updatePreviewFrameControls(template);
 
-    const isMp4Template = template.outputFormat === 'mp4';
+    if (template.outputFormat !== 'mp4') {
+      throw new Error('Static image templates are no longer supported in Reel Template Studio.');
+    }
+
     if (!state.apiKey) {
       previewImage.src = '';
       previewImage.style.display = 'none';
@@ -2083,9 +1888,7 @@
       }
       previewLoading.style.display = 'none';
       previewPlaceholder.style.display = '';
-      previewPlaceholder.textContent = isMp4Template
-        ? 'Template loaded. Add the render-engine API key to preview a local reel video or poster frame.'
-        : 'Template loaded. Add the render-engine API key to preview it.';
+      previewPlaceholder.textContent = 'Template loaded. Add the render-engine API key to preview a local reel video or poster frame.';
       state.currentTemplate = template;
       state.currentPreview = null;
       state.currentPreviewKind = 'image';
@@ -2094,25 +1897,18 @@
       state.previewFrameIndex = 0;
       state.lastApprovedSnapshot = serializeTemplate(template);
       state.sessionDirty = false;
-      setPreviewStatus(
-        isMp4Template
-          ? 'Loaded from V2. Add the render-engine API key to render a local video preview or a poster frame for this MP4 template.'
-          : 'Loaded from V2. Add the render-engine API key to render a local preview.',
-        'warning',
-      );
+      setPreviewStatus('Loaded from V2. Add the render-engine API key to render a local video preview or a poster frame for this MP4 template.', 'warning');
       updateStatus();
       scheduleDraftSave();
       return;
     }
 
-    setGenerating(true, isMp4Template
-      ? 'Loading approved V2 MP4 template preview…'
-      : 'Loading approved V2 template preview…');
+    setGenerating(true, 'Loading approved V2 MP4 template preview…');
 
     try {
       const previewResult = await renderPreviewFromTemplate(template, {
         frameIndex: state.previewFrameIndex,
-        previewMode: isMp4Template ? 'video' : 'poster',
+        previewMode: 'video',
       });
       applyTemplateState(template, previewResult, {
         feedback: 'Loaded from V2',
@@ -2122,10 +1918,7 @@
         meta,
         frameIndex: state.previewFrameIndex,
       });
-      setPreviewStatus(
-        buildPreviewStatusMessage(isMp4Template ? 'Loaded from V2 and rendered locally for MP4 authoring review.' : 'Loaded from V2 and rendered locally with sample assets for authoring review.', previewResult),
-        'info',
-      );
+      setPreviewStatus(buildPreviewStatusMessage('Loaded from V2 and rendered locally for MP4 authoring review.', previewResult), 'info');
       log('Loaded approved template preview from V2', 'info');
     } catch (err) {
       state.currentTemplate = template;
@@ -2145,7 +1938,6 @@
   }
 
   function clearCurrentDraftState() {
-    clearReferenceImage();
     clearReferenceVideo();
     state.currentVideoAnalysis = null;
     state.currentTemplate = null;
@@ -2173,8 +1965,7 @@
     jsonEditor.disabled = true;
     saveName.value = '';
     saveId.value = '';
-    saveImageCount.value = '1';
-    if (fileInput) fileInput.value = '';
+    saveImageCount.value = '5';
     if (videoFileInput) videoFileInput.value = '';
     previewImage.src = '';
     previewImage.style.display = 'none';
@@ -2188,7 +1979,7 @@
     setPreviewStatus('', '');
     setHandoffStatus('', '');
     v2Bridge.setExportUrl('');
-    setReferenceInputMode('image');
+    setReferenceInputMode('video');
     renderReferenceState();
     updatePreviewFrameControls(null);
     renderHistory();
@@ -2208,7 +1999,6 @@
     }
 
     clearCurrentDraftState();
-    state.referenceImage = draft.referenceImage || null;
     promptInput.value = draft.prompt || '';
     state.lastApprovedSnapshot = draft.lastApprovedSnapshot || null;
     state.sessionDirty = Boolean(draft.sessionDirty);
@@ -2221,7 +2011,8 @@
     state.saveIdTouched = Boolean(draft.saveIdTouched);
     state.chatSessionId = draft.chatSessionId || '';
     state.chatMessages = Array.isArray(draft.chatMessages) ? draft.chatMessages : [];
-    setReferenceInputMode(draft.referenceInputMode || 'image');
+    const restoreWarnings = getDraftRestoreWarnings(draft);
+    setReferenceInputMode(normalizeReferenceInputMode(draft.referenceInputMode));
 
     if (draft.handoff?.exportUrl) {
       v2Bridge.setExportUrl(draft.handoff.exportUrl);
@@ -2229,7 +2020,7 @@
 
     saveName.value = draft.handoff?.saveName || '';
     saveId.value = draft.handoff?.saveId || '';
-    saveImageCount.value = draft.handoff?.saveImageCount || '1';
+    saveImageCount.value = normalizeSavedImageCount(draft.handoff?.saveImageCount);
     renderReferenceState();
 
     if (draft.currentTemplate) {
@@ -2263,9 +2054,11 @@
     setSessionMode(draft.sessionMode || 'reference', { openAdvanced: draft.sessionMode === 'json' });
 
     if (state.previewStale && state.currentTemplate) {
-      setPreviewStatus('Draft restored. The preview is stale; re-render before approving.', 'warning');
+      setPreviewStatus(`Draft restored. The preview is stale; re-render before approving.${formatDraftRestoreWarning(restoreWarnings)}`, 'warning');
     } else if (state.currentTemplate) {
-      setPreviewStatus('Draft restored from local recovery.', 'info');
+      setPreviewStatus(`Draft restored from local recovery.${formatDraftRestoreWarning(restoreWarnings)}`, 'info');
+    } else if (restoreWarnings.length) {
+      setPreviewStatus(`Draft restored.${formatDraftRestoreWarning(restoreWarnings)}`, 'warning');
     }
 
     updateStatus();
@@ -2305,24 +2098,18 @@
 
   async function generate() {
     const trimmedPrompt = promptInput.value.trim();
-    const hasReferenceImage = !!state.referenceImage;
     const hasReferenceVideo = !!state.referenceVideoFile;
-    const hasReference = hasReferenceImage || hasReferenceVideo;
-    if (!hasReference && !trimmedPrompt) return;
+    if (!hasReferenceVideo && !trimmedPrompt) return;
 
-    beginFreshSession(hasReference ? 'reference' : state.sessionMode);
+    beginFreshSession(hasReferenceVideo ? 'reference' : state.sessionMode);
     setGenerating(true,
       hasReferenceVideo
         ? 'Analyzing reference video…'
-        : hasReferenceImage
-          ? 'Analyzing reference image…'
-          : 'Generating template from prompt…');
+        : 'Generating template from prompt…');
     log(
       hasReferenceVideo
         ? 'Generating reel template from reference video…'
-        : hasReferenceImage
-          ? 'Generating template from reference image…'
-          : 'Generating template from prompt…',
+        : 'Generating template from prompt…',
       'info',
     );
 
@@ -2334,12 +2121,7 @@
           if (trimmedPrompt) formData.append('prompt', trimmedPrompt);
           return fetchMultipartApi('/video', formData);
         })()
-        : hasReferenceImage
-          ? await fetchApi('/vision', {
-            referenceImage: state.referenceImage,
-            prompt: trimmedPrompt || undefined,
-          })
-          : await fetchApi('', {
+        : await fetchApi('', {
             prompt: trimmedPrompt,
           });
 
@@ -2362,7 +2144,7 @@
 
       setGenerating(false);
 
-      if (state.autoIterateEnabled && (hasReferenceImage || hasReferenceVideo)) {
+      if (state.autoIterateEnabled && hasReferenceVideo) {
         await autoIterate();
       }
     } catch (err) {
@@ -2373,7 +2155,7 @@
   }
 
   async function autoIterate() {
-    if ((!state.referenceImage && !state.referenceVideoFile) || !state.currentTemplate) return;
+    if (!state.referenceVideoFile || !state.currentTemplate) return;
 
     state.isAutoIterating = true;
     state.iterationHistory = [];
@@ -2409,22 +2191,12 @@
 
       let result;
       try {
-        result = state.referenceVideoFile
-          ? await fetchMultipartApi('/video/compare-iterate', buildVideoIterationFormData({
-              iterationHistory: state.iterationHistory,
-              iterationNumber: iterNum,
-              maxIterations: max,
-              feedback: plateauWarning ? 'Try a meaningfully different slideshow structure for the next revision.' : '',
-            }))
-          : await fetchApi('/vision/compare-iterate', {
-              referenceImage: state.referenceImage,
-              previewImage: state.currentPreview,
-              existingTemplate: state.currentTemplate,
-              iterationHistory: state.iterationHistory,
-              iterationNumber: iterNum,
-              maxIterations: max,
-              plateauWarning,
-            });
+        result = await fetchMultipartApi('/video/compare-iterate', buildVideoIterationFormData({
+          iterationHistory: state.iterationHistory,
+          iterationNumber: iterNum,
+          maxIterations: max,
+          feedback: plateauWarning ? 'Try a meaningfully different slideshow structure for the next revision.' : '',
+        }));
       } catch (err) {
         log(`Iteration failed: ${err.message}`, 'error');
         break;
@@ -2488,7 +2260,7 @@
     try {
       const previewResult = await renderPreviewFromTemplate(template, {
         frameIndex: state.previewFrameIndex,
-        previewMode: template.outputFormat === 'mp4' ? 'video' : 'poster',
+        previewMode: 'video',
       });
       applyTemplateState(template, previewResult, {
         label: 'Manual JSON Render',
@@ -2496,9 +2268,7 @@
       });
       setPreviewStatus(
         buildPreviewStatusMessage(
-          template.outputFormat === 'mp4'
-            ? 'Re-rendered locally for reel review.'
-            : 'Re-rendered locally from edited JSON.',
+          'Re-rendered locally for reel review.',
           previewResult,
         ),
         'info',
@@ -2538,12 +2308,34 @@
     }
 
     if (!Number.isInteger(parsedImageCount) || parsedImageCount < 1) {
-      setHandoffStatus('Approve for V2 failed: Image count must be a whole number of at least 1.', 'error');
-      showToast('Image count must be a whole number of at least 1', 'error');
+      setHandoffStatus('Approve for V2 failed: Photo count must be a whole number of at least 1.', 'error');
+      showToast('Photo count must be a whole number of at least 1', 'error');
       return;
     }
 
     const template = buildTemplateFromForm();
+    const approvalTarget = (v2BaseUrlInput?.value || '').trim()
+      || (() => {
+        const { exportUrl } = getHandoffContext();
+        try {
+          return exportUrl ? new URL(exportUrl).origin : '';
+        } catch {
+          return '';
+        }
+      })()
+      || 'the configured V2 admin';
+
+    if (!confirmAction([
+      'Approve this reel template to V2?',
+      `Name: ${trimmedName}`,
+      `Reference ID: ${trimmedId}`,
+      `Photos: ${parsedImageCount}`,
+      `Target: ${approvalTarget}`,
+    ].join('\n'))) {
+      setHandoffStatus('Approval cancelled. Review the draft and try again when you are ready.', 'warning');
+      return;
+    }
+
     setApproving(true);
 
     try {

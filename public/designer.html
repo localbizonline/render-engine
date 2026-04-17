@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Template Lab Designer</title>
+  <title>Reel Template Studio</title>
   <style>
     :root {
       --bg: #0a0f1a;
@@ -75,10 +75,22 @@
       gap: 14px;
     }
 
+    .topbar-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
     .topbar h1 {
       margin: 0;
       font-size: 18px;
       letter-spacing: -0.03em;
+    }
+
+    .topbar-subtitle {
+      margin: 0;
+      font-size: 12px;
+      color: var(--text-soft);
     }
 
     .topbar-progress {
@@ -1614,51 +1626,25 @@
 </head>
 <body data-session-mode="reference">
 
-  <!-- ── Deprecation / status notice (added 2026-04-17) ──
-       Production reel rendering in social-posting-v2 now bypasses Template Lab
-       entirely: v2's queue calls POST /api/render directly and render-engine
-       uploads MP4 + poster straight to R2. This page stays live for owned
-       template approval and is scheduled for removal after broader theme
-       rollout completes. Dismissable per browser via localStorage. -->
-  <div class="deprecation-banner" id="deprecationBanner" role="note" hidden>
+  <div class="deprecation-banner" role="note">
     <div class="deprecation-body">
-      <strong>Authoring-only surface.</strong>
-      Production reels now render via <code>POST&nbsp;/api/render</code>
-      called directly by the <code>social-posting-v2</code> queue —
-      this page is kept for approving new owned PNG/MP4 templates and is
-      scheduled for removal after broader theme rollout.
-      Live on Home Services (2026-04-17) for 5-, 6-, and 8-image reels.
+      <strong>Reel authoring.</strong>
+      Design new MP4 reel templates here, then approve them to social-posting-v2.
+      Production rendering runs in the V2 queue directly, so once a reel is approved it is ready to be linked and used in rollout.
     </div>
-    <button type="button" class="deprecation-dismiss" id="deprecationDismiss" aria-label="Dismiss notice">
-      Got it
-    </button>
   </div>
-  <script>
-    (function () {
-      var KEY = 'template-lab:deprecation-dismissed-v1';
-      var banner = document.getElementById('deprecationBanner');
-      var dismiss = document.getElementById('deprecationDismiss');
-      if (!banner || !dismiss) return;
-      try {
-        if (localStorage.getItem(KEY) !== '1') banner.hidden = false;
-      } catch (err) {
-        banner.hidden = false;
-      }
-      dismiss.addEventListener('click', function () {
-        banner.hidden = true;
-        try { localStorage.setItem(KEY, '1'); } catch (err) { /* noop */ }
-      });
-    })();
-  </script>
 
-  <!-- ── Top Bar ── -->
+    <!-- ── Top Bar ── -->
   <header class="topbar">
     <div class="topbar-left">
-      <h1>Template Lab</h1>
+      <div class="topbar-title">
+        <h1>Reel Template Studio</h1>
+        <p class="topbar-subtitle">Design new MP4 reel templates for social-posting-v2.</p>
+      </div>
       <div class="topbar-progress" id="topbarProgress">
         <div class="progress-step" id="progressStepReference" data-state="active">
           <span class="progress-dot">1</span>
-          <span class="progress-label">Reference</span>
+          <span class="progress-label">Source</span>
         </div>
         <div class="progress-arrow"></div>
         <div class="progress-step" id="progressStepGenerate" data-state="pending">
@@ -1668,7 +1654,7 @@
         <div class="progress-arrow"></div>
         <div class="progress-step" id="progressStepApprove" data-state="pending">
           <span class="progress-dot">3</span>
-          <span class="progress-label">Approve</span>
+          <span class="progress-label">Approve for V2</span>
         </div>
       </div>
     </div>
@@ -1734,28 +1720,15 @@
       <!-- Source -->
       <div class="card">
         <h3 class="card-title">Source</h3>
-        <p class="card-subtitle">Pick where the draft starts, then generate or load.</p>
+        <p class="card-subtitle">Pick how the reel starts, then generate or load.</p>
         <div class="reference-mode-switch" role="tablist" aria-label="Source">
-          <button class="btn btn-secondary active" id="referenceModeImage" type="button">Image</button>
-          <button class="btn btn-secondary" id="referenceModeVideo" type="button">Video</button>
+          <button class="btn btn-secondary active" id="referenceModeVideo" type="button">Reference Video</button>
           <button class="btn btn-secondary" id="referenceModePrompt" type="button">Prompt</button>
           <button class="btn btn-secondary" id="referenceModeBlank" type="button">Blank</button>
           <button class="btn btn-secondary" id="referenceModeV2" type="button">Load V2</button>
         </div>
 
-        <div class="reference-panel active" id="referenceImagePanel">
-          <div class="upload-zone" id="uploadZone" tabindex="0" aria-label="Reference image upload zone. Drop or paste an image here.">
-            <input type="file" id="fileInput" name="reference_image" accept="image/png,image/jpeg,image/webp" aria-label="Upload a reference image">
-            <button class="upload-clear" id="uploadClear" type="button" aria-label="Clear reference">&times;</button>
-            <div class="placeholder" id="uploadPlaceholder">
-              <strong>Drop or paste image here</strong>
-              PNG, JPG, or WebP. On macOS, copy an image and press Command+V here.
-            </div>
-            <img id="uploadPreview" style="display:none" alt="Reference preview" width="1080" height="1080">
-          </div>
-        </div>
-
-        <div class="reference-panel" id="referenceVideoPanel">
+        <div class="reference-panel active" id="referenceVideoPanel">
           <div class="upload-zone" id="videoUploadZone">
             <input type="file" id="videoFileInput" name="reference_video" accept=".mp4,.mov,video/mp4,video/quicktime,video/mov" aria-label="Upload a reference video">
             <button class="upload-clear" id="videoUploadClear" type="button" aria-label="Clear reference video">&times;</button>
@@ -1771,25 +1744,24 @@
         <div class="reference-panel" id="referencePromptPanel">
           <div class="prompt-mode-card">
             <strong>Start from words, not a file</strong>
-            Describe the layout, tone, offer, pacing, or format you want. Mention terms like reel, slideshow, story, or vertical video when you want an MP4 draft.
+            Describe the layout, tone, offer, pacing, or CTA treatment you want. Prompt mode always generates an MP4 reel draft.
           </div>
         </div>
 
         <div class="reference-panel" id="referenceBlankPanel">
           <div class="prompt-mode-card">
-            <strong>Start from a blank canvas</strong>
-            Skip references and begin with an empty square post or vertical slideshow reel. Approving either one creates a new V2 template record.
+            <strong>Start from a blank reel</strong>
+            Skip references and begin with an empty vertical slideshow reel. Approving it creates a new V2 reel template record.
           </div>
           <div class="inline-row" style="margin-top:10px;">
-            <button class="btn btn-secondary" id="btnNewBlankTemplate" type="button">New Blank Post</button>
             <button class="btn btn-secondary" id="btnNewReelTemplate" type="button">New Blank Reel</button>
           </div>
         </div>
 
         <div class="reference-panel" id="referenceV2Panel">
           <div class="prompt-mode-card">
-            <strong>Load an approved V2 template</strong>
-            Paste the V2 export URL to re-open an approved template inside the studio. You can iterate on it and approve updates back to V2.
+            <strong>Load an approved V2 reel</strong>
+            Paste the V2 export URL to re-open an approved reel template inside the studio. You can iterate on it and approve updates back to V2.
           </div>
           <div class="inline-row" style="margin-top:10px;">
             <div class="field">
@@ -1811,7 +1783,7 @@
           </div>
 
           <div class="action-helper" id="generateHint" aria-live="polite">
-            Add a prompt, reference image, or reference video to start.
+            Add a prompt or reference video to start.
           </div>
           <button class="btn btn-secondary btn-sm" id="btnOpenSettingsHint" type="button" style="display:none;">Open Settings</button>
 
@@ -1886,8 +1858,7 @@
           <div class="comparison-pane reference-pane">
             <div class="pane-label">Reference</div>
             <div class="pane-stage">
-              <div class="placeholder-box" id="refPlaceholder">Upload a reference image or video, or switch to Prompt Only to start from text.</div>
-              <img id="refImage" style="display:none" alt="Reference" width="1080" height="1080">
+              <div class="placeholder-box" id="refPlaceholder">Upload a reference video or switch to Prompt mode to start from text.</div>
               <video id="refVideo" style="display:none" controls muted playsinline preload="metadata"></video>
             </div>
           </div>
@@ -1940,14 +1911,14 @@
               <h4>Decorative Asset</h4>
               <div class="inline-row">
                 <div class="field">
-                  <label for="canvasAssetSelect">PNG Asset</label>
+                  <label for="canvasAssetSelect">Overlay Asset</label>
                   <select id="canvasAssetSelect" name="canvas_asset_select"></select>
                 </div>
                 <button class="btn btn-secondary btn-sm" id="btnAddCanvasAsset" type="button">Add Asset</button>
               </div>
               <div class="inline-row">
                 <input class="sr-only" id="canvasAssetUploadInput" type="file" accept="image/png,image/webp,image/svg+xml,image/*">
-                <button class="btn btn-secondary btn-sm" id="btnUploadCanvasAsset" type="button">Upload PNG</button>
+                <button class="btn btn-secondary btn-sm" id="btnUploadCanvasAsset" type="button">Upload Overlay</button>
               </div>
             </div>
             <div class="canvas-side-card">
@@ -2087,7 +2058,7 @@
       <!-- Approve details (no Approve button — that lives in the sticky footer) -->
       <div class="approve-section">
         <h3 class="card-title">Approve Details</h3>
-        <p class="card-subtitle">Confirm the name, id, and image count before approving. The Approve button lives in the footer.</p>
+        <p class="card-subtitle">Confirm the reel name, reference id, and photo count before approving. Music pool assignment happens in V2 admin after approval.</p>
         <div class="approve-grid">
           <div class="field">
             <label for="saveName">Template Name</label>
@@ -2098,8 +2069,8 @@
             <input type="text" id="saveId" name="template_id" autocomplete="off" spellcheck="false" placeholder="auto-generated slug">
           </div>
           <div class="field">
-            <label for="saveImageCount">Images</label>
-            <input type="number" id="saveImageCount" name="image_count" min="1" step="1" value="1" inputmode="numeric">
+            <label for="saveImageCount">Photos</label>
+            <input type="number" id="saveImageCount" name="image_count" min="1" step="1" value="5" inputmode="numeric">
           </div>
         </div>
         <div class="approve-actions">

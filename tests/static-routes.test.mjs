@@ -255,7 +255,7 @@ function createDesignerDom() {
     v2ExportUrlInput: createElement(),
     saveName: createElement(),
     saveId: createElement(),
-    saveImageCount: createElement({ value: '1' }),
+    saveImageCount: createElement({ value: '5' }),
     btnLoadV2: createElement(),
     btnSaveV2: createElement(),
     handoffStatus: createElement(),
@@ -547,7 +547,7 @@ test('app wiring keeps explicit public routes for the Template Lab entry points'
   const appSource = await read('src/app.ts');
 
   assert.match(appSource, /\/designer\/reference-video/);
-  assert.match(appSource, /\/designer\/reference-image/);
+  assert.doesNotMatch(appSource, /\/designer\/reference-image/);
   assert.match(appSource, /\/designer\/prompt/);
   assert.match(appSource, /\/designer\/v2/);
   assert.match(appSource, /\/designer\/json/);
@@ -570,15 +570,14 @@ test('runtime bootstrap uses the shared app factory', async () => {
 test('designer HTML references the extracted V2 bridge and V2 handoff actions', async () => {
   const html = await read('public/designer.html');
 
-  assert.match(html, /<title>Template Lab Designer<\/title>/);
+  assert.match(html, /<title>Reel Template Studio<\/title>/);
   assert.match(html, /<script src="\/designer-v2-bridge\.js"><\/script>/);
   assert.match(html, /<script src="\/vendor\/konva\.min\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-canvas-editor\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-app\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-bootstrap\.js"><\/script>/);
   assert.match(html, /Approve for V2/);
-  assert.match(html, /Load an approved V2 template/);
-  assert.match(html, /New Blank Post/);
+  assert.match(html, /Load an approved V2 reel/);
   assert.match(html, /New Blank Reel/);
   assert.match(html, /id="videoFileInput"/);
   assert.match(html, /id="referenceModeVideo"/);
@@ -591,7 +590,6 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
   assert.match(html, /Video Review/);
   assert.match(html, /id="videoInsightsCard"/);
   assert.match(html, /id="videoInsightScore"/);
-  assert.match(html, /id="btnNewBlankTemplate"/);
   assert.match(html, /id="btnNewReelTemplate"/);
   assert.match(html, /id="previewStatus"/);
   assert.match(html, /id="canvasEditorHost"/);
@@ -628,7 +626,8 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
   assert.match(html, /id="handoffStatus"/);
   assert.match(html, /id="btnCopyV2TemplateId"/);
   assert.match(html, /id="btnCopyV2ExportUrl"/);
-  assert.match(html, /Drop or paste image here/);
+  assert.doesNotMatch(html, /referenceImagePanel/);
+  assert.doesNotMatch(html, /Drop or paste image here/);
   assert.match(html, /\.comparison\s*\{[\s\S]*align-items:\s*start;[\s\S]*flex:\s*0 0 auto;/);
   assert.match(html, /\.pane-stage\s*\{[\s\S]*height:\s*clamp\(320px,\s*34vw,\s*620px\);/);
   assert.match(html, /\.comparison-pane img,\s*\.comparison-pane video\s*\{[\s\S]*width:\s*100%;[\s\S]*height:\s*100%;[\s\S]*object-fit:\s*contain;/);
@@ -652,8 +651,8 @@ test('canvas editor module exposes the visual editor factory', async () => {
 
   assert.match(canvasEditorSource, /function createTemplateLabCanvasEditor/);
   assert.match(canvasEditorSource, /global\.createTemplateLabCanvasEditor = createTemplateLabCanvasEditor;/);
-  assert.match(canvasEditorSource, /Added a decorative PNG asset to the frame/);
-  assert.match(canvasEditorSource, /Uploaded a decorative transparent PNG asset to the frame/);
+  assert.match(canvasEditorSource, /Added a decorative overlay asset to the frame/);
+  assert.match(canvasEditorSource, /Uploaded a decorative transparent overlay asset to the frame/);
   assert.match(canvasEditorSource, /dblclick dbltap/);
   assert.match(canvasEditorSource, /Edited text directly on the canvas/);
   assert.match(canvasEditorSource, /Lock Layer/);
@@ -691,9 +690,8 @@ test('designer app can preselect the reference-video workflow from a readable UR
 
   assert.equal(result.elements.referenceModeVideo.classList.contains('active'), true);
   assert.equal(result.elements.referenceVideoPanel.classList.contains('active'), true);
-  assert.equal(result.elements.referenceImagePanel.classList.contains('active'), false);
   assert.equal(result.elements.promptInput.value, 'match style from video');
-  assert.match(result.elements.generateHint.textContent, /reference image\/video|reference video/i);
+  assert.match(result.elements.generateHint.textContent, /reference video/i);
 });
 
 test('designer app can preselect the prompt-only workflow from a readable URL', async () => {
@@ -705,50 +703,10 @@ test('designer app can preselect the prompt-only workflow from a readable URL', 
 
   assert.equal(result.elements.referenceModePrompt.classList.contains('active'), true);
   assert.equal(result.elements.referencePromptPanel.classList.contains('active'), true);
-  assert.equal(result.elements.referenceImagePanel.classList.contains('active'), false);
   assert.equal(result.elements.referenceVideoPanel.classList.contains('active'), false);
   assert.equal(result.elements.promptInput.value, 'build a bold roofing reel');
   assert.match(result.elements.generateHint.textContent, /prompt-only|from scratch/i);
   assert.match(result.elements.refPlaceholder.textContent, /prompt-only session/i);
-});
-
-test('designer app accepts a pasted clipboard image for the reference-image workflow', async () => {
-  const result = await runDesignerApp({
-    bootstrap: { renderApiKey: 'render-key' },
-  });
-
-  let prevented = false;
-  result.elements.uploadZone.dispatchEvent('paste', {
-    target: result.elements.uploadZone,
-    clipboardData: {
-      items: [
-        {
-          type: 'image/png',
-          getAsFile() {
-            return {
-              name: 'clipboard-image.png',
-              type: 'image/png',
-              dataUrl: 'data:image/png;base64,clipboard-reference',
-            };
-          },
-        },
-      ],
-    },
-    preventDefault() {
-      prevented = true;
-    },
-  });
-
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  assert.equal(prevented, true);
-  assert.equal(result.elements.uploadPreview.src, 'data:image/png;base64,clipboard-reference');
-  assert.equal(result.elements.uploadPreview.style.display, '');
-  assert.equal(result.elements.refImage.src, 'data:image/png;base64,clipboard-reference');
-  assert.equal(result.elements.refPlaceholder.style.display, 'none');
-  assert.equal(result.elements.btnGenerate.disabled, false);
-  assert.match(result.elements.previewStatus.textContent, /pasted from clipboard/i);
 });
 
 test('designer app can generate a reel template from a reference video upload', async () => {
@@ -1095,12 +1053,15 @@ test('bridge loadTemplate normalizes exported V2 template data and updates conte
               reference: 'modern-split',
               name: 'Modern Split',
               image_count: 2,
-              output_format: 'png',
+              output_format: 'mp4',
               template_json: {
-                id: 'old-id',
-                name: 'Old Name',
-                imageCount: 1,
-                outputFormat: 'png',
+                id: 'modern-split',
+                reference: 'modern-split',
+                name: 'Modern Split',
+                imageCount: 2,
+                outputFormat: 'mp4',
+                width: 1080,
+                height: 1920,
                 frames: [],
               },
             },
@@ -1204,7 +1165,7 @@ test('bridge can use the server-managed V2 proxy when defaults are available', a
   assert.equal(bridge.getContext().authMode, 'server_proxy');
 });
 
-test('bridge approveTemplate sends a PNG import payload and refreshes export context', async () => {
+test('bridge approveTemplate sends an MP4 import payload and refreshes export context', async () => {
   const requests = [];
   const {
     createTemplateLabV2Bridge,
@@ -1236,10 +1197,13 @@ test('bridge approveTemplate sends a PNG import payload and refreshes export con
       reference: 'modern-split',
       name: 'Modern Split',
       imageCount: 4,
+      outputFormat: 'mp4',
+      width: 1080,
+      height: 1920,
       frames: [],
     },
-    sourceMode: 'reference_image',
-    sourcePrompt: 'match the provided screenshot',
+    sourceMode: 'prompt',
+    sourcePrompt: 'match the provided style brief',
   });
 
   assert.equal(requests.length, 1);
@@ -1252,12 +1216,12 @@ test('bridge approveTemplate sends a PNG import payload and refreshes export con
   assert.equal(postedPayload.render_template_id, 'rt_456');
   assert.equal(postedPayload.reference, 'modern-split');
   assert.equal(postedPayload.name, 'Modern Split');
-  assert.equal(postedPayload.output_format, 'png');
+  assert.equal(postedPayload.output_format, 'mp4');
   assert.equal(postedPayload.image_count, 4);
-  assert.equal(postedPayload.source_mode, 'reference_image');
-  assert.equal(postedPayload.source_prompt, 'match the provided screenshot');
+  assert.equal(postedPayload.source_mode, 'prompt');
+  assert.equal(postedPayload.source_prompt, 'match the provided style brief');
 
-  assert.equal(payload.output_format, 'png');
+  assert.equal(payload.output_format, 'mp4');
   assert.equal(result.id, 'rt_999');
   assert.equal(exportUrl, 'https://v2.example.com/api/admin/render-templates/rt_999/export');
   assert.equal(bridge.getContext().linkedTemplateId, 'rt_999');
@@ -1333,11 +1297,13 @@ test('bridge approveTemplate can create a brand-new V2 template when no linked t
 
   const { payload, exportUrl, result } = await bridge.approveTemplate({
     template: {
-      id: 'untitled-template',
-      reference: 'untitled-template',
-      name: 'Untitled Template',
-      imageCount: 1,
-      outputFormat: 'png',
+      id: 'untitled-reel-template',
+      reference: 'untitled-reel-template',
+      name: 'Untitled Reel Template',
+      imageCount: 5,
+      outputFormat: 'mp4',
+      width: 1080,
+      height: 1920,
       frames: [],
     },
     sourceMode: 'manual_json',
@@ -1345,12 +1311,12 @@ test('bridge approveTemplate can create a brand-new V2 template when no linked t
 
   const postedPayload = JSON.parse(requests[0].options.body);
   assert.equal(postedPayload.render_template_id, undefined);
-  assert.equal(postedPayload.reference, 'untitled-template');
-  assert.equal(postedPayload.name, 'Untitled Template');
-  assert.equal(postedPayload.output_format, 'png');
-  assert.equal(postedPayload.image_count, 1);
+  assert.equal(postedPayload.reference, 'untitled-reel-template');
+  assert.equal(postedPayload.name, 'Untitled Reel Template');
+  assert.equal(postedPayload.output_format, 'mp4');
+  assert.equal(postedPayload.image_count, 5);
 
-  assert.equal(payload.reference, 'untitled-template');
+  assert.equal(payload.reference, 'untitled-reel-template');
   assert.equal(result.id, 'rt_new_blank');
   assert.equal(exportUrl, 'https://v2.example.com/api/admin/render-templates/rt_new_blank/export');
   assert.equal(bridge.getContext().linkedTemplateId, 'rt_new_blank');
@@ -1436,6 +1402,9 @@ test('designer app auto-loads an approved V2 template when a scoped session link
               id: 'modern-split',
               reference: 'modern-split',
               name: 'Modern Split',
+              outputFormat: 'mp4',
+              width: 1080,
+              height: 1920,
               imageCount: 2,
               frames: [],
             },
@@ -1513,6 +1482,9 @@ test('designer app loads V2 template metadata without previewing when no render-
               id: 'left-panel',
               reference: 'left-panel',
               name: 'Left Panel',
+              outputFormat: 'mp4',
+              width: 1080,
+              height: 1920,
               imageCount: 1,
               frames: [],
             },
@@ -1549,7 +1521,7 @@ test('designer app loads V2 template metadata without previewing when no render-
   assert.equal(result.elements.previewPlaceholder.style.display, '');
   assert.equal(
     result.elements.previewPlaceholder.textContent,
-    'Template loaded. Add the render-engine API key to preview it.',
+    'Template loaded. Add the render-engine API key to preview a local reel video or poster frame.',
   );
   assert.equal(result.elements.handoffStatus.innerHTML.includes('Loaded V2 template'), true);
   assert.equal(result.elements.previewStatus.textContent.includes('Loaded from V2. Add the render-engine API key'), true);
@@ -1573,7 +1545,9 @@ test('designer app restores a saved local draft and keeps the session recoverabl
           reference: 'saved-template',
           name: 'Saved Template',
           imageCount: 2,
-          outputFormat: 'png',
+          outputFormat: 'mp4',
+          width: 1080,
+          height: 1920,
           frames: [],
         },
         currentPreview: restoredPreview,
@@ -1612,18 +1586,18 @@ test('designer app restores a saved local draft and keeps the session recoverabl
 test('designer app can start a new blank template session for admin-only V2 creation', async () => {
   const result = await runDesignerApp();
 
-  result.elements.btnNewBlankTemplate.dispatchEvent('click');
+  result.elements.btnNewReelTemplate.dispatchEvent('click');
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(result.elements.saveName.value, 'Untitled Template');
-  assert.equal(result.elements.saveId.value, 'untitled-template');
-  assert.equal(result.elements.saveImageCount.value, '1');
+  assert.equal(result.elements.saveName.value, 'Untitled Reel Template');
+  assert.equal(result.elements.saveId.value, 'untitled-reel-template');
+  assert.equal(result.elements.saveImageCount.value, '5');
   assert.equal(result.elements.v2ExportUrlInput.value, '');
-  assert.equal(result.elements.previewPlaceholder.textContent, 'Blank template ready. Re-render from JSON when you want a local preview.');
-  assert.equal(result.elements.handoffStatus.innerHTML.includes('create a new V2 record'), true);
-  assert.equal(result.elements.previewStatus.textContent.includes('Blank draft ready.'), true);
-  assert.equal(result.elements.jsonEditor.value.includes('"untitled-template"'), true);
+  assert.equal(result.elements.previewPlaceholder.textContent, 'Blank reel template ready. Re-render from JSON when you want a local video or poster-frame preview.');
+  assert.equal(result.elements.handoffStatus.innerHTML.includes('create a new V2 video record'), true);
+  assert.equal(result.elements.previewStatus.textContent.includes('Blank reel draft ready.'), true);
+  assert.equal(result.elements.jsonEditor.value.includes('"untitled-reel-template"'), true);
   assert.equal(result.elements.btnSaveV2.disabled, false);
 });
 
@@ -1686,7 +1660,7 @@ test('designer app picks up server bootstrapped defaults without manual setup', 
   assert.equal(result.elements.btnGenerate.disabled, false);
 });
 
-test('designer app can generate a prompt-only reel draft without a reference image', async () => {
+test('designer app can generate a prompt-only reel draft without a reference video', async () => {
   const result = await runDesignerApp({
     storageSeed: {
       designer_api_key: 'render-key',
@@ -1829,7 +1803,7 @@ test('designer app can generate and continue a draft through template chat', asy
   assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/chat-reel-v2.mp4');
 });
 
-test('designer app can generate a reel draft from a restored reference-image session', async () => {
+test('designer app restores a legacy image draft but generates through the prompt route', async () => {
   const result = await runDesignerApp({
     storageSeed: {
       designer_api_key: 'render-key',
@@ -1837,6 +1811,7 @@ test('designer app can generate a reel draft from a restored reference-image ses
         version: 1,
         savedAt: '2026-04-06T10:15:00.000Z',
         sessionMode: 'reference',
+        referenceInputMode: 'image',
         referenceImage: 'data:image/png;base64,reference-image',
         prompt: 'Use full-screen frames with bold CTA',
         currentTemplate: null,
@@ -1852,20 +1827,20 @@ test('designer app can generate a reel draft from a restored reference-image ses
           exportUrl: '',
           saveName: '',
           saveId: '',
-          saveImageCount: '1',
+          saveImageCount: '5',
         },
       }),
     },
     async fetchImpl(url) {
-      if (url === '/api/design/vision') {
+      if (url === '/api/design') {
         return {
           ok: true,
           async json() {
             return {
               template: {
-                id: 'vision-reel',
-                reference: 'vision-reel',
-                name: 'Vision Reel',
+                id: 'prompt-reel-from-legacy-draft',
+                reference: 'prompt-reel-from-legacy-draft',
+                name: 'Prompt Reel From Legacy Draft',
                 outputFormat: 'mp4',
                 width: 1080,
                 height: 1920,
@@ -1877,10 +1852,10 @@ test('designer app can generate a reel draft from a restored reference-image ses
                   { durationMs: 2200, background: { type: 'solid', color: '#10151D' }, layers: [] },
                 ],
               },
-              previewBase64: 'data:image/png;base64,vision-reel-preview',
-              previewPosterBase64: 'data:image/png;base64,vision-reel-preview',
+              previewBase64: 'data:image/png;base64,prompt-reel-preview',
+              previewPosterBase64: 'data:image/png;base64,prompt-reel-preview',
               previewKind: 'video',
-              previewUrl: 'https://cdn.example.com/vision-reel.mp4',
+              previewUrl: 'https://cdn.example.com/prompt-reel.mp4',
             };
           },
         };
@@ -1895,6 +1870,7 @@ test('designer app can generate a reel draft from a restored reference-image ses
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 
+  assert.match(result.elements.previewStatus.textContent, /legacy reference-image input is no longer supported/i);
   assert.equal(result.elements.btnGenerate.disabled, false);
 
   result.elements.btnGenerate.dispatchEvent('click');
@@ -1902,10 +1878,11 @@ test('designer app can generate a reel draft from a restored reference-image ses
   await Promise.resolve();
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(result.fetchCalls.some((call) => call.url === '/api/design/vision'), true);
-  assert.equal(result.elements.saveName.value, 'Vision Reel');
-  assert.equal(result.elements.saveId.value, 'vision-reel');
-  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/vision-reel.mp4');
+  assert.equal(result.fetchCalls.some((call) => call.url === '/api/design'), true);
+  assert.equal(result.fetchCalls.some((call) => call.url === '/api/design/vision'), false);
+  assert.equal(result.elements.saveName.value, 'Prompt Reel From Legacy Draft');
+  assert.equal(result.elements.saveId.value, 'prompt-reel-from-legacy-draft');
+  assert.equal(result.elements.previewVideo.src, 'https://cdn.example.com/prompt-reel.mp4');
 });
 
 test('designer app approval surfaces the updated V2 id and export URL in the handoff area', async () => {
@@ -1938,6 +1915,9 @@ test('designer app approval surfaces the updated V2 id and export URL in the han
               id: 'hero-banner',
               reference: 'hero-banner',
               name: 'Hero Banner',
+              outputFormat: 'mp4',
+              width: 1080,
+              height: 1920,
               imageCount: 1,
               frames: [],
             },
@@ -1973,7 +1953,7 @@ test('designer app approval surfaces the updated V2 id and export URL in the han
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   assert.equal(result.elements.btnSaveV2.disabled, false);
-  assert.equal(result.bridgeCalls.approveArgs.template.outputFormat, 'png');
+  assert.equal(result.bridgeCalls.approveArgs.template.outputFormat, 'mp4');
   assert.equal(result.bridgeCalls.approveArgs.name, 'Hero Banner');
   assert.equal(result.elements.handoffStatus.innerHTML.includes('Approved in V2 as'), true);
   assert.equal(result.elements.handoffStatus.innerHTML.includes('rt_222'), true);
@@ -1988,74 +1968,6 @@ test('designer app approval surfaces the updated V2 id and export URL in the han
     'rt_222',
     'https://v2.example.com/api/admin/render-templates/rt_222/export',
   ]);
-});
-
-test('designer app can approve a blank template session into a new V2 record', async () => {
-  const result = await runDesignerApp({
-    bridgeFactory(bridgeCalls) {
-      const bridgeContext = {
-        exportUrl: '',
-        linkedTemplateId: '',
-      };
-      return {
-        connectInputs(args) {
-          bridgeCalls.connectInputs.push(args);
-        },
-        initializeFromQueryParams() {
-          bridgeCalls.initializeFromQueryParams += 1;
-          return {
-            exportUrl: '',
-            shouldAutoLoad: false,
-            needsManualAuth: false,
-          };
-        },
-        getContext() {
-          return bridgeContext;
-        },
-        async approveTemplate(args) {
-          bridgeCalls.approveArgs = args;
-          bridgeContext.exportUrl = 'https://v2.example.com/api/admin/render-templates/rt_new_blank/export';
-          bridgeContext.linkedTemplateId = 'rt_new_blank';
-          return {
-            result: {
-              id: 'rt_new_blank',
-              mode: 'created',
-            },
-            exportUrl: bridgeContext.exportUrl,
-          };
-        },
-        openAdmin() {
-          bridgeCalls.openAdmin += 1;
-        },
-        setExportUrl(value) {
-          bridgeContext.exportUrl = value;
-          bridgeContext.linkedTemplateId = '';
-          return value;
-        },
-      };
-    },
-  });
-
-  result.elements.btnNewBlankTemplate.dispatchEvent('click');
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  result.elements.saveName.value = 'Fresh Layout';
-  result.elements.saveName.dispatchEvent('input');
-  result.elements.saveId.value = 'fresh-layout';
-  result.elements.saveId.dispatchEvent('input');
-
-  result.elements.btnSaveV2.dispatchEvent('click');
-  await Promise.resolve();
-  await new Promise((resolve) => setTimeout(resolve, 0));
-
-  assert.equal(result.bridgeCalls.approveArgs.reference, 'fresh-layout');
-  assert.equal(result.bridgeCalls.approveArgs.name, 'Fresh Layout');
-  assert.equal(result.bridgeCalls.approveArgs.template.reference, 'fresh-layout');
-  assert.equal(result.bridgeCalls.approveArgs.template.outputFormat, 'png');
-  assert.equal(result.elements.handoffStatus.innerHTML.includes('rt_new_blank'), true);
-  assert.equal(result.elements.btnCopyV2TemplateId.disabled, false);
-  assert.equal(result.elements.btnCopyV2ExportUrl.disabled, false);
 });
 
 test('designer app can start and approve a blank reel session into a new V2 record', async () => {
@@ -2345,6 +2257,9 @@ test('designer app blocks V2 approval when the template name or id is missing', 
               id: 'clean-grid',
               reference: 'clean-grid',
               name: 'Clean Grid',
+              outputFormat: 'mp4',
+              width: 1080,
+              height: 1920,
               imageCount: 2,
               frames: [],
             },

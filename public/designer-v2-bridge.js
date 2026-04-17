@@ -172,7 +172,7 @@
       const reference = exported.reference || templateJson.reference || templateJson.id || '';
       const name = exported.name || templateJson.name || reference || '';
       const imageCount = exported.image_count || templateJson.imageCount || 1;
-      const outputFormat = exported.output_format || templateJson.outputFormat || 'png';
+      const outputFormat = exported.output_format || templateJson.outputFormat || 'mp4';
 
       return {
         exported,
@@ -205,6 +205,9 @@
           ? await fetchProxyJson(`${proxyBasePath}/export?url=${encodeURIComponent(exportUrl)}`, { method: 'GET' })
           : await fetchJson(exportUrl, { method: 'GET' });
       const normalized = normalizeExportResponse(data);
+      if (normalized.template.outputFormat !== 'mp4') {
+        throw new Error('Static image templates are no longer supported in Reel Template Studio.');
+      }
 
       if (normalized.templateLab.export_url) setExportUrl(normalized.templateLab.export_url);
       if (normalized.meta.id) setLinkedTemplateId(normalized.meta.id);
@@ -224,11 +227,19 @@
       createdBy,
     }) {
       if (!template) throw new Error('A template is required');
+      if (template.outputFormat && template.outputFormat !== 'mp4') {
+        throw new Error('Static image templates are no longer supported in Reel Template Studio.');
+      }
 
-      const resolvedReference = String(reference || template.reference || template.id || '').trim();
-      const resolvedName = String(name || template.name || resolvedReference).trim();
-      const resolvedImageCount = Math.max(1, Number(imageCount || template.imageCount || 1));
-      const resolvedOutputFormat = outputFormat === 'mp4' || template.outputFormat === 'mp4' ? 'mp4' : 'png';
+      const normalizedTemplate = {
+        ...template,
+        outputFormat: 'mp4',
+      };
+
+      const resolvedReference = String(reference || normalizedTemplate.reference || normalizedTemplate.id || '').trim();
+      const resolvedName = String(name || normalizedTemplate.name || resolvedReference).trim();
+      const resolvedImageCount = Math.max(1, Number(imageCount || normalizedTemplate.imageCount || 1));
+      const resolvedOutputFormat = 'mp4';
 
       return {
         render_template_id: state.linkedTemplateId || undefined,
@@ -236,10 +247,10 @@
         name: resolvedName,
         output_format: resolvedOutputFormat,
         image_count: resolvedImageCount,
-        template_json: template,
+        template_json: normalizedTemplate,
         source_mode: sourceMode || 'manual_json',
         source_prompt: sourcePrompt || undefined,
-        generation_notes: generationNotes || `Approved from render-engine Template Lab on ${new Date().toISOString()}`,
+        generation_notes: generationNotes || `Approved from Reel Template Studio on ${new Date().toISOString()}`,
         created_by: createdBy || 'render-engine-template-lab',
       };
     }

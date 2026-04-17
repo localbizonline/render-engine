@@ -6,12 +6,7 @@ import type {
   DesignerChatTurnResponse,
   TemplateDefinition,
 } from '../types.js';
-import {
-  generateTemplate,
-  generateTemplateFromImage,
-  iterateTemplate,
-  iterateTemplateFromImage,
-} from './claude.js';
+import { generateTemplate, iterateTemplate } from './claude.js';
 import { renderTemplatePreview } from './template-preview.js';
 
 interface DesignerChatSession {
@@ -24,9 +19,7 @@ interface DesignerChatSession {
 
 interface DesignerChatToolset {
   generateTemplate: typeof generateTemplate;
-  generateTemplateFromImage: typeof generateTemplateFromImage;
   iterateTemplate: typeof iterateTemplate;
-  iterateTemplateFromImage: typeof iterateTemplateFromImage;
   renderPreview: typeof renderPreview;
 }
 
@@ -34,12 +27,11 @@ const chatSessions = new Map<string, DesignerChatSession>();
 
 let toolOverrides: Partial<DesignerChatToolset> | null = null;
 
-const REFERENCE_MATCH_PATTERN = /\b(reference|closer to the reference|match the reference|more like the reference|align with the reference)\b/i;
 const INFO_ONLY_PATTERN = /^(help|what can you do|how does this work|summari[sz]e|what changed|where are we|status)\b/i;
 
 function renderPreview(template: TemplateDefinition, frameIndex = 0) {
   return renderTemplatePreview(template, {}, {
-    mode: template.outputFormat === 'mp4' ? 'video' : 'poster',
+    mode: 'video',
     frameIndex,
   });
 }
@@ -47,9 +39,7 @@ function renderPreview(template: TemplateDefinition, frameIndex = 0) {
 function getToolset(): DesignerChatToolset {
   return {
     generateTemplate: toolOverrides?.generateTemplate || generateTemplate,
-    generateTemplateFromImage: toolOverrides?.generateTemplateFromImage || generateTemplateFromImage,
     iterateTemplate: toolOverrides?.iterateTemplate || iterateTemplate,
-    iterateTemplateFromImage: toolOverrides?.iterateTemplateFromImage || iterateTemplateFromImage,
     renderPreview: toolOverrides?.renderPreview || renderPreview,
   };
 }
@@ -86,21 +76,24 @@ function getOrCreateSession(sessionId?: string): DesignerChatSession {
 }
 
 function normalizeDraftContext(input: DesignerChatDraftContext | undefined): DesignerChatDraftContext {
+  const previewFrameIndex = input?.previewFrameIndex;
+
   return {
     prompt: typeof input?.prompt === 'string' ? input.prompt : '',
-    referenceInputMode: input?.referenceInputMode === 'video'
-      ? 'video'
-      : input?.referenceInputMode === 'prompt'
-        ? 'prompt'
-        : 'image',
-    referenceImage: input?.referenceImage || null,
+    referenceInputMode: input?.referenceInputMode === 'prompt'
+      ? 'prompt'
+      : input?.referenceInputMode === 'blank'
+        ? 'blank'
+        : input?.referenceInputMode === 'v2'
+          ? 'v2'
+          : 'video',
     referenceVideoActive: Boolean(input?.referenceVideoActive),
     currentTemplate: input?.currentTemplate || null,
     currentPreview: input?.currentPreview || null,
     currentPreviewKind: input?.currentPreviewKind === 'video' ? 'video' : 'image',
     currentPreviewVideoUrl: input?.currentPreviewVideoUrl || '',
     currentVideoAnalysis: input?.currentVideoAnalysis || null,
-    previewFrameIndex: Number.isInteger(input?.previewFrameIndex) ? input?.previewFrameIndex : 0,
+    previewFrameIndex: Number.isInteger(previewFrameIndex) ? previewFrameIndex : 0,
     handoff: {
       exportUrl: input?.handoff?.exportUrl || '',
       saveName: input?.handoff?.saveName || '',
@@ -108,12 +101,6 @@ function normalizeDraftContext(input: DesignerChatDraftContext | undefined): Des
       saveImageCount: input?.handoff?.saveImageCount || '',
     },
   };
-}
-
-function parseDataUri(dataUri: string): { base64: string; mediaType: string } {
-  const match = String(dataUri || '').match(/^data:(image\/\w+);base64,(.+)$/s);
-  if (!match) throw new Error('Invalid data URI format');
-  return { mediaType: match[1], base64: match[2] };
 }
 
 function getRecentUserMessages(session: DesignerChatSession, limit = 6): string[] {
@@ -131,8 +118,8 @@ function buildConversationPrompt(session: DesignerChatSession, latestMessage: st
 
   const sections = [
     mode === 'generate'
-      ? 'Create a new template draft based on the conversation context below.'
-      : 'Update the current template draft while preserving prior decisions unless the latest instruction overrides them.',
+      ? 'Create a new MP4 reel template draft based on the conversation context below.'
+      : 'Update the current MP4 reel template draft while preserving prior decisions unless the latest instruction overrides them.',
   ];
 
   if (establishedPrompt) {
@@ -156,22 +143,16 @@ function createInfoReply(session: DesignerChatSession): string {
   const template = session.draftContext.currentTemplate;
   if (!template) {
     if (session.draftContext.referenceVideoActive) {
-      return 'The chat can keep refining a reel after the first video-based draft exists. Use Generate once to analyze the reference video, then continue the adjustments here.';
+      return 'Generate the first reel from the reference video first, then keep refining it here in chat.';
     }
 
-    return 'Describe the draft you want, and I will generate the first version here. Once a preview exists, keep replying with adjustments and I will continue from the current draft.';
+    return 'Describe the reel you want, and I will generate the first version here. Once a preview exists, keep replying with adjustments and I will continue from the current draft.';
   }
 
   const summaryBits = [
     `We are currently working on "${template.name || template.id}".`,
-    template.outputFormat === 'mp4'
-      ? `It is an MP4 reel with ${template.frames.length} frames.`
-      : `It is a PNG post using ${template.imageCount} image slot${template.imageCount === 1 ? '' : 's'}.`,
+    `It is an MP4 reel with ${template.frames.length} frames.`,
   ];
-
-  if (session.draftContext.referenceImage) {
-    summaryBits.push('A reference image is attached, so I can push the draft closer to that visual when you ask.');
-  }
 
   if (session.draftContext.referenceVideoActive) {
     summaryBits.push('The current session also has a reference-video workflow active, so I can keep refining the reel with text directions.');
@@ -218,24 +199,12 @@ function appendMessage(session: DesignerChatSession, message: DesignerChatMessag
   session.updatedAt = new Date().toISOString();
 }
 
-function buildAssistantReply(
-  action: 'generated' | 'iterated',
-  draftContext: DesignerChatDraftContext,
-  usedReferenceMatch: boolean,
-): string {
+function buildAssistantReply(action: 'generated' | 'iterated'): string {
   if (action === 'generated') {
-    if (draftContext.referenceImage) {
-      return `I started a new draft from the reference image and your latest direction. Keep replying with adjustments and I will keep evolving this version.`;
-    }
-
-    return `I started a new draft from your prompt and rendered a fresh preview. Keep replying with adjustments and I will keep building on this version.`;
+    return 'I started a new reel draft and rendered a fresh preview. Keep replying with adjustments and I will keep building on this version.';
   }
 
-  if (usedReferenceMatch) {
-    return `I updated the current draft and pushed it closer to the attached reference. Tell me what to change next.`;
-  }
-
-  return `I updated the current draft and rendered a fresh preview. Tell me what to adjust next.`;
+  return 'I updated the current reel draft and rendered a fresh preview. Tell me what to adjust next.';
 }
 
 export async function runDesignerChatTurn(
@@ -279,43 +248,15 @@ export async function runDesignerChatTurn(
   let template: TemplateDefinition;
   let preview: Awaited<ReturnType<typeof renderPreview>>;
   let action: 'generated' | 'iterated';
-  let usedReferenceMatch = false;
 
   if (session.draftContext.currentTemplate) {
     const iterationPrompt = buildConversationPrompt(session, message, 'iterate');
-    if (
-      session.draftContext.referenceImage &&
-      session.draftContext.currentPreview &&
-      REFERENCE_MATCH_PATTERN.test(message)
-    ) {
-      usedReferenceMatch = true;
-      const ref = parseDataUri(session.draftContext.referenceImage);
-      const prev = parseDataUri(session.draftContext.currentPreview);
-      template = await tools.iterateTemplateFromImage(
-        ref.base64,
-        ref.mediaType,
-        prev.base64,
-        iterationPrompt,
-        session.draftContext.currentTemplate,
-      );
-    } else {
-      template = await tools.iterateTemplate(
-        iterationPrompt,
-        session.draftContext.currentTemplate,
-      );
-    }
-    preview = await tools.renderPreview(template, session.draftContext.previewFrameIndex || 0);
-    action = 'iterated';
-  } else if (session.draftContext.referenceImage) {
-    const ref = parseDataUri(session.draftContext.referenceImage);
-    const generationPrompt = buildConversationPrompt(session, message, 'generate');
-    template = await tools.generateTemplateFromImage(
-      ref.base64,
-      ref.mediaType,
-      generationPrompt,
+    template = await tools.iterateTemplate(
+      iterationPrompt,
+      session.draftContext.currentTemplate,
     );
     preview = await tools.renderPreview(template, session.draftContext.previewFrameIndex || 0);
-    action = 'generated';
+    action = 'iterated';
   } else {
     const generationPrompt = buildConversationPrompt(session, message, 'generate');
     template = await tools.generateTemplate(generationPrompt);
@@ -329,7 +270,7 @@ export async function runDesignerChatTurn(
 
   updateSessionDraftContext(session, draftContext, template, preview);
 
-  const assistantMessage = createMessage('assistant', buildAssistantReply(action, draftContext, usedReferenceMatch));
+  const assistantMessage = createMessage('assistant', buildAssistantReply(action));
   appendMessage(session, assistantMessage);
 
   return {

@@ -14,7 +14,7 @@ Template Lab and preview/design workspace for owned render templates. `social-po
   - fall back to a manually entered V2 admin secret if needed
   - send updates back with `Approve for V2`
 
-### Production MP4 render endpoint (added 2026-04-17)
+### Production MP4 render endpoint (deployed 2026-04-17)
 
 - `POST /api/render` is the production owned-MP4 render endpoint called by
   `social-posting-v2`. See `VIDEO_ONLY_REFACTOR_PLAN.md` for the scope and
@@ -24,14 +24,35 @@ Template Lab and preview/design workspace for owned render templates. `social-po
   uploads the MP4 and a poster JPG directly to R2 at those exact keys and
   returns `{ success, r2Key, posterR2Key, meta }`. No base64 MP4 payload
   round-trips through HTTP on this path.
-- v2 owns R2 key conventions. `R2_BUCKET_NAME` in this repo must point at
-  the v2 media bucket (`social-posting-media`) — not the default
-  `render-engine-output` bucket.
-- Auth: `x-api-key` header, same shared secret that already guards
-  `/api/*` routes.
+- v2 owns R2 key conventions. `R2_BUCKET_NAME` in this repo points at
+  the v2 media bucket (`social-posting-media`) — verified in Railway
+  variables.
+- Auth: `x-api-key` header, same shared secret that guards `/api/*`
+  routes. The key was rotated on 2026-04-17 after a production mismatch
+  that was caught by the Creatomate fallback path (audit row `video_fallback`).
+- **Dynamic photo-count** — templates carrying `photoFrame` + a `kind:'photoSlot'`
+  marker frame expand at render time: the slot is replaced with N clones of
+  `photoFrame`, one per uploaded user image, with `background.index` and
+  user-image layer indexes rewritten accordingly. Covered by
+  `tests/expand-photo-frames.test.ts`.
+- **Soundtrack mux** — `assets.soundtrackUrl` (optional) is downloaded to
+  the render tmpdir and muxed with `ffmpeg -c:v copy -c:a aac -b:a 192k -shortest`.
+  Failure to fetch or mux returns the silent video with a warning logged —
+  never blocks the render.
+- **R2 write smoke** — `scripts/smoke-r2-write.sh` + `npm run smoke:r2`.
+  Posts a minimal 2-frame render against the live endpoint with unique
+  `_smoke/...` keys so it never collides with production output. `/health`
+  alone is insufficient — it only confirms the process is up, not R2 write
+  access.
+- **Designer deprecation banner** — `public/designer.html` carries a
+  dismissable banner informing readers the page is authoring-only and
+  production rendering no longer routes through it. Hidden per-browser via
+  `localStorage` key `template-lab:deprecation-dismissed-v1`.
 - Authoring surface (`/api/design*`, `/api/designer*`, Template Lab static
   assets) is scheduled for removal in Phase 5 of the cutover plan, after
-  production MP4 is live on at least one theme.
+  broader theme rollout beyond Home Services, or a product decision that
+  no new templates will be authored. The banner is the first stepping
+  stone toward that.
 
 ## Relationship To `social-posting-v2`
 

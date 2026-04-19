@@ -7,7 +7,7 @@ import { templatesRouter } from './routes/templates.js';
 import { previewRouter } from './routes/preview.js';
 import { designRouter } from './routes/design.js';
 import { designerRouter, renderDesignerBootstrapScript } from './routes/designer.js';
-import { LOCAL_OUTPUT_DIR } from './services/r2-storage.js';
+import { getAt, LOCAL_OUTPUT_DIR } from './services/r2-storage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, '../public');
@@ -18,6 +18,7 @@ export function createApp() {
   const designerShellRoutes = [
     '/designer',
     '/designer.html',
+    '/designer/provider-lab',
     '/designer/prompt',
     '/designer/reference-video',
     '/designer/v2',
@@ -64,6 +65,36 @@ export function createApp() {
   // Health check (no auth)
   app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/artifacts', async (req, res) => {
+    const key = String(req.query.key || '').trim();
+    if (!key) {
+      res.status(400).send('key is required');
+      return;
+    }
+
+    // Only expose Provider Lab experiment artifacts through the public proxy.
+    if (!key.startsWith('experiments/')) {
+      res.status(403).send('forbidden');
+      return;
+    }
+
+    try {
+      const artifact = await getAt(key);
+      if (artifact.contentType) {
+        res.type(artifact.contentType);
+      }
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      res.send(artifact.body);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (/NoSuchKey|not found|ENOENT/i.test(message)) {
+        res.status(404).send('not found');
+        return;
+      }
+      res.status(500).send('artifact load failed');
+    }
   });
 
   // API key auth middleware for /api routes

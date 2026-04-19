@@ -22,6 +22,18 @@
     autoIterateEnabled: false,
     iterationHistory: [],
     sessionMode: 'reference',
+    appWorkspace: 'studio',
+    providerLabProviders: [],
+    providerLabTemplateId: '',
+    providerLabSnapshot: null,
+    providerLabPreview: null,
+    providerLabRecentPosts: [],
+    providerLabRuns: [],
+    providerLabBusy: false,
+    providerLabRecentBusy: false,
+    providerLabProvidersBusy: false,
+    providerLabComparePrimaryRunId: '',
+    providerLabCompareSecondaryRunId: '',
     lastApprovedSnapshot: null,
     sessionDirty: false,
     previewStale: false,
@@ -64,6 +76,10 @@
   const draftRestoreMeta = $('#draftRestoreMeta');
   const btnRestoreDraft = $('#btnRestoreDraft');
   const btnDiscardDraft = $('#btnDiscardDraft');
+  const btnAppTabStudio = $('#btnAppTabStudio');
+  const btnAppTabProviderLab = $('#btnAppTabProviderLab');
+  const studioLayout = $('#studioLayout');
+  const providerLabSection = $('#providerLabSection');
   const workspaceTitle = $('#workspaceTitle');
   const workspaceLinkedLabel = $('#workspaceLinkedLabel');
   const advancedJsonPanel = $('#advancedJsonPanel');
@@ -72,6 +88,7 @@
   const previewTabCompare = $('#previewTabCompare');
   const previewLive = $('#previewLive');
   const previewEdit = $('#previewEdit');
+  const approveFooter = $('#approveFooter');
   const previewGeneratedLabel = $('#previewGeneratedLabel');
   const approveFooterName = $('#approveFooterName');
   const approveFooterDetails = $('#approveFooterDetails');
@@ -165,6 +182,26 @@
   const chatInput = $('#chatInput');
   const btnSendChat = $('#btnSendChat');
   const chatStatus = $('#chatStatus');
+  const providerLabProvider = $('#providerLabProvider');
+  const providerLabTemplate = $('#providerLabTemplate');
+  const providerLabPostId = $('#providerLabPostId');
+  const btnRefreshProviderLabRecent = $('#btnRefreshProviderLabRecent');
+  const btnPreviewProviderLab = $('#btnPreviewProviderLab');
+  const btnRenderProviderLab = $('#btnRenderProviderLab');
+  const btnLoadProviderLabPost = $('#btnLoadProviderLabPost');
+  const providerLabStatus = $('#providerLabStatus');
+  const providerLabPreviewMeta = $('#providerLabPreviewMeta');
+  const providerLabRecentList = $('#providerLabRecentList');
+  const providerLabSnapshotPreview = $('#providerLabSnapshotPreview');
+  const providerLabPreviewVideo = $('#providerLabPreviewVideo');
+  const providerLabPreviewPoster = $('#providerLabPreviewPoster');
+  const providerLabRunList = $('#providerLabRunList');
+  const providerLabComparePrimaryMeta = $('#providerLabComparePrimaryMeta');
+  const providerLabComparePrimaryVideo = $('#providerLabComparePrimaryVideo');
+  const providerLabComparePrimaryPoster = $('#providerLabComparePrimaryPoster');
+  const providerLabCompareSecondaryMeta = $('#providerLabCompareSecondaryMeta');
+  const providerLabCompareSecondaryVideo = $('#providerLabCompareSecondaryVideo');
+  const providerLabCompareSecondaryPoster = $('#providerLabCompareSecondaryPoster');
 
   const v2Bridge = window.createTemplateLabV2Bridge({
     storage: window.localStorage,
@@ -263,6 +300,7 @@
 
   bindEvents();
   refreshSavedDraftMeta();
+  setAppWorkspace('studio');
   setReferenceInputMode('video');
   setSessionMode('reference');
   setPreviewMode(state.previewMode);
@@ -276,6 +314,20 @@
 
   applyStudioUrlState();
   function bindEvents() {
+    if (btnAppTabStudio) {
+      btnAppTabStudio.addEventListener('click', () => {
+        setAppWorkspace('studio');
+        syncAppWorkspaceRoute();
+      });
+    }
+
+    if (btnAppTabProviderLab) {
+      btnAppTabProviderLab.addEventListener('click', () => {
+        setAppWorkspace('provider-lab');
+        syncAppWorkspaceRoute();
+      });
+    }
+
     if (btnToggleSettings) {
       btnToggleSettings.addEventListener('click', () => {
         toggleSettingsDrawer();
@@ -432,6 +484,49 @@
     btnLoadV2.addEventListener('click', () => loadApprovedTemplateFromV2());
     btnSaveV2.addEventListener('click', approveTemplateForV2);
     btnOpenV2Admin.addEventListener('click', openV2Admin);
+    if (btnLoadProviderLabPost) {
+      btnLoadProviderLabPost.addEventListener('click', () => loadProviderLabPostSnapshot());
+    }
+    if (btnRefreshProviderLabRecent) {
+      btnRefreshProviderLabRecent.addEventListener('click', () => loadProviderLabRecentPosts());
+    }
+    if (btnPreviewProviderLab) {
+      btnPreviewProviderLab.addEventListener('click', () => previewProviderLabRun());
+    }
+    if (btnRenderProviderLab) {
+      btnRenderProviderLab.addEventListener('click', () => renderProviderLabRun());
+    }
+    if (providerLabProvider) {
+      providerLabProvider.addEventListener('change', () => {
+        const provider = getProviderLabSelectedProviderId();
+        renderProviderLabTemplateOptions();
+        const template = getProviderLabTemplateMeta(provider, getProviderLabSelectedTemplateId());
+        if (provider === 'remotion') {
+          showProviderLabStatus('Remotion stays scaffold-only in this MVP. Hyperframes is the first implementation target.', 'info');
+        } else {
+          showProviderLabStatus(`Hyperframes is ready. Selected template: ${template?.label || 'unknown template'}.`, 'info');
+        }
+      });
+    }
+    if (providerLabTemplate) {
+      providerLabTemplate.addEventListener('change', () => {
+        state.providerLabTemplateId = getProviderLabSelectedTemplateId();
+        const provider = getProviderLabSelectedProviderId();
+        const template = getProviderLabTemplateMeta(provider, state.providerLabTemplateId);
+        if (template) {
+          showProviderLabStatus(`Selected ${template.label}. ${template.description}`, 'info');
+        }
+      });
+    }
+
+    Array.from(document.querySelectorAll?.('.plab-tab[data-plab-tab]') || []).forEach((btn) => {
+      btn.addEventListener('click', () => setPlabTab(btn.getAttribute('data-plab-tab')));
+    });
+
+    Array.from(document.querySelectorAll?.('.plab-rail-tab[data-rail-tab]') || []).forEach((btn) => {
+      btn.addEventListener('click', () => setPlabRailTab(btn.getAttribute('data-rail-tab')));
+    });
+
     btnRerender.addEventListener('click', rerenderFromJson);
     previewFrameSelect.addEventListener('input', renderSelectedPreviewFrame);
 
@@ -640,6 +735,321 @@
     if (el && typeof el.focus === 'function') el.focus();
   }
 
+  function setAppWorkspace(workspace) {
+    const resolved = workspace === 'provider-lab' ? 'provider-lab' : 'studio';
+    state.appWorkspace = resolved;
+
+    if (body && body.dataset) body.dataset.appWorkspace = resolved;
+    if (btnAppTabStudio) {
+      btnAppTabStudio.classList.toggle('active', resolved === 'studio');
+      btnAppTabStudio.setAttribute('aria-selected', resolved === 'studio' ? 'true' : 'false');
+    }
+    if (btnAppTabProviderLab) {
+      btnAppTabProviderLab.classList.toggle('active', resolved === 'provider-lab');
+      btnAppTabProviderLab.setAttribute('aria-selected', resolved === 'provider-lab' ? 'true' : 'false');
+    }
+    if (studioLayout) studioLayout.hidden = resolved !== 'studio';
+    if (providerLabSection) providerLabSection.hidden = resolved !== 'provider-lab';
+    if (approveFooter) approveFooter.hidden = resolved !== 'studio';
+    if (resolved === 'provider-lab' && !state.providerLabProviders.length) {
+      loadProviderLabProviders();
+    }
+    if (resolved === 'provider-lab' && !state.providerLabRuns.length) {
+      loadProviderLabRuns();
+    }
+    if (resolved === 'provider-lab' && !state.providerLabRecentPosts.length) {
+      loadProviderLabRecentPosts();
+    }
+  }
+
+  function syncAppWorkspaceRoute() {
+    if (!window.history || typeof window.history.replaceState !== 'function' || !window.location?.href) return;
+
+    try {
+      const url = new URL(window.location.href);
+      url.pathname = state.appWorkspace === 'provider-lab' ? '/designer/provider-lab' : '/designer';
+      window.history.replaceState({}, '', url.toString());
+    } catch {}
+  }
+
+  function showProviderLabStatus(message, kind = 'info') {
+    if (!providerLabStatus) return;
+    providerLabStatus.textContent = message;
+    providerLabStatus.classList.toggle('is-error', kind === 'error');
+    providerLabStatus.classList.toggle('is-success', kind === 'success');
+  }
+
+  function setPlabTab(name) {
+    Array.from(document.querySelectorAll?.('.plab-tab[data-plab-tab]') || []).forEach((btn) => {
+      const isActive = btn.getAttribute('data-plab-tab') === name;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    Array.from(document.querySelectorAll?.('.plab-panel[data-plab-panel]') || []).forEach((panel) => {
+      panel.hidden = panel.getAttribute('data-plab-panel') !== name;
+    });
+  }
+
+  function setPlabRailTab(name) {
+    const resolved = name === 'runs' ? 'runs' : 'posts';
+    Array.from(document.querySelectorAll?.('.plab-rail-tab[data-rail-tab]') || []).forEach((btn) => {
+      const isActive = btn.getAttribute('data-rail-tab') === resolved;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    Array.from(document.querySelectorAll?.('.plab-rail-panel[data-rail-panel]') || []).forEach((panel) => {
+      panel.hidden = panel.getAttribute('data-rail-panel') !== resolved;
+    });
+  }
+
+  function getProviderLabProviderMeta(providerId) {
+    const providers = Array.isArray(state.providerLabProviders) ? state.providerLabProviders : [];
+    return providers.find((provider) => provider.id === providerId) || null;
+  }
+
+  function getProviderLabTemplateMeta(providerId, templateId) {
+    const provider = getProviderLabProviderMeta(providerId);
+    if (!provider || !Array.isArray(provider.templates)) return null;
+    return provider.templates.find((template) => template.id === templateId) || null;
+  }
+
+  function getProviderLabSelectedProviderId() {
+    return String(providerLabProvider?.value || 'hyperframes').trim();
+  }
+
+  function getProviderLabSelectedTemplateId() {
+    return String(providerLabTemplate?.value || state.providerLabTemplateId || '').trim();
+  }
+
+  function renderProviderLabTemplateOptions() {
+    if (!providerLabTemplate) return;
+
+    const providerId = getProviderLabSelectedProviderId();
+    const provider = getProviderLabProviderMeta(providerId);
+    const templates = Array.isArray(provider?.templates) ? provider.templates : [];
+    const previousValue = getProviderLabSelectedTemplateId();
+    const fallbackValue = provider?.defaultTemplateId || templates[0]?.id || '';
+    const selectedValue = templates.some((template) => template.id === previousValue)
+      ? previousValue
+      : fallbackValue;
+
+    providerLabTemplate.innerHTML = templates.length
+      ? templates.map((template) => {
+          const suffix = template.status === 'coming-soon' ? ' (coming soon)' : '';
+          return `<option value="${escapeHtml(template.id)}">${escapeHtml(template.label)}${suffix}</option>`;
+        }).join('')
+      : '<option value="">No templates available</option>';
+
+    providerLabTemplate.value = selectedValue;
+    state.providerLabTemplateId = selectedValue;
+  }
+
+  function renderProviderLabPreviewMeta(result) {
+    if (!providerLabPreviewMeta) return;
+    if (!result) {
+      providerLabPreviewMeta.textContent = 'No preview rendered yet.';
+      providerLabPreviewMeta.classList.remove('is-error', 'is-success');
+      return;
+    }
+
+    const duration = Number(result.durationMs || 0) > 0
+      ? `${(Number(result.durationMs) / 1000).toFixed(1)}s`
+      : 'Unknown duration';
+    providerLabPreviewMeta.textContent = `${result.providerLabel || result.provider} · ${result.templateLabel || result.templateId} · ${duration} · ${result.width}×${result.height}`;
+    providerLabPreviewMeta.classList.remove('is-error');
+    providerLabPreviewMeta.classList.add('is-success');
+  }
+
+  function renderProviderLabSnapshot(snapshot) {
+    if (!providerLabSnapshotPreview) return;
+    providerLabSnapshotPreview.textContent = snapshot
+      ? JSON.stringify(snapshot, null, 2)
+      : 'No V2 post snapshot loaded yet.';
+  }
+
+  function renderProviderLabRecentPosts() {
+    if (!providerLabRecentList) return;
+
+    const posts = Array.isArray(state.providerLabRecentPosts) ? state.providerLabRecentPosts : [];
+    if (!posts.length) {
+      providerLabRecentList.innerHTML = '<div style="color:var(--text-dim); font-size:12px;">No recent experiment posts matched the current filter.</div>';
+      return;
+    }
+
+    providerLabRecentList.innerHTML = posts.map((post) => {
+      const platforms = Array.isArray(post.platform_context?.platforms) ? post.platform_context.platforms.join(', ') : '';
+      const categoryLabel = post.category_name ? escapeHtml(post.category_name) : '';
+      const variantLabel = post.platform_context?.variant ? escapeHtml(post.platform_context.variant) : '';
+
+      return `
+        <div class="plab-recent-item">
+          <strong>${escapeHtml(post.title || post.id || 'Untitled Post')}</strong>
+          <div class="plab-recent-meta">
+            ${post.org_name ? `<span>${escapeHtml(post.org_name)}</span>` : ''}
+            ${categoryLabel ? `<span>${categoryLabel}</span>` : ''}
+            ${variantLabel ? `<span>${variantLabel}</span>` : ''}
+            ${platforms ? `<span>${escapeHtml(platforms)}</span>` : ''}
+          </div>
+          <div class="plab-recent-foot">
+            <span class="plab-recent-id">${escapeHtml(post.id || '')} &middot; ${Number(post.image_count || 0)} img</span>
+            <button class="btn btn-secondary btn-sm" type="button" data-provider-lab-post-id="${escapeHtml(post.id || '')}">Load</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    providerLabRecentList.querySelectorAll('[data-provider-lab-post-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const postId = button.getAttribute('data-provider-lab-post-id') || '';
+        if (providerLabPostId) providerLabPostId.value = postId;
+        loadProviderLabPostSnapshot(postId);
+      });
+    });
+  }
+
+  function renderProviderLabPreview(result) {
+    state.providerLabPreview = result || null;
+    const emptyEl = document.getElementById('plabPreviewEmpty');
+    if (providerLabPreviewVideo) {
+      if (result?.previewUrl) {
+        providerLabPreviewVideo.src = result.previewUrl;
+        providerLabPreviewVideo.poster = result.posterUrl || '';
+        providerLabPreviewVideo.style.display = '';
+        if (emptyEl) emptyEl.style.display = 'none';
+        setPlabTab('preview');
+      } else {
+        providerLabPreviewVideo.pause?.();
+        providerLabPreviewVideo.removeAttribute('src');
+        providerLabPreviewVideo.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = '';
+      }
+    }
+    if (providerLabPreviewPoster) {
+      if (result?.posterUrl) {
+        providerLabPreviewPoster.src = result.posterUrl;
+        providerLabPreviewPoster.style.display = '';
+      } else {
+        providerLabPreviewPoster.removeAttribute('src');
+        providerLabPreviewPoster.style.display = 'none';
+      }
+    }
+    renderProviderLabPreviewMeta(result);
+  }
+
+  function buildProviderLabCompareMeta(run, slotLabel) {
+    if (!run) return `Choose a saved run below for ${slotLabel}.`;
+    const createdAt = run.createdAt ? new Date(run.createdAt).toLocaleString() : 'Unknown time';
+    return [
+      `${run.providerLabel || run.provider} · ${run.templateLabel || run.templateId}`,
+      `Post ${run.postId || 'unknown'} · ${createdAt}`,
+      `${run.width || '?'}×${run.height || '?'} · ${Math.round(Number(run.durationMs || 0) / 100) / 10 || '?'}s`,
+    ].join('\n');
+  }
+
+  function renderProviderLabCompareSlot(slot) {
+    const isPrimary = slot === 'primary';
+    const runId = isPrimary ? state.providerLabComparePrimaryRunId : state.providerLabCompareSecondaryRunId;
+    const runs = Array.isArray(state.providerLabRuns) ? state.providerLabRuns : [];
+    const run = runs.find((entry) => entry.runId === runId) || null;
+    const metaEl = isPrimary ? providerLabComparePrimaryMeta : providerLabCompareSecondaryMeta;
+    const videoEl = isPrimary ? providerLabComparePrimaryVideo : providerLabCompareSecondaryVideo;
+    const posterEl = isPrimary ? providerLabComparePrimaryPoster : providerLabCompareSecondaryPoster;
+
+    if (metaEl) metaEl.textContent = buildProviderLabCompareMeta(run, isPrimary ? 'Compare A' : 'Compare B');
+    if (videoEl) {
+      if (run?.videoUrl) {
+        videoEl.src = run.videoUrl;
+        videoEl.poster = run.posterUrl || '';
+        videoEl.style.display = '';
+      } else {
+        videoEl.pause?.();
+        videoEl.removeAttribute('src');
+        videoEl.style.display = 'none';
+      }
+    }
+    if (posterEl) {
+      if (!run?.videoUrl && run?.posterUrl) {
+        posterEl.src = run.posterUrl;
+        posterEl.style.display = '';
+      } else {
+        posterEl.removeAttribute('src');
+        posterEl.style.display = 'none';
+      }
+    }
+  }
+
+  function renderProviderLabCompare() {
+    renderProviderLabCompareSlot('primary');
+    renderProviderLabCompareSlot('secondary');
+  }
+
+  function renderProviderLabRuns() {
+    if (!providerLabRunList) return;
+
+    const runs = Array.isArray(state.providerLabRuns) ? state.providerLabRuns : [];
+    if (!runs.length) {
+      providerLabRunList.innerHTML = '<div style="color:var(--text-dim); font-size:12px;">No saved runs yet.</div>';
+      renderProviderLabCompare();
+      return;
+    }
+
+    providerLabRunList.innerHTML = runs.map((run) => {
+      const createdAt = run.createdAt ? new Date(run.createdAt).toLocaleString() : 'Unknown time';
+      const duration = Number(run.durationMs) > 0 ? ` · ${(run.durationMs / 1000).toFixed(1)}s` : '';
+      return `
+        <div class="plab-run-item">
+          <strong>${escapeHtml(run.providerLabel || run.provider || 'Provider')} · ${escapeHtml(run.templateLabel || run.templateId || 'template')}</strong>
+          <span>${escapeHtml(run.postId || 'post')} · ${escapeHtml(createdAt)}${duration}</span>
+          <span class="plab-run-links">
+            <a href="${escapeHtml(run.videoUrl)}" target="_blank" rel="noopener noreferrer">Video</a> ·
+            <a href="${escapeHtml(run.posterUrl)}" target="_blank" rel="noopener noreferrer">Poster</a> ·
+            <a href="${escapeHtml(run.manifestUrl)}" target="_blank" rel="noopener noreferrer">Manifest</a>
+          </span>
+          <div class="plab-run-actions">
+            <button class="btn btn-secondary btn-sm" type="button" data-provider-lab-compare-slot="primary" data-provider-lab-run-id="${escapeHtml(run.runId || '')}">Use as A</button>
+            <button class="btn btn-secondary btn-sm" type="button" data-provider-lab-compare-slot="secondary" data-provider-lab-run-id="${escapeHtml(run.runId || '')}">Use as B</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (!state.providerLabComparePrimaryRunId && runs[0]?.runId) {
+      state.providerLabComparePrimaryRunId = runs[0].runId;
+    }
+    if (!state.providerLabCompareSecondaryRunId && runs[1]?.runId) {
+      state.providerLabCompareSecondaryRunId = runs[1].runId;
+    }
+
+    providerLabRunList.querySelectorAll('[data-provider-lab-run-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const runId = button.getAttribute('data-provider-lab-run-id') || '';
+        const slot = button.getAttribute('data-provider-lab-compare-slot') || 'primary';
+        if (slot === 'secondary') state.providerLabCompareSecondaryRunId = runId;
+        else state.providerLabComparePrimaryRunId = runId;
+        renderProviderLabCompare();
+      });
+    });
+
+    renderProviderLabCompare();
+  }
+
+  async function fetchDesignerJson(path, options = {}) {
+    const headers = {
+      ...(options.headers || {}),
+    };
+    if (state.apiKey) headers['X-Api-Key'] = state.apiKey;
+    if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(`/api/designer${path}`, {
+      method: options.method || 'GET',
+      headers,
+      body: options.body,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
   function setReferenceInputMode(mode) {
     const validModes = new Set(['video', 'prompt', 'blank', 'v2']);
     state.referenceInputMode = validModes.has(mode) ? mode : 'video';
@@ -671,12 +1081,13 @@
 
     let routeMode = '';
     if (pathname.endsWith('/designer/prompt')) routeMode = 'prompt';
+    else if (pathname.endsWith('/designer/provider-lab')) routeMode = 'provider-lab';
     else if (pathname.endsWith('/designer/reference-video')) routeMode = 'video';
     else if (pathname.endsWith('/designer/v2')) routeMode = 'v2';
     else if (pathname.endsWith('/designer/json')) routeMode = 'json';
 
     const normalizedMode = routeMode || queryMode;
-    const allowedModes = new Set(['prompt', 'video', 'v2', 'json', 'reference']);
+    const allowedModes = new Set(['prompt', 'video', 'v2', 'json', 'reference', 'provider-lab']);
 
     return {
       mode: allowedModes.has(normalizedMode) ? normalizedMode : '',
@@ -692,18 +1103,25 @@
     }
 
     if (urlState.mode === 'prompt') {
+      setAppWorkspace('studio');
       setReferenceInputMode('prompt');
       setSessionMode('reference', { focusTarget: promptInput });
     } else if (urlState.mode === 'video') {
+      setAppWorkspace('studio');
       setReferenceInputMode('video');
       setSessionMode('reference');
     } else if (urlState.mode === 'reference') {
+      setAppWorkspace('studio');
       setReferenceInputMode('video');
       setSessionMode('reference');
+    } else if (urlState.mode === 'provider-lab') {
+      setAppWorkspace('provider-lab');
     } else if (urlState.mode === 'v2') {
+      setAppWorkspace('studio');
       setReferenceInputMode('v2');
       setSessionMode('v2', { focusTarget: v2ExportUrlInput });
     } else if (urlState.mode === 'json') {
+      setAppWorkspace('studio');
       setSessionMode('json', { focusTarget: jsonEditor, openAdvanced: true });
     }
 
@@ -920,6 +1338,7 @@
     const busy = state.isGenerating || state.isApproving;
     const missingApiKey = !connected;
     const missingInput = !hasReference && !hasPrompt;
+    const hasProviderTemplate = Boolean(getProviderLabSelectedTemplateId());
 
     btnGenerate.disabled = missingApiKey || missingInput || busy;
     btnStop.disabled = !state.isAutoIterating;
@@ -927,6 +1346,12 @@
     btnCopyJson.disabled = !hasTemplate;
     btnSaveV2.disabled = !hasTemplate || busy;
     btnLoadV2.disabled = busy;
+    if (providerLabProvider) providerLabProvider.disabled = busy || state.providerLabProvidersBusy;
+    if (providerLabTemplate) providerLabTemplate.disabled = busy || state.providerLabProvidersBusy;
+    if (btnLoadProviderLabPost) btnLoadProviderLabPost.disabled = busy || state.providerLabBusy;
+    if (btnRefreshProviderLabRecent) btnRefreshProviderLabRecent.disabled = busy || state.providerLabRecentBusy;
+    if (btnPreviewProviderLab) btnPreviewProviderLab.disabled = busy || state.providerLabBusy || !state.providerLabSnapshot || !hasProviderTemplate;
+    if (btnRenderProviderLab) btnRenderProviderLab.disabled = busy || state.providerLabBusy || !state.providerLabSnapshot || !hasProviderTemplate;
     jsonEditor.disabled = !hasTemplate || (busy && !state.previewStale);
     if (previewFrameSelect) previewFrameSelect.disabled = !hasTemplate || busy || previewFrameControls.style.display === 'none';
     if (toggleAutoIterate) toggleAutoIterate.disabled = busy;
@@ -1858,6 +2283,176 @@
     log('Started a new blank reel draft for admin approval into V2.', 'info');
     updateStatus();
     scheduleDraftSave();
+  }
+
+  async function loadProviderLabProviders() {
+    state.providerLabProvidersBusy = true;
+    updateStatus();
+
+    try {
+      const data = await fetchDesignerJson('/provider-lab/providers');
+      state.providerLabProviders = Array.isArray(data.providers) ? data.providers : [];
+
+      if (providerLabProvider) {
+        const currentProviderId = getProviderLabSelectedProviderId();
+        const fallbackProviderId = state.providerLabProviders[0]?.id || 'hyperframes';
+        const selectedProviderId = state.providerLabProviders.some((provider) => provider.id === currentProviderId)
+          ? currentProviderId
+          : fallbackProviderId;
+        providerLabProvider.innerHTML = state.providerLabProviders.map((provider) => {
+          return `<option value="${escapeHtml(provider.id)}">${escapeHtml(provider.label)}</option>`;
+        }).join('');
+        providerLabProvider.value = selectedProviderId;
+      }
+
+      renderProviderLabTemplateOptions();
+      const template = getProviderLabTemplateMeta(getProviderLabSelectedProviderId(), getProviderLabSelectedTemplateId());
+      if (template) {
+        showProviderLabStatus(`Template registry loaded. Selected ${template.label}. ${template.description}`, 'success');
+      }
+    } catch (err) {
+      showProviderLabStatus(`Provider templates failed to load: ${err.message}`, 'error');
+    } finally {
+      state.providerLabProvidersBusy = false;
+      updateStatus();
+    }
+  }
+
+  async function loadProviderLabPostSnapshot(explicitPostId) {
+    const postId = String(explicitPostId || providerLabPostId?.value || '').trim();
+    if (!postId) {
+      showProviderLabStatus('Add a V2 post ID first.', 'error');
+      return;
+    }
+
+    if (providerLabPostId) providerLabPostId.value = postId;
+
+    showProviderLabStatus(`Loading V2 post snapshot for ${postId}…`, 'info');
+
+    try {
+      const snapshot = await v2Bridge.loadExperimentPost(postId);
+      state.providerLabSnapshot = snapshot;
+      renderProviderLabSnapshot(snapshot);
+      renderProviderLabPreview(null);
+      const providerLabel = String(providerLabProvider?.selectedOptions?.[0]?.textContent || getProviderLabSelectedProviderId()).trim();
+      const template = getProviderLabTemplateMeta(getProviderLabSelectedProviderId(), getProviderLabSelectedTemplateId());
+      showProviderLabStatus(`Loaded ${postId} for ${providerLabel} · ${template?.label || getProviderLabSelectedTemplateId()}. Preview or render when you’re ready.`, 'success');
+    } catch (err) {
+      state.providerLabSnapshot = null;
+      renderProviderLabSnapshot(null);
+      showProviderLabStatus(`Provider Lab load failed: ${err.message}`, 'error');
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function loadProviderLabRecentPosts() {
+    state.providerLabRecentBusy = true;
+    updateStatus();
+    if (providerLabRecentList) {
+      providerLabRecentList.innerHTML = '<div style="color:var(--text-dim); font-size:12px;">Loading recent V2 experiment posts…</div>';
+    }
+
+    try {
+      const data = await v2Bridge.listExperimentPosts({ limit: 8, status: 'ready' });
+      state.providerLabRecentPosts = Array.isArray(data.posts) ? data.posts : [];
+      renderProviderLabRecentPosts();
+      if (state.providerLabRecentPosts.length) {
+        showProviderLabStatus('Recent ready posts loaded from V2. Pick one to load its full snapshot.', 'success');
+      } else {
+        showProviderLabStatus('No recent ready posts were returned from V2.', 'info');
+      }
+    } catch (err) {
+      state.providerLabRecentPosts = [];
+      renderProviderLabRecentPosts();
+      showProviderLabStatus(`Recent post browse failed: ${err.message}`, 'error');
+      showToast(err.message, 'error');
+    } finally {
+      state.providerLabRecentBusy = false;
+      updateStatus();
+    }
+  }
+
+  async function loadProviderLabRuns() {
+    try {
+      const data = await fetchDesignerJson('/provider-lab/runs');
+      state.providerLabRuns = Array.isArray(data.runs) ? data.runs : [];
+      renderProviderLabRuns();
+    } catch (err) {
+      showProviderLabStatus(`Provider Lab runs failed to load: ${err.message}`, 'error');
+    }
+  }
+
+  async function previewProviderLabRun() {
+    if (!state.providerLabSnapshot) {
+      showProviderLabStatus('Load a V2 post snapshot before previewing.', 'error');
+      return;
+    }
+
+    state.providerLabBusy = true;
+    updateStatus();
+    const provider = String(providerLabProvider?.value || 'hyperframes').trim();
+    const templateId = getProviderLabSelectedTemplateId();
+    const template = getProviderLabTemplateMeta(provider, templateId);
+    showProviderLabStatus(`Rendering ${provider} preview for ${template?.label || templateId}…`, 'info');
+
+    try {
+      const result = await fetchDesignerJson('/provider-lab/preview', {
+        method: 'POST',
+        body: JSON.stringify({
+          provider,
+          templateId,
+          snapshot: state.providerLabSnapshot,
+        }),
+      });
+      renderProviderLabPreview(result);
+      showProviderLabStatus(`Preview ready for ${template?.label || templateId}.`, 'success');
+    } catch (err) {
+      renderProviderLabPreview(null);
+      showProviderLabStatus(`Provider preview failed: ${err.message}`, 'error');
+      showToast(err.message, 'error');
+    } finally {
+      state.providerLabBusy = false;
+      updateStatus();
+    }
+  }
+
+  async function renderProviderLabRun() {
+    if (!state.providerLabSnapshot) {
+      showProviderLabStatus('Load a V2 post snapshot before rendering a final run.', 'error');
+      return;
+    }
+
+    state.providerLabBusy = true;
+    updateStatus();
+    const provider = String(providerLabProvider?.value || 'hyperframes').trim();
+    const templateId = getProviderLabSelectedTemplateId();
+    const template = getProviderLabTemplateMeta(provider, templateId);
+    showProviderLabStatus(`Saving final ${provider} render for ${template?.label || templateId}…`, 'info');
+
+    try {
+      const data = await fetchDesignerJson('/provider-lab/render', {
+        method: 'POST',
+        body: JSON.stringify({
+          provider,
+          templateId,
+          snapshot: state.providerLabSnapshot,
+        }),
+      });
+      if (data.run) {
+        state.providerLabRuns = [data.run, ...(state.providerLabRuns || [])].slice(0, 12);
+        state.providerLabCompareSecondaryRunId = state.providerLabComparePrimaryRunId || state.providerLabCompareSecondaryRunId;
+        state.providerLabComparePrimaryRunId = data.run.runId || state.providerLabComparePrimaryRunId;
+        renderProviderLabRuns();
+        setPlabTab('runs');
+      }
+      showProviderLabStatus(`Saved final ${template?.label || templateId} render with manifest JSON.`, 'success');
+    } catch (err) {
+      showProviderLabStatus(`Final render failed: ${err.message}`, 'error');
+      showToast(err.message, 'error');
+    } finally {
+      state.providerLabBusy = false;
+      updateStatus();
+    }
   }
 
   function openV2Admin() {

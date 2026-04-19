@@ -12,6 +12,10 @@ import {
   clearDesignerChatSessionsForTests,
   setDesignerChatToolOverridesForTests,
 } from '../src/services/designer-chat.ts';
+import {
+  buildHyperframesCompositionDocument,
+  setHyperframesRenderOverrideForTests,
+} from '../src/providers/hyperframes.ts';
 
 async function withServer(run: (baseUrl: string) => Promise<void>) {
   const app = createApp();
@@ -52,9 +56,10 @@ function closeServer(server: Server) {
 
 test('HTTP route /designer serves the real Template Lab shell', async () => {
   await withServer(async (baseUrl) => {
-    const [designerRes, designerHtmlRes, promptRes, referenceVideoRes, v2Res] = await Promise.all([
+    const [designerRes, designerHtmlRes, providerLabRes, promptRes, referenceVideoRes, v2Res] = await Promise.all([
       fetch(`${baseUrl}/designer`),
       fetch(`${baseUrl}/designer.html`),
+      fetch(`${baseUrl}/designer/provider-lab`),
       fetch(`${baseUrl}/designer/prompt?prompt=from%20text`),
       fetch(`${baseUrl}/designer/reference-video?prompt=match%20style`),
       fetch(`${baseUrl}/designer/v2`),
@@ -62,21 +67,24 @@ test('HTTP route /designer serves the real Template Lab shell', async () => {
 
     assert.equal(designerRes.status, 200);
     assert.equal(designerHtmlRes.status, 200);
+    assert.equal(providerLabRes.status, 200);
     assert.equal(promptRes.status, 200);
     assert.equal(referenceVideoRes.status, 200);
     assert.equal(v2Res.status, 200);
     assert.match(designerRes.headers.get('content-type') || '', /text\/html/i);
     assert.match(designerHtmlRes.headers.get('content-type') || '', /text\/html/i);
 
-    const [designerHtml, designerHtmlAlias, promptHtml, referenceVideoHtml, v2Html] = await Promise.all([
+    const [designerHtml, designerHtmlAlias, providerLabHtml, promptHtml, referenceVideoHtml, v2Html] = await Promise.all([
       designerRes.text(),
       designerHtmlRes.text(),
+      providerLabRes.text(),
       promptRes.text(),
       referenceVideoRes.text(),
       v2Res.text(),
     ]);
 
     assert.equal(designerHtml, designerHtmlAlias);
+    assert.equal(designerHtml, providerLabHtml);
     assert.equal(designerHtml, promptHtml);
     assert.equal(designerHtml, referenceVideoHtml);
     assert.equal(designerHtml, v2Html);
@@ -87,6 +95,8 @@ test('HTTP route /designer serves the real Template Lab shell', async () => {
     assert.match(designerHtml, /<script src="\/designer-app\.js"><\/script>/);
     assert.match(designerHtml, /id="btnCopyV2TemplateId"/);
     assert.match(designerHtml, /id="btnCopyV2ExportUrl"/);
+    assert.match(designerHtml, /id="btnRefreshProviderLabRecent"/);
+    assert.match(designerHtml, /id="providerLabRecentList"/);
     assert.match(designerHtml, /id="canvasEditorHost"/);
     assert.match(designerHtml, /id="btnCanvasLayerUp"/);
     assert.match(designerHtml, /id="btnCanvasLayerHide"/);
@@ -129,6 +139,8 @@ test('HTTP routes serve the extracted Template Lab scripts as JavaScript assets'
     assert.match(konvaSource, /Konva/);
     assert.match(appSource, /async function approveTemplateForV2/);
     assert.match(appSource, /btnCopyV2TemplateId/);
+    assert.match(bridgeSource, /async function listExperimentPosts/);
+    assert.match(appSource, /async function loadProviderLabRecentPosts/);
   });
 });
 
@@ -283,6 +295,20 @@ test('HTTP designer bootstrap and V2 proxy routes expose the auto-configured stu
       assert.equal(upstreamCalls[1]?.url, 'https://admin.localpros.co.za/api/admin/render-templates/import');
       assert.equal((upstreamCalls[1]?.init?.headers as Record<string, string>).Authorization, 'Bearer server-secret');
       assert.equal(String(upstreamCalls[1]?.init?.body), '{"reference":"proxy-template"}');
+
+      const postRes = await fetch(`${baseUrl}/api/designer/v2/post?id=post_123`, {
+        headers: { 'X-Api-Key': 'render-test-key' },
+      });
+      assert.equal(postRes.status, 200);
+      assert.equal(upstreamCalls[2]?.url, 'https://admin.localpros.co.za/api/admin/experiment-posts/post_123');
+      assert.equal((upstreamCalls[2]?.init?.headers as Record<string, string>).Authorization, 'Bearer server-secret');
+
+      const recentPostsRes = await fetch(`${baseUrl}/api/designer/v2/posts/recent?limit=8&status=ready`, {
+        headers: { 'X-Api-Key': 'render-test-key' },
+      });
+      assert.equal(recentPostsRes.status, 200);
+      assert.equal(upstreamCalls[3]?.url, 'https://admin.localpros.co.za/api/admin/experiment-posts?limit=8&status=ready');
+      assert.equal((upstreamCalls[3]?.init?.headers as Record<string, string>).Authorization, 'Bearer server-secret');
     });
   } finally {
     global.fetch = originalFetch;
@@ -290,6 +316,27 @@ test('HTTP designer bootstrap and V2 proxy routes expose the auto-configured stu
     config.designer.defaultV2BaseUrl = previousBaseUrl;
     config.designer.defaultV2AdminSecret = previousAdminSecret;
   }
+});
+
+test('HTTP provider-lab providers route exposes template metadata for implemented providers', async () => {
+  await withServer(async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/api/designer/provider-lab/providers`);
+    assert.equal(res.status, 200);
+    const body = await res.json() as {
+      providers: Array<{
+        id: string;
+        label: string;
+        defaultTemplateId: string | null;
+        templates: Array<{ id: string; label: string }>;
+      }>;
+    };
+
+    const hyperframes = body.providers.find((provider) => provider.id === 'hyperframes');
+    assert.ok(hyperframes);
+    assert.equal(hyperframes?.defaultTemplateId, 'hyperframes-basic-v1');
+    assert.ok((hyperframes?.templates || []).length >= 2);
+    assert.ok(hyperframes?.templates.some((template) => template.id === 'hyperframes-split-panel-v1'));
+  });
 });
 
 test('HTTP health route stays public while the Template Lab runtime still exposes local templates', async () => {
@@ -398,6 +445,155 @@ test('HTTP POST /api/render validates the request envelope before doing any rend
     const singleFrameBody = await singleFrame.json() as { success: boolean; error: string };
     assert.match(singleFrameBody.error, /at least 2 frames/i);
   });
+});
+
+test('HTTP POST /api/render/hyperframes returns caller-owned artifact keys for composition renders', async () => {
+  setHyperframesRenderOverrideForTests(async () => ({
+    templateId: 'hyperframes-basic-v1',
+    mp4Buffer: Buffer.from('fake-mp4'),
+    posterBuffer: Buffer.from('fake-poster'),
+    durationMs: 8400,
+    width: 1080,
+    height: 1920,
+  }));
+
+  try {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/render/hyperframes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          composition_html: '<div id="root"></div>',
+          composition_css: '#root { width: 1080px; height: 1920px; }',
+          composition_js: 'window.__compositionDurationSeconds = 8.4;',
+          props: {
+            runtime: {
+              duration_seconds: 8.4,
+            },
+          },
+          assets: {
+            uploaded_photos: [],
+            logos: {
+              logo_url: null,
+              square_logo_url: null,
+            },
+            cta_assets: {
+              landscape_url: null,
+              square_url: null,
+            },
+          },
+          renderOptions: {
+            jobId: 'hf-job-1',
+            outputVideoKey: 'org1/hyperframes/run-1.mp4',
+            outputPosterKey: 'org1/hyperframes/run-1-poster.png',
+          },
+        }),
+      });
+
+      assert.equal(res.status, 200);
+      const body = await res.json() as {
+        success: boolean;
+        r2Key: string;
+        posterR2Key: string;
+        meta: { durationMs: number; width: number; height: number };
+      };
+
+      assert.equal(body.success, true);
+      assert.equal(body.r2Key, 'org1/hyperframes/run-1.mp4');
+      assert.equal(body.posterR2Key, 'org1/hyperframes/run-1-poster.png');
+      assert.equal(body.meta.durationMs, 8400);
+      assert.equal(body.meta.width, 1080);
+      assert.equal(body.meta.height, 1920);
+    });
+  } finally {
+    setHyperframesRenderOverrideForTests(null);
+  }
+});
+
+test('Hyperframes composition document injects runtime props for the official CLI renderer', () => {
+  const html = buildHyperframesCompositionDocument({
+    compositionHtml: '<div id="root"></div>',
+    compositionCss: '#root { width: 1080px; height: 1920px; }',
+    compositionJs: 'window.__compositionDurationSeconds = 6.2;',
+    props: {
+      runtime: {
+        duration_seconds: 6.2,
+      },
+    },
+    assets: {
+      uploaded_photos: [],
+    },
+    slotConstraints: {},
+  });
+
+  assert.match(html, /window\.__timelines = window\.__timelines \|\| \{\};/);
+  assert.match(html, /window\.__HYPERFRAMES_PROPS__/);
+  assert.match(html, /window\.__HYPERFRAMES_ASSETS__/);
+  assert.match(html, /gsap@3\/dist\/gsap\.min\.js/);
+});
+
+test('HTTP POST /api/render/hyperframes/preview returns caller-owned preview artifact keys for composition renders', async () => {
+  setHyperframesRenderOverrideForTests(async ({ mode }) => ({
+    templateId: 'hyperframes-basic-v1',
+    mp4Buffer: Buffer.from(mode === 'preview' ? 'preview-mp4' : 'final-mp4'),
+    posterBuffer: Buffer.from('preview-poster'),
+    durationMs: 6200,
+    width: 1080,
+    height: 1920,
+  }));
+
+  try {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/render/hyperframes/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          composition_html: '<div id="root"></div>',
+          composition_css: '#root { width: 1080px; height: 1920px; }',
+          composition_js: 'window.__compositionDurationSeconds = 6.2;',
+          props: {
+            runtime: {
+              duration_seconds: 6.2,
+            },
+          },
+          assets: {
+            uploaded_photos: [],
+            logos: {
+              logo_url: null,
+              square_logo_url: null,
+            },
+            cta_assets: {
+              landscape_url: null,
+              square_url: null,
+            },
+          },
+          renderOptions: {
+            jobId: 'hf-preview-1',
+            outputVideoKey: 'org1/hyperframes/previews/run-1.mp4',
+            outputPosterKey: 'org1/hyperframes/previews/run-1-poster.png',
+          },
+        }),
+      });
+
+      assert.equal(res.status, 200);
+      const body = await res.json() as {
+        success: boolean;
+        r2Key: string;
+        posterR2Key: string;
+        meta: { renderMode: string; durationMs: number; width: number; height: number };
+      };
+
+      assert.equal(body.success, true);
+      assert.equal(body.r2Key, 'org1/hyperframes/previews/run-1.mp4');
+      assert.equal(body.posterR2Key, 'org1/hyperframes/previews/run-1-poster.png');
+      assert.equal(body.meta.renderMode, 'preview');
+      assert.equal(body.meta.durationMs, 6200);
+      assert.equal(body.meta.width, 1080);
+      assert.equal(body.meta.height, 1920);
+    });
+  } finally {
+    setHyperframesRenderOverrideForTests(null);
+  }
 });
 
 test('HTTP legacy Airtable-backed routes still return 410 Gone', async () => {

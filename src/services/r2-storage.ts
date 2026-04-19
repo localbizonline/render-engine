@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { config } from '../config.js';
 import fs from 'fs';
 import path from 'path';
@@ -9,6 +14,16 @@ let s3Client: S3Client | null = null;
 
 function isR2Configured(): boolean {
   return !!(config.r2.accessKeyId && config.r2.secretAccessKey && config.r2.accountId);
+}
+
+function getAppBaseUrl(): string {
+  return process.env.RAILWAY_PUBLIC_DOMAIN
+    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+    : `http://localhost:${config.port}`;
+}
+
+function buildArtifactProxyUrl(key: string): string {
+  return `${getAppBaseUrl()}/artifacts?key=${encodeURIComponent(key)}`;
 }
 
 function getClient(): S3Client {
@@ -45,8 +60,7 @@ export async function uploadRender(
         CacheControl: 'public, max-age=31536000, immutable',
       }),
     );
-    const publicUrl = config.r2.publicUrl.replace(/\/$/, '');
-    return `${publicUrl}/${key}`;
+    return buildArtifactProxyUrl(key);
   }
 
   // Fallback: save locally and serve via Express
@@ -56,10 +70,7 @@ export async function uploadRender(
   console.log(`[storage] R2 not configured, saved locally: ${filePath}`);
 
   // Build public URL from the app's own domain
-  const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-    ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-    : `http://localhost:${config.port}`;
-  return `${baseUrl}/output/${key}`;
+  return `${getAppBaseUrl()}/output/${key}`;
 }
 
 /**
@@ -95,4 +106,85 @@ export async function putAt(
   console.log(`[storage] R2 not configured, wrote locally: ${filePath}`);
 }
 
-export { LOCAL_OUTPUT_DIR };
+export async function getAt(
+  key: string,
+): Promise<{ body: Buffer; contentType: string | null }> {
+  if (isR2Configured()) {
+    const client = getClient();
+    const result = await client.send(new GetObjectCommand({
+      Bucket: config.r2.bucketName,
+      Key: key,
+    }));
+    const bytes = await result.Body?.transformToByteArray();
+    return {
+      body: Buffer.from(bytes || []),
+      contentType: result.ContentType || null,
+    };
+  }
+
+  const filePath = path.join(LOCAL_OUTPUT_DIR, key);
+  return {
+    body: fs.readFileSync(filePath),
+    contentType: null,
+  };
+}
+
+export async function listKeys(prefix: string): Promise<string[]> {
+  if (!isR2Configured()) {
+    const baseDir = path.join(LOCAL_OUTPUT_DIR, prefix);
+    if (!fs.existsSync(baseDir)) return [];
+
+    const keys: string[] = [];
+    function walk(dir: string) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const nextPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(nextPath);
+          continue;
+        }
+        if (entry.isFile()) {
+          keys.push(path.relative(LOCAL_OUTPUT_DIR, nextPath).split(path.sep).join('/'));
+        }
+      }
+    }
+
+    walk(baseDir);
+    return keys;
+  }
+
+  const client = getClient();
+  const keys: string[] = [];
+  let continuationToken: string | undefined;
+
+  do {
+    const result = await client.send(new ListObjectsV2Command({
+      Bucket: config.r2.bucketName,
+      Prefix: prefix,
+      ContinuationToken: continuationToken,
+    }));
+    for (const item of result.Contents || []) {
+      if (item.Key) keys.push(item.Key);
+    }
+    continuationToken = result.IsTruncated ? result.NextContinuationToken : undefined;
+  } while (continuationToken);
+
+  return keys;
+}
+
+export function normalizeArtifactUrl(rawUrl: string): string {
+  const value = String(rawUrl || '').trim();
+  if (!value) return value;
+  try {
+    const parsed = new URL(value);
+    if (/\.r2\.dev$/i.test(parsed.hostname)) {
+      const key = parsed.pathname.replace(/^\/+/, '');
+      if (key) return buildArtifactProxyUrl(key);
+    }
+    return value;
+  } catch {
+    return value;
+  }
+}
+
+export { LOCAL_OUTPUT_DIR, buildArtifactProxyUrl };

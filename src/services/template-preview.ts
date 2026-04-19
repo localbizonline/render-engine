@@ -12,15 +12,20 @@ const ASSETS_DIR = path.resolve(__dirname, '../../public/designer-assets');
 
 const DEFAULT_PREVIEW_VARIABLES: RenderVariables = {
   title: 'Professional Service Completed',
+  post_title: 'Professional Service Completed',
   subtitle: 'Quality workmanship delivered on time and within budget',
   body: 'Sample post body text for preview purposes.',
+  post_body: 'Sample post body text for preview purposes.',
   phone: '(021) 555-1234',
+  phone_display: '(021) 555-1234',
   service_areas: 'Cape Town • Northern Suburbs • Southern Suburbs',
   primary_colour: '#235BAA',
   secondary_colour: '#4582D0',
   logo_url: '',
+  square_logo_url: '',
   user_images: [],
   company_name: 'Sample Company',
+  business_name: 'Sample Company',
   website: 'https://example.co.za',
 };
 

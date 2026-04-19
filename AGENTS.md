@@ -6,6 +6,7 @@ Reel Template Studio and preview/design workspace for owned MP4 render templates
 
 - Repo path for the main app: `/Users/jeremymartin/Documents/Cursor/In Production/social-posting-v2`
 - This repo handles reel authoring UX, preview rendering UX, JSON editing UX, reference-video analysis, and the V2 bridge flow.
+- This repo also exposes the upstream Hyperframes composition render path used by V2 admin/runtime.
 - User-facing output is MP4 only. Static-image authoring and reference-image workflows are retired.
 - Airtable integration has been removed from the active runtime in this repo.
 - The studio can:
@@ -27,6 +28,8 @@ Reel Template Studio and preview/design workspace for owned MP4 render templates
 
 - `social-posting-v2` is the durable source of truth for approved owned templates, theme/category linking, soundtrack assignment, rollout, and production render decisions.
 - `render-engine` is the reel authoring studio and preview/design workspace.
+- `render-engine` is also the upstream final-render service for Hyperframes compositions authored and selected in V2.
+- `render-engine` is also the upstream preview-render service for Hyperframes Studio parity in V2.
 - Work here when the task is about:
   - `public/designer.html`
   - `public/designer-v2-bridge.js`
@@ -137,6 +140,8 @@ All `/api/*` routes require `X-Api-Key`. Health and static studio routes are pub
 | GET | `/api/templates` | List local templates |
 | GET | `/api/templates/:id` | Get a local template definition |
 | POST | `/api/templates` | Save a custom template to local in-memory registry |
+| POST | `/api/render/hyperframes/preview` | Render a Hyperframes HTML/CSS/JS composition in preview mode and write caller-owned preview artifact keys |
+| POST | `/api/render/hyperframes` | Render a Hyperframes HTML/CSS/JS composition to MP4 plus poster and write caller-owned artifact keys |
 | GET | `/api/templates/managed` | Returns `410` (old Airtable path removed) |
 | POST | `/api/templates/sync` | Returns `410` (old Airtable path removed) |
 | POST | `/api/templates/save-to-airtable` | Returns `410` (old Airtable path removed) |

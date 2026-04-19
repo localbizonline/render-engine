@@ -286,6 +286,44 @@
       };
     }
 
+    async function loadExperimentPost(postId) {
+      const resolvedPostId = String(postId || '').trim();
+      if (!resolvedPostId) throw new Error('Post ID is required');
+
+      if (state.serverV2Proxy) {
+        return fetchProxyJson(`${proxyBasePath}/post?id=${encodeURIComponent(resolvedPostId)}`, {
+          method: 'GET',
+        });
+      }
+
+      if (!state.baseUrl) throw new Error('V2 base URL is required');
+
+      return fetchJson(`${state.baseUrl}/api/admin/experiment-posts/${encodeURIComponent(resolvedPostId)}`, {
+        method: 'GET',
+      });
+    }
+
+    async function listExperimentPosts(options = {}) {
+      const limit = Math.max(1, Math.min(Number.parseInt(String(options.limit || '12'), 10) || 12, 50));
+      const status = String(options.status || 'ready').trim();
+
+      if (state.serverV2Proxy) {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (status) params.set('status', status);
+        return fetchProxyJson(`${proxyBasePath}/posts/recent?${params.toString()}`, {
+          method: 'GET',
+        });
+      }
+
+      if (!state.baseUrl) throw new Error('V2 base URL is required');
+
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (status) params.set('status', status);
+      return fetchJson(`${state.baseUrl}/api/admin/experiment-posts?${params.toString()}`, {
+        method: 'GET',
+      });
+    }
+
     function openAdmin() {
       if (!state.baseUrl) throw new Error('V2 base URL is required');
       global.open(`${state.baseUrl}/admin#video-templates`, '_blank', 'noopener,noreferrer');
@@ -328,6 +366,8 @@
       connectInputs,
       getContext,
       initializeFromQueryParams,
+      listExperimentPosts,
+      loadExperimentPost,
       loadTemplate,
       openAdmin,
       setBaseUrl,

@@ -1,12 +1,12 @@
 # Render Engine
 
-Template Lab and render service for owned MP4 reel templates. `social-posting-v2` is the durable source of truth for approved templates, rollout, and production orchestration.
+Reel Template Studio and render service for owned MP4 reel templates. `social-posting-v2` is the durable source of truth for approved templates, rollout, soundtrack assignment, and production orchestration.
 
 ## Current State
 
 - Repo path for the main app: `/Users/jeremymartin/Documents/Cursor/In Production/social-posting-v2`
 - This repo owns reel authoring UX, preview rendering UX, JSON editing UX, the chat flow, the reference-video flow, and the V2 bridge flow.
-- Template Lab is video-only:
+- Reel Template Studio is video-only:
   - prompt-only reel generation is live
   - reference-video reel generation is live
   - V2 load/edit/approve is live
@@ -26,7 +26,7 @@ Template Lab and render service for owned MP4 reel templates. `social-posting-v2
 
 - `social-posting-v2` stores approved owned templates in `render_templates`.
 - `social-posting-v2` owns theme/category/post linking, rollout, soundtrack assignment, queue decisions, and production fallback behavior.
-- `render-engine` is the reel Template Lab, preview workspace, and owned MP4 render backend.
+- `render-engine` is the reel authoring studio, preview workspace, and owned MP4 render backend.
 - Do not treat local saves in this repo as the durable approval path for production templates.
 
 ## Current Integration Contract
@@ -109,7 +109,7 @@ Templates are declarative JSON for 9:16 slideshow-style reels.
 - `autoSelectTemplate()` only returns MP4 built-ins.
 - Existing PNG rows in V2 may still exist historically, but this repo rejects them at the bridge, preview, and authoring edges.
 
-## Template Lab UI
+## Reel Template Studio UI
 
 Access locally at `http://localhost:3000/designer`.
 
@@ -127,7 +127,7 @@ Access locally at `http://localhost:3000/designer`.
 
 - Reel Template Studio is video-only. There is no reference-image mode and no PNG/MP4 output selector.
 - `Approve for V2` is the primary handoff path.
-- The soundtrack pool is configured in V2 admin, not in Template Lab.
+- The soundtrack pool is configured in V2 admin, not in Reel Template Studio.
 - Overlay uploads are allowed as decorative assets inside reel frames.
 
 ## Development
@@ -152,4 +152,3 @@ npm run build
   - prompt-only generation
   - reference-video generation and compare-iterate
   - preview rendering and the production `/api/render` request envelope
-

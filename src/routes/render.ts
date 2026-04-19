@@ -8,6 +8,7 @@ import { loadRemoteImage } from '../engine/asset-loader.js';
 import { renderMp4, expandPhotoFrames } from '../engine/mp4-renderer.js';
 import { renderPng } from '../engine/png-renderer.js';
 import { putAt } from '../services/r2-storage.js';
+import { renderHyperframesComposition } from '../providers/hyperframes.js';
 
 export const renderRouter = Router();
 
@@ -63,6 +64,83 @@ const renderRequestSchema = z.object({
   renderOptions: renderOptionsSchema,
 });
 
+const hyperframesAssetManifestSchema = z.object({
+  uploaded_photos: z.array(z.object({
+    index: z.number().int().nonnegative().optional(),
+    url: z.string().url(),
+    kind: z.literal('image').optional(),
+  })).optional(),
+  logos: z.object({
+    logo_url: z.string().url().nullable().optional(),
+    square_logo_url: z.string().url().nullable().optional(),
+  }).optional(),
+  cta_assets: z.object({
+    landscape_url: z.string().url().nullable().optional(),
+    square_url: z.string().url().nullable().optional(),
+  }).optional(),
+}).optional();
+
+const hyperframesRenderRequestSchema = z.object({
+  composition_html: z.string().optional(),
+  composition_css: z.string().optional(),
+  composition_js: z.string().optional(),
+  slot_constraints: z.record(z.string(), z.unknown()).optional(),
+  props: z.record(z.string(), z.unknown()).optional(),
+  assets: hyperframesAssetManifestSchema,
+  renderOptions: renderOptionsSchema,
+});
+
+async function handleHyperframesRender(
+  req: import('express').Request,
+  res: import('express').Response,
+  mode: 'preview' | 'final',
+) {
+  const parsed = hyperframesRenderRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return failBadRequest(res, `Invalid request: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+  }
+
+  const { composition_html, composition_css, composition_js, slot_constraints, props, assets, renderOptions } = parsed.data;
+  const t0 = Date.now();
+
+  try {
+    const result = await renderHyperframesComposition({
+      compositionHtml: composition_html,
+      compositionCss: composition_css,
+      compositionJs: composition_js,
+      slotConstraints: slot_constraints,
+      props: props || {},
+      assets: assets || {},
+      mode,
+    });
+
+    await Promise.all([
+      putAt(renderOptions.outputVideoKey, result.mp4Buffer, 'video/mp4'),
+      putAt(renderOptions.outputPosterKey, result.posterBuffer, 'image/png'),
+    ]);
+
+    return res.json({
+      success: true,
+      r2Key: renderOptions.outputVideoKey,
+      posterR2Key: renderOptions.outputPosterKey,
+      meta: {
+        renderMode: mode,
+        renderTimeMs: Date.now() - t0,
+        durationMs: result.durationMs || undefined,
+        jobId: renderOptions.jobId,
+        videoBytes: result.mp4Buffer.length,
+        posterBytes: result.posterBuffer.length,
+        width: result.width,
+        height: result.height,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[render/hyperframes/${mode}] MP4 render failed:`, message);
+    return res.status(500).json({ success: false, error: message });
+  }
+}
+
 function failBadRequest(res: import('express').Response, error: string) {
   res.status(400).json({ success: false, error });
 }
@@ -78,13 +156,18 @@ function coerceRenderVariables(input: Record<string, unknown> | undefined): Rend
     : [];
   return {
     title: asString('title'),
+    post_title: asString('post_title') || asString('title'),
     subtitle: asString('subtitle'),
     body: asString('body'),
+    post_body: asString('post_body') || asString('body'),
     phone: asString('phone'),
+    phone_display: asString('phone_display') || asString('phone'),
     service_areas: asString('service_areas'),
+    business_name: asString('business_name') || asString('company_name'),
     primary_colour: asString('primary_colour'),
     secondary_colour: asString('secondary_colour'),
     logo_url: asString('logo_url'),
+    square_logo_url: asString('square_logo_url') || asString('logo_url'),
     user_images: userImages,
     company_name: asString('company_name'),
     website: asString('website') || undefined,
@@ -195,4 +278,12 @@ renderRouter.post('/', async (req, res) => {
     console.error('[render] MP4 render failed:', message);
     return res.status(500).json({ success: false, error: message });
   }
+});
+
+renderRouter.post('/hyperframes/preview', async (req, res) => {
+  return handleHyperframesRender(req, res, 'preview');
+});
+
+renderRouter.post('/hyperframes', async (req, res) => {
+  return handleHyperframesRender(req, res, 'final');
 });

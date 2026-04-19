@@ -165,6 +165,10 @@ function createDesignerDom() {
     draftRestoreMeta: createElement(),
     btnRestoreDraft: createElement(),
     btnDiscardDraft: createElement(),
+    btnAppTabStudio: createElement(),
+    btnAppTabProviderLab: createElement(),
+    studioLayout: createElement(),
+    providerLabSection: createElement(),
     workspaceTitle: createElement(),
     workspaceLinkedLabel: createElement(),
     advancedJsonPanel: createElement(),
@@ -266,6 +270,25 @@ function createDesignerDom() {
     chatInput: createElement(),
     btnSendChat: createElement(),
     chatStatus: createElement(),
+    providerLabProvider: createElement({ value: 'hyperframes' }),
+    providerLabTemplate: createElement(),
+    providerLabPostId: createElement(),
+    btnRefreshProviderLabRecent: createElement(),
+    btnPreviewProviderLab: createElement(),
+    btnRenderProviderLab: createElement(),
+    btnLoadProviderLabPost: createElement(),
+    providerLabStatus: createElement(),
+    providerLabPreviewMeta: createElement(),
+    providerLabSnapshotPreview: createElement(),
+    providerLabPreviewVideo: createElement(),
+    providerLabPreviewPoster: createElement(),
+    providerLabRunList: createElement(),
+    providerLabComparePrimaryMeta: createElement(),
+    providerLabComparePrimaryVideo: createElement(),
+    providerLabComparePrimaryPoster: createElement(),
+    providerLabCompareSecondaryMeta: createElement(),
+    providerLabCompareSecondaryVideo: createElement(),
+    providerLabCompareSecondaryPoster: createElement(),
   };
 
   const selectorMap = new Map(
@@ -576,6 +599,7 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
   assert.match(html, /<script src="\/designer-canvas-editor\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-app\.js"><\/script>/);
   assert.match(html, /<script src="\/designer-bootstrap\.js"><\/script>/);
+  assert.match(html, /Provider Lab/);
   assert.match(html, /Approve for V2/);
   assert.match(html, /Load an approved V2 reel/);
   assert.match(html, /New Blank Reel/);
@@ -626,6 +650,21 @@ test('designer HTML references the extracted V2 bridge and V2 handoff actions', 
   assert.match(html, /id="handoffStatus"/);
   assert.match(html, /id="btnCopyV2TemplateId"/);
   assert.match(html, /id="btnCopyV2ExportUrl"/);
+  assert.match(html, /id="btnAppTabProviderLab"/);
+  assert.match(html, /id="providerLabSection"/);
+  assert.match(html, /id="providerLabProvider"/);
+  assert.match(html, /id="providerLabTemplate"/);
+  assert.match(html, /id="providerLabPostId"/);
+  assert.match(html, /id="btnLoadProviderLabPost"/);
+  assert.match(html, /id="btnRefreshProviderLabRecent"/);
+  assert.match(html, /id="btnPreviewProviderLab"/);
+  assert.match(html, /id="btnRenderProviderLab"/);
+  assert.match(html, /id="providerLabPreviewMeta"/);
+  assert.match(html, /id="providerLabSnapshotPreview"/);
+  assert.match(html, /id="providerLabPreviewVideo"/);
+  assert.match(html, /id="providerLabComparePrimary"/);
+  assert.match(html, /id="providerLabCompareSecondary"/);
+  assert.match(html, /id="providerLabRunList"/);
   assert.doesNotMatch(html, /referenceImagePanel/);
   assert.doesNotMatch(html, /Drop or paste image here/);
   assert.match(html, /\.comparison\s*\{[\s\S]*align-items:\s*start;[\s\S]*flex:\s*0 0 auto;/);
@@ -642,6 +681,7 @@ test('bridge module still exposes the key V2 bridge capabilities', async () => {
   assert.match(bridgeSource, /function createTemplateLabV2Bridge/);
   assert.match(bridgeSource, /function initializeFromQueryParams/);
   assert.match(bridgeSource, /async function loadTemplate/);
+  assert.match(bridgeSource, /async function loadExperimentPost/);
   assert.match(bridgeSource, /async function approveTemplate/);
   assert.match(bridgeSource, /global\.createTemplateLabV2Bridge = createTemplateLabV2Bridge;/);
 });
@@ -672,6 +712,11 @@ test('designer app module contains the extracted non-V2 Template Lab behavior', 
   assert.match(designerAppSource, /function redoVisualEdit/);
   assert.match(designerAppSource, /function parseStudioUrlState/);
   assert.match(designerAppSource, /function applyStudioUrlState/);
+  assert.match(designerAppSource, /function setAppWorkspace/);
+  assert.match(designerAppSource, /async function loadProviderLabPostSnapshot/);
+  assert.match(designerAppSource, /async function previewProviderLabRun/);
+  assert.match(designerAppSource, /async function renderProviderLabRun/);
+  assert.match(designerAppSource, /async function loadProviderLabRuns/);
   assert.match(designerAppSource, /function renderVideoInsights/);
   assert.match(designerAppSource, /async function sendChatMessage/);
   assert.match(designerAppSource, /async function generate/);
@@ -707,6 +752,46 @@ test('designer app can preselect the prompt-only workflow from a readable URL', 
   assert.equal(result.elements.promptInput.value, 'build a bold roofing reel');
   assert.match(result.elements.generateHint.textContent, /prompt-only|from scratch/i);
   assert.match(result.elements.refPlaceholder.textContent, /prompt-only session/i);
+});
+
+test('designer app can open directly into the provider lab workspace from a readable URL', async () => {
+  const result = await runDesignerApp({
+    bootstrap: { renderApiKey: 'render-key' },
+    locationPath: '/designer/provider-lab',
+    fetchImpl: async (url) => {
+      if (url === '/api/designer/provider-lab/providers') {
+        return new Response(JSON.stringify({
+          providers: [
+            {
+              id: 'hyperframes',
+              label: 'Hyperframes',
+              defaultTemplateId: 'hyperframes-basic-v1',
+              templates: [
+                {
+                  id: 'hyperframes-basic-v1',
+                  label: 'Bold Editorial',
+                  description: 'Full-bleed imagery',
+                  status: 'ready',
+                },
+              ],
+            },
+          ],
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/api/designer/provider-lab/runs') {
+        return new Response(JSON.stringify({ runs: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url === '/api/designer/v2/posts/recent?limit=8&status=ready') {
+        return new Response(JSON.stringify({ posts: [] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    },
+  });
+
+  assert.equal(result.elements.btnAppTabProviderLab.classList.contains('active'), true);
+  assert.equal(result.elements.providerLabSection.hidden, false);
+  assert.equal(result.elements.studioLayout.hidden, true);
+  assert.equal(result.elements.providerLabTemplate.value, 'hyperframes-basic-v1');
 });
 
 test('designer app can generate a reel template from a reference video upload', async () => {

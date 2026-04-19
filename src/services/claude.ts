@@ -24,17 +24,27 @@ You create JSON template definitions for MP4 social reels only.
 6. Use "Inter" for all text layers.
 7. Use {{primary_colour}} and {{secondary_colour}} for brand-colored elements.
 8. Keep output professional, readable, and suitable for home-service reel slideshows.
+9. Optimize for what the rendered MP4 visibly shows, not just for valid JSON.
+10. The renderer draws the background first and then each layer in array order. If a text card is required, the rect layer must come before the text layer in that frame.
+11. Opening frames must prioritize readability: stable logo placement, strong headline contrast, and dedicated cards or bands that survive real photo crops.
+12. Avoid weak translucent overlays, low-contrast headline text, or title placement too close to the bottom edge.
 
 ## Variables
 - {{title}}
+- {{post_title}}
 - {{subtitle}}
 - {{body}}
+- {{post_body}}
 - {{phone}}
+- {{phone_display}}
 - {{service_areas}}
 - {{company_name}}
+- {{business_name}}
 - {{website}}
 - {{primary_colour}}
 - {{secondary_colour}}
+- {{logo_url}}
+- {{square_logo_url}}
 
 ## Output
 Return ONLY valid JSON. No markdown. No explanation.
@@ -53,7 +63,7 @@ export async function generateTemplate(
     messages: [
       {
         role: 'user',
-        content: `Design a vertical MP4 social reel template (${width}x${height}) based on this description:\n\n${prompt}\n\nReturn ONLY the JSON template definition. It must output MP4.`,
+        content: `Design a vertical MP4 social reel template (${width}x${height}) based on this description:\n\n${prompt}\n\nFavor a strong opening frame: if the design uses both logo and headline, keep the logo in a stable top zone and place the headline in a high-contrast card or band that will remain unmistakably visible in the real rendered MP4.\n\nReturn ONLY the JSON template definition. It must output MP4.`,
       },
     ],
   });
@@ -74,7 +84,7 @@ export async function iterateTemplate(
     messages: [
       {
         role: 'user',
-        content: `Here is an existing MP4 reel template:\n\n${JSON.stringify(existingTemplate, null, 2)}\n\nModify it based on this feedback:\n\n${prompt}\n\nPreserve MP4 reel output, vertical layout, multi-frame structure, fps, and transitions. Return the COMPLETE updated JSON template definition.`,
+        content: `Here is an existing MP4 reel template:\n\n${JSON.stringify(existingTemplate, null, 2)}\n\nModify it based on this feedback:\n\n${prompt}\n\nPreserve MP4 reel output, vertical layout, multi-frame structure, fps, and transitions. Optimize for real rendered MP4 visibility, especially on frame 1. If a title is present but visually weak, strengthen the card, contrast, placement, and layer order rather than merely re-adding the variable.\n\nReturn the COMPLETE updated JSON template definition.`,
       },
     ],
   });

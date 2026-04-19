@@ -129,13 +129,18 @@ export interface AssetImageLayer extends BaseLayer {
 
 export interface RenderVariables {
   title: string;
+  post_title?: string;
   subtitle: string;
   body: string;
+  post_body?: string;
   phone: string;
+  phone_display?: string;
   service_areas: string;
+  business_name?: string;
   primary_colour: string;
   secondary_colour: string;
   logo_url: string;
+  square_logo_url?: string;
   user_images: string[];
   company_name: string;
   website?: string;

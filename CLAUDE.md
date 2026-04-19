@@ -152,3 +152,20 @@ npm run build
   - prompt-only generation
   - reference-video generation and compare-iterate
   - preview rendering and the production `/api/render` request envelope
+
+## HyperFrames Template Authoring Contract
+
+When authoring HTML to be rendered by the HyperFrames CLI (`hyperframes render`), the page MUST expose `window.__hf = { duration, seek }` or the capture pipeline times out after 45s and writes a blank mp4. This is easy to miss because:
+
+- HyperFrames auto-injects its runtime on **studio/preview** routes, but NOT on the `render` CLI path the production service uses.
+- A failing render produces no stderr from the CLI — just a zero-content mp4 and a silent `[FrameCapture] window.__hf not ready` message buried in stdout.
+
+Required shape for any HTML sent into `hyperframes render`:
+
+1. A root element with `data-composition-id` AND `data-duration` in seconds.
+2. A registered timeline or player that can be driven by `seek(t)`.
+3. A `window.__hf` bridge that exposes `duration` and `seek(t)`.
+
+The `src/providers/hyperframes.ts` provider includes a reusable bridge (`HYPERFRAMES_HF_BRIDGE_SCRIPT`) that reads from `window.__timelines` (GSAP timelines). Any new provider HTML builder must include it — both `buildBasicHtml`, `buildSplitPanelHtml`, and `buildHyperframesCompositionDocument` do.
+
+See [skills/hyperframes-template-authoring/SKILL.md](./skills/hyperframes-template-authoring/SKILL.md) for the full authoring workflow, working template skeleton, and verification steps.

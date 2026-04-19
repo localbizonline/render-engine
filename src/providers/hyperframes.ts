@@ -94,6 +94,11 @@ const HYPERFRAMES_HF_BRIDGE_SCRIPT = `
     var d = Number(root.getAttribute('data-duration'));
     return Number.isFinite(d) && d > 0 ? d : 0;
   }
+  function fallbackDuration(){
+    var d = Number(window.__HYPERFRAMES_DURATION_SECONDS__);
+    if (Number.isFinite(d) && d > 0) return d;
+    return 6;
+  }
   window.__hf = {
     get duration(){
       var tls = timelines();
@@ -102,7 +107,10 @@ const HYPERFRAMES_HF_BRIDGE_SCRIPT = `
         var d = timelineDuration(tls[i]);
         if (d > max) max = d;
       }
-      return max > 0 ? max : declaredDuration();
+      if (max > 0) return max;
+      var declared = declaredDuration();
+      if (declared > 0) return declared;
+      return fallbackDuration();
     },
     seek: function(t){
       var tls = timelines();
@@ -746,10 +754,24 @@ async function renderHyperframesHtmlDocument(input: {
   }
 }
 
+function injectRootDataDuration(html: string, seconds: number): string {
+  if (!(seconds > 0)) return html;
+  if (/data-composition-id=[^>]*data-duration=/i.test(html)) return html;
+  return html.replace(
+    /(<[^>]*\sdata-composition-id=["'][^"']+["'][^>]*)(>)/i,
+    (match, open, close) => {
+      if (/data-duration=/i.test(open)) return match;
+      return `${open} data-duration="${seconds}"${close}`;
+    },
+  );
+}
+
 export function buildHyperframesCompositionDocument(input: Omit<HyperframesCompositionRenderInput, 'mode'>): string {
   const props = input.props || {};
   const assets = input.assets || {};
   const slotConstraints = input.slotConstraints || {};
+  const requestedSeconds = resolveRequestedDurationSeconds(props) ?? 0;
+  const compositionHtml = injectRootDataDuration(String(input.compositionHtml || ''), requestedSeconds);
 
   return `<!doctype html>
 <html lang="en">
@@ -759,11 +781,12 @@ export function buildHyperframesCompositionDocument(input: Omit<HyperframesCompo
     <style>${String(input.compositionCss || '')}</style>
   </head>
   <body>
-    ${String(input.compositionHtml || '')}
+    ${compositionHtml}
     <script>
       window.__HYPERFRAMES_PROPS__ = ${JSON.stringify(props)};
       window.__HYPERFRAMES_ASSETS__ = ${JSON.stringify(assets)};
       window.__HYPERFRAMES_SLOT_CONSTRAINTS__ = ${JSON.stringify(slotConstraints)};
+      window.__HYPERFRAMES_DURATION_SECONDS__ = ${requestedSeconds > 0 ? requestedSeconds : 0};
       window.__timelines = window.__timelines || {};
     </script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>

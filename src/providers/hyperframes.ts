@@ -17,6 +17,7 @@ const DEFAULT_FPS = 30;
 const PROVIDER_ID = 'hyperframes';
 const BASIC_TEMPLATE_ID = 'hyperframes-basic-v1';
 const SPLIT_TEMPLATE_ID = 'hyperframes-split-panel-v1';
+const RECENT_JOB_LOOP_TEMPLATE_ID = 'hyperframes-recent-job-hs-loop-v1';
 
 const HYPERFRAMES_TEMPLATES: ProviderLabTemplateDefinition[] = [
   {
@@ -29,6 +30,12 @@ const HYPERFRAMES_TEMPLATES: ProviderLabTemplateDefinition[] = [
     id: SPLIT_TEMPLATE_ID,
     label: 'Split Panel',
     description: 'Structured left-panel copy treatment with stacked photo cards for a calmer comparison.',
+    status: 'ready',
+  },
+  {
+    id: RECENT_JOB_LOOP_TEMPLATE_ID,
+    label: 'Recent Job Loop',
+    description: 'Home services recent job gallery with full-bleed AI-edited photos, brand overlay, and seamless loop end card.',
     status: 'ready',
   },
 ];
@@ -688,9 +695,233 @@ function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
 </html>`;
 }
 
+function buildRecentJobLoopHtml(snapshotInput: ProviderLabPostSnapshot): string {
+  const snapshot = normalizeSnapshot(snapshotInput);
+  const images = snapshot.media.image_urls;
+  const primaryColour = pickColor(snapshot.brand.primary_colour, '#2563EB');
+  const logoUrl = snapshot.brand.logo_url ? escapeHtml(snapshot.brand.logo_url) : '';
+  const companyName = escapeHtml(shorten(snapshot.brand.company_name, 40));
+  const categoryName = escapeHtml(shorten(snapshot.post.category_name, 36) || 'Home Services');
+  const jobTitle = escapeHtml(shorten(
+    snapshot.content.title || snapshot.content.subtitle || snapshot.content.body,
+    72,
+  ) || 'Recent Job');
+
+  const INTRO_DUR = 2.5;
+  const PHOTO_DUR = 3.0;
+  const OUTRO_DUR = 2.5;
+  const outroStart = Number((INTRO_DUR + images.length * PHOTO_DUR).toFixed(2));
+  const totalDuration = Number((outroStart + OUTRO_DUR).toFixed(2));
+
+  const photoNodes = images.map((url, i) => {
+    const start = Number((INTRO_DUR + i * PHOTO_DUR).toFixed(2));
+    return `
+    <div id="ps${i}" class="clip ps" data-start="${start}" data-duration="${PHOTO_DUR}" data-track-index="1">
+      <img src="${escapeHtml(url)}" alt="" />
+      <div class="po">
+        <div class="po-badge" style="color:${primaryColour};border-color:${primaryColour}44;background:${primaryColour}18">${categoryName}</div>
+        <div class="po-title">${jobTitle}</div>
+        <div class="po-company">${companyName}</div>
+      </div>
+    </div>`;
+  }).join('\n');
+
+  const photoTimeline = images.map((_, i) => {
+    const start = Number((INTRO_DUR + i * PHOTO_DUR).toFixed(2));
+    const fadeOut = Number((start + PHOTO_DUR - 0.45).toFixed(2));
+    const isLast = i === images.length - 1;
+    return `
+      tl.to("#ps${i}", {opacity:1,duration:0.48,ease:"power2.out"}, ${start});
+      tl.fromTo("#ps${i} img", {scale:1.0}, {scale:1.04,duration:${PHOTO_DUR},ease:"none"}, ${start});
+      tl.fromTo("#ps${i} .po-badge", {opacity:0,y:14}, {opacity:1,y:0,duration:0.38,ease:"power2.out"}, ${Number((start + 0.28).toFixed(2))});
+      tl.fromTo("#ps${i} .po-title", {opacity:0,y:22}, {opacity:1,y:0,duration:0.45,ease:"power2.out"}, ${Number((start + 0.44).toFixed(2))});
+      tl.fromTo("#ps${i} .po-company", {opacity:0,y:12}, {opacity:1,y:0,duration:0.36,ease:"power2.out"}, ${Number((start + 0.62).toFixed(2))});
+      tl.to("#ps${i}", {opacity:0,duration:${isLast ? 0.55 : 0.38},ease:"power2.inOut"}, ${fadeOut});`;
+  }).join('\n');
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" />
+    <style>
+      html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#050d18; }
+      #root {
+        position:relative; width:${DEFAULT_WIDTH}px; height:${DEFAULT_HEIGHT}px;
+        overflow:hidden; background:#0b1322;
+        font-family:'Inter','Roboto',sans-serif; color:#f0f4ff;
+      }
+      .clip { position:absolute; inset:0; opacity:0; }
+
+      /* ── INTRO ── */
+      #intro-bg { position:absolute; inset:0; background:linear-gradient(180deg,#0d1a2e 0%,#0b1322 100%); }
+      #intro-ring1 {
+        position:absolute; top:320px; left:50%; transform:translateX(-50%);
+        width:560px; height:560px; border-radius:50%;
+        border:1px solid ${primaryColour}28;
+        background:radial-gradient(circle,${primaryColour}16 0%,transparent 65%);
+      }
+      #intro-ring2 {
+        position:absolute; top:180px; left:50%; transform:translateX(-50%);
+        width:840px; height:840px; border-radius:50%;
+        border:1px solid ${primaryColour}14;
+      }
+      #intro-logo-shell {
+        position:absolute; top:480px; left:50%; transform:translateX(-50%);
+        width:180px; height:180px; border-radius:36px;
+        background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.14);
+        display:flex; align-items:center; justify-content:center; overflow:hidden;
+      }
+      #intro-logo-shell img { width:78%; height:78%; object-fit:contain; }
+      #intro-text-area {
+        position:absolute; bottom:120px; left:80px; right:80px;
+        display:flex; flex-direction:column; gap:20px;
+      }
+      #intro-badge {
+        font-size:24px; font-weight:800; letter-spacing:0.22em; text-transform:uppercase;
+        padding:12px 32px; border-radius:100px; border:2px solid ${primaryColour};
+        color:${primaryColour}; display:inline-block; align-self:flex-start;
+      }
+      #intro-service {
+        font-size:96px; font-weight:800; line-height:0.93; letter-spacing:-0.04em;
+        text-wrap:balance;
+      }
+      #intro-company {
+        font-size:30px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+        color:rgba(240,244,255,0.48);
+      }
+      #intro-bar { position:absolute; bottom:0; left:0; width:100%; height:10px; background:${primaryColour}; }
+
+      /* ── PHOTOS ── */
+      .ps img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+      .po {
+        position:absolute; bottom:0; left:0; right:0;
+        padding:220px 80px 110px;
+        background:linear-gradient(to top,rgba(11,19,34,0.92) 0%,rgba(11,19,34,0.44) 55%,transparent 100%);
+        display:flex; flex-direction:column; gap:18px;
+      }
+      .po-badge {
+        font-size:22px; font-weight:700; letter-spacing:0.16em; text-transform:uppercase;
+        padding:10px 26px; border-radius:100px; border:1px solid; backdrop-filter:blur(8px);
+        display:inline-block; align-self:flex-start;
+      }
+      .po-title {
+        font-size:76px; font-weight:800; line-height:1.0; letter-spacing:-0.03em; text-wrap:balance;
+      }
+      .po-company {
+        font-size:30px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase;
+        color:rgba(240,244,255,0.62);
+      }
+
+      /* ── OUTRO ── */
+      #outro-bg {
+        position:absolute; inset:0;
+        background:linear-gradient(180deg,#0d1a2e 0%,#0b1322 100%);
+      }
+      #outro-glow {
+        position:absolute; top:820px; left:50%; transform:translateX(-50%);
+        width:900px; height:900px; border-radius:50%;
+        background:radial-gradient(circle,${primaryColour}1c 0%,transparent 65%);
+        pointer-events:none;
+      }
+      #outro-logo-shell {
+        position:absolute; top:260px; left:80px;
+        width:140px; height:140px; border-radius:28px;
+        background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.13);
+        display:flex; align-items:center; justify-content:center; overflow:hidden;
+      }
+      #outro-logo-shell img { width:78%; height:78%; object-fit:contain; }
+      #outro-text-area {
+        position:absolute; top:1060px; left:80px; right:80px;
+        display:flex; flex-direction:column; gap:24px;
+      }
+      #outro-eyebrow {
+        font-size:26px; font-weight:700; letter-spacing:0.2em; text-transform:uppercase;
+        color:rgba(240,244,255,0.44);
+      }
+      #outro-company {
+        font-size:112px; font-weight:800; line-height:0.91; letter-spacing:-0.04em;
+        text-wrap:balance; color:${primaryColour};
+      }
+      #outro-bar { position:absolute; bottom:0; left:0; width:100%; height:10px; background:${primaryColour}; }
+    </style>
+  </head>
+  <body>
+    <div id="root"
+         data-composition-id="recent-job-hs-loop"
+         data-start="0"
+         data-duration="${totalDuration}"
+         data-width="${DEFAULT_WIDTH}"
+         data-height="${DEFAULT_HEIGHT}">
+
+      <div id="intro-card" class="clip" data-start="0" data-duration="${INTRO_DUR}" data-track-index="0">
+        <div id="intro-bg"></div>
+        <div id="intro-ring1"></div>
+        <div id="intro-ring2"></div>
+        ${logoUrl ? `<div id="intro-logo-shell"><img src="${logoUrl}" alt="" /></div>` : ''}
+        <div id="intro-text-area">
+          <div id="intro-badge">Recent Job</div>
+          <div id="intro-service">${categoryName}</div>
+          ${companyName ? `<div id="intro-company">${companyName}</div>` : ''}
+        </div>
+        <div id="intro-bar"></div>
+      </div>
+
+      ${photoNodes}
+
+      <div id="outro-card" class="clip" data-start="${outroStart}" data-duration="${OUTRO_DUR}" data-track-index="2">
+        <div id="outro-bg"></div>
+        <div id="outro-glow"></div>
+        ${logoUrl ? `<div id="outro-logo-shell"><img src="${logoUrl}" alt="" /></div>` : ''}
+        <div id="outro-text-area">
+          <div id="outro-eyebrow">Quality You Can See</div>
+          ${companyName ? `<div id="outro-company">${companyName}</div>` : ''}
+        </div>
+        <div id="outro-bar"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      // INTRO
+      tl.to("#intro-card", {opacity:1,duration:0.5,ease:"power2.out"}, 0);
+      tl.fromTo("#intro-ring1", {opacity:0,scale:0.8}, {opacity:1,scale:1,duration:0.7,ease:"power2.out"}, 0.05);
+      tl.fromTo("#intro-ring2", {opacity:0,scale:0.84}, {opacity:1,scale:1,duration:0.8,ease:"power2.out"}, 0.1);
+      ${logoUrl ? `tl.fromTo("#intro-logo-shell", {opacity:0,scale:0.88}, {opacity:1,scale:1,duration:0.44,ease:"back.out(1.4)"}, 0.14);` : ''}
+      tl.fromTo("#intro-badge", {opacity:0,x:-16}, {opacity:1,x:0,duration:0.4,ease:"power2.out"}, 0.22);
+      tl.fromTo("#intro-service", {opacity:0,y:26}, {opacity:1,y:0,duration:0.5,ease:"power2.out"}, 0.36);
+      tl.fromTo("#intro-company", {opacity:0,y:14}, {opacity:1,y:0,duration:0.38,ease:"power2.out"}, 0.56);
+      tl.to("#intro-card", {opacity:0,duration:0.4,ease:"power2.inOut"}, ${INTRO_DUR - 0.4});
+
+      // PHOTOS
+      ${photoTimeline}
+
+      // OUTRO
+      tl.to("#outro-card", {opacity:1,duration:0.52,ease:"power2.out"}, ${outroStart});
+      tl.fromTo("#outro-glow", {opacity:0,scale:0.7}, {opacity:1,scale:1,duration:0.8,ease:"power2.out"}, ${Number((outroStart + 0.04).toFixed(2))});
+      ${logoUrl ? `tl.fromTo("#outro-logo-shell", {opacity:0,x:-12}, {opacity:1,x:0,duration:0.38,ease:"power2.out"}, ${Number((outroStart + 0.16).toFixed(2))});` : ''}
+      tl.fromTo("#outro-eyebrow", {opacity:0,y:14}, {opacity:1,y:0,duration:0.38,ease:"power2.out"}, ${Number((outroStart + 0.22).toFixed(2))});
+      tl.fromTo("#outro-company", {opacity:0,y:28}, {opacity:1,y:0,duration:0.52,ease:"power2.out"}, ${Number((outroStart + 0.36).toFixed(2))});
+      tl.to("#outro-card", {opacity:0,duration:0.4,ease:"power2.inOut"}, ${Number((totalDuration - 0.4).toFixed(2))});
+
+      window.__timelines["recent-job-hs-loop"] = tl;
+    </script>
+    <script>${HYPERFRAMES_HF_BRIDGE_SCRIPT}</script>
+  </body>
+</html>`;
+}
+
 function buildHtml(snapshotInput: ProviderLabPostSnapshot, templateId: string): string {
   if (templateId === SPLIT_TEMPLATE_ID) {
     return buildSplitPanelHtml(snapshotInput);
+  }
+  if (templateId === RECENT_JOB_LOOP_TEMPLATE_ID) {
+    return buildRecentJobLoopHtml(snapshotInput);
   }
   return buildBasicHtml(snapshotInput);
 }
@@ -983,7 +1214,7 @@ export async function renderHyperframesComposition(
 }
 
 function resolveTemplateId(templateId: string): string {
-  return HYPERFRAMES_TEMPLATES.some((template) => template.id === templateId)
+  return HYPERFRAMES_TEMPLATES.some((t) => t.id === templateId)
     ? templateId
     : BASIC_TEMPLATE_ID;
 }

@@ -166,6 +166,6 @@ Required shape for any HTML sent into `hyperframes render`:
 2. A registered timeline or player that can be driven by `seek(t)`.
 3. A `window.__hf` bridge that exposes `duration` and `seek(t)`.
 
-The `src/providers/hyperframes.ts` provider includes a reusable bridge (`HYPERFRAMES_HF_BRIDGE_SCRIPT`) that reads from `window.__timelines` (GSAP timelines). Any new provider HTML builder must include it — both `buildBasicHtml`, `buildSplitPanelHtml`, and `buildHyperframesCompositionDocument` do.
+The `src/providers/hyperframes.ts` provider includes a reusable bridge (`HYPERFRAMES_HF_BRIDGE_SCRIPT`) that reads from `window.__timelines` (GSAP timelines). Any new provider HTML builder must include it — `buildBasicHtml`, `buildSplitPanelHtml`, `buildRecentJobLoopHtml`, and `buildHyperframesCompositionDocument` all do.
 
 See [skills/hyperframes-template-authoring/SKILL.md](./skills/hyperframes-template-authoring/SKILL.md) for the full authoring workflow, working template skeleton, and verification steps.

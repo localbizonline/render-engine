@@ -174,6 +174,55 @@ function shorten(value: string | null | undefined, maxLength: number): string {
   return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function pickDistinctText(
+  values: Array<string | null | undefined>,
+  used: string[] = [],
+): string {
+  const usedSet = new Set(
+    used
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean),
+  );
+
+  for (const value of values) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) continue;
+    if (usedSet.has(trimmed.toLowerCase())) continue;
+    return trimmed;
+  }
+
+  return '';
+}
+
+function resolvePostCopy(
+  snapshot: ProviderLabPostSnapshot,
+  limits: {
+    title: number;
+    accent: number;
+    body: number;
+  },
+) {
+  const title = pickDistinctText([
+    snapshot.content.title,
+    snapshot.content.subtitle,
+    snapshot.content.body,
+  ]);
+  const accent = pickDistinctText([
+    snapshot.content.subtitle,
+    snapshot.content.body,
+  ], [title]);
+  const body = pickDistinctText([
+    snapshot.content.body,
+    snapshot.content.subtitle,
+  ], [title, accent]);
+
+  return {
+    title: shorten(title, limits.title),
+    accent: shorten(accent, limits.accent),
+    body: shorten(body, limits.body),
+  };
+}
+
 function parseJsonRecord(value: unknown): Record<string, unknown> {
   if (!value) return {};
   if (typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>;
@@ -243,13 +292,11 @@ function buildSceneSchedule(snapshot: ProviderLabPostSnapshot) {
 
 function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
   const snapshot = normalizeSnapshot(snapshotInput);
-  const title = escapeHtml(shorten(snapshot.content.title || snapshot.brand.company_name || 'Provider Lab Reel', 80));
-  const subtitle = escapeHtml(shorten(snapshot.content.subtitle || snapshot.post.category_name || 'Real post snapshot', 80));
-  const body = escapeHtml(shorten(snapshot.content.body || 'Provider experiment render using a real Local Pros post snapshot.', 180));
-  const companyName = escapeHtml(shorten(snapshot.brand.company_name || 'Local Pros', 60));
-  const platforms = escapeHtml((snapshot.platform_context.platforms || []).join(' • ') || 'Social Reel');
+  const copy = resolvePostCopy(snapshot, { title: 80, accent: 80, body: 180 });
+  const title = escapeHtml(copy.title);
+  const accent = escapeHtml(copy.accent);
+  const body = escapeHtml(copy.body);
   const primaryColour = pickColor(snapshot.brand.primary_colour, '#235BAA');
-  const secondaryColour = pickColor(snapshot.brand.secondary_colour, '#4582D0');
   const logoUrl = snapshot.brand.logo_url ? escapeHtml(snapshot.brand.logo_url) : '';
   const { introDuration, imageScenes, outroStart, outroDuration, totalDuration } = buildSceneSchedule(snapshot);
 
@@ -356,6 +403,14 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
         text-wrap: balance;
       }
 
+      #outro-body {
+        max-width: 780px;
+        font-size: 36px;
+        line-height: 1.2;
+        color: rgba(9, 17, 31, 0.78);
+        margin-bottom: 36px;
+      }
+
       #outro-logo {
         width: 180px;
         height: 180px;
@@ -368,13 +423,6 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
         width: 100%;
         height: 100%;
         object-fit: contain;
-      }
-
-      #outro-company {
-        margin-top: 22px;
-        font-size: 30px;
-        font-weight: 600;
-        color: ${secondaryColour};
       }
     </style>
   </head>
@@ -389,7 +437,7 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
         data-track-index="0"
       >
         <div id="intro-logo-wrap">
-          <img src="${logoUrl}" alt="${companyName}" />
+          <img src="${logoUrl}" alt="" />
         </div>
       </div>` : ''}
       ${imageNodes}
@@ -400,10 +448,10 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
         data-duration="${outroDuration}"
         data-track-index="1"
       >
-        <div id="outro-kicker">${platforms}</div>
-        <div id="outro-title">${title}</div>
-        ${logoUrl ? `<div id="outro-logo"><img src="${logoUrl}" alt="${companyName}" /></div>` : ''}
-        <div id="outro-company">${companyName}</div>
+        ${accent ? `<div id="outro-kicker">${accent}</div>` : ''}
+        ${title ? `<div id="outro-title">${title}</div>` : ''}
+        ${body ? `<div id="outro-body">${body}</div>` : ''}
+        ${logoUrl ? `<div id="outro-logo"><img src="${logoUrl}" alt="" /></div>` : ''}
       </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
@@ -421,8 +469,8 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
       }).join('\n')}
       tl.fromTo("#outro-card", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, ${outroStart});
       tl.fromTo("#outro-title", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, ${Number((outroStart + 0.1).toFixed(2))});
+      tl.fromTo("#outro-body", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.38, ease: "power2.out" }, ${Number((outroStart + 0.28).toFixed(2))});
       ${logoUrl ? `tl.fromTo("#outro-logo", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.38, ease: "power2.out" }, ${Number((outroStart + 0.38).toFixed(2))});` : ''}
-      tl.fromTo("#outro-company", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.34, ease: "power2.out" }, ${Number((outroStart + 0.52).toFixed(2))});
       window.__timelines["provider-lab-main"] = tl;
     </script>
     <script>${HYPERFRAMES_HF_BRIDGE_SCRIPT}</script>
@@ -432,14 +480,14 @@ function buildBasicHtml(snapshotInput: ProviderLabPostSnapshot): string {
 
 function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
   const snapshot = normalizeSnapshot(snapshotInput);
-  const title = escapeHtml(shorten(snapshot.content.title || snapshot.brand.company_name || 'Provider Lab Reel', 72));
-  const subtitle = escapeHtml(shorten(snapshot.content.subtitle || snapshot.post.category_name || 'Real post snapshot', 80));
-  const body = escapeHtml(shorten(snapshot.content.body || 'Provider experiment render using a real Local Pros post snapshot.', 150));
-  const companyName = escapeHtml(shorten(snapshot.brand.company_name || 'Local Pros', 60));
-  const primaryColour = pickColor(snapshot.brand.primary_colour, '#235BAA');
+  const copy = resolvePostCopy(snapshot, { title: 72, accent: 80, body: 150 });
+  const title = escapeHtml(copy.title);
+  const accent = escapeHtml(copy.accent);
+  const body = escapeHtml(copy.body);
+  const captionTitle = escapeHtml(copy.accent || copy.title);
+  const captionBody = escapeHtml(copy.body || (copy.accent && copy.accent !== copy.title ? copy.accent : ''));
   const secondaryColour = pickColor(snapshot.brand.secondary_colour, '#4582D0');
   const logoUrl = snapshot.brand.logo_url ? escapeHtml(snapshot.brand.logo_url) : '';
-  const platforms = escapeHtml((snapshot.platform_context.platforms || []).join(' • ') || 'Social Reel');
   const { imageScenes, totalDuration } = buildSceneSchedule(snapshot);
   const cardScenes = imageScenes.slice(0, 4);
 
@@ -516,15 +564,8 @@ function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
         line-height: 0.93;
         letter-spacing: -0.05em;
         font-weight: 800;
-        margin-bottom: 20px;
-        text-wrap: balance;
-      }
-
-      #subtitle {
-        font-size: 38px;
-        line-height: 1.18;
-        color: rgba(245,248,255,0.8);
         margin-bottom: 28px;
+        text-wrap: balance;
       }
 
       #body-copy {
@@ -532,27 +573,7 @@ function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
         line-height: 1.34;
         color: rgba(245,248,255,0.78);
         max-width: 360px;
-      }
-
-      #platform-chip {
         margin-top: auto;
-        display: inline-flex;
-        align-items: center;
-        gap: 14px;
-        padding: 18px 24px;
-        border-radius: 999px;
-        background: linear-gradient(90deg, ${primaryColour}, ${secondaryColour});
-        font-size: 24px;
-        font-weight: 700;
-        align-self: flex-start;
-      }
-
-      #platform-chip::before {
-        content: "";
-        width: 12px;
-        height: 12px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.86);
       }
 
       .photo-card {
@@ -627,21 +648,20 @@ function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
   <body>
     <div id="root" data-composition-id="provider-lab-main" data-start="0" data-duration="${totalDuration}" data-width="${DEFAULT_WIDTH}" data-height="${DEFAULT_HEIGHT}">
       <div id="left-panel" class="clip" data-start="0" data-duration="${totalDuration}" data-track-index="0">
-        <div id="eyebrow">${companyName}</div>
-        <div id="headline">${title}</div>
-        <div id="subtitle">${subtitle}</div>
-        <div id="body-copy">${body}</div>
-        <div id="platform-chip">${platforms}</div>
+        ${accent ? `<div id="eyebrow">${accent}</div>` : ''}
+        ${title ? `<div id="headline">${title}</div>` : ''}
+        ${body ? `<div id="body-copy">${body}</div>` : ''}
       </div>
       ${cardNodes}
       ${logoUrl ? `
       <div id="logo-shell" class="clip" data-start="0" data-duration="${totalDuration}" data-track-index="2">
-        <img src="${logoUrl}" alt="${companyName}" />
+        <img src="${logoUrl}" alt="" />
       </div>` : ''}
+      ${(captionTitle || captionBody) ? `
       <div id="caption-strip" class="clip" data-start="${Math.max(totalDuration - 1.55, 0.4).toFixed(2)}" data-duration="1.55" data-track-index="3">
-        <div id="caption-strip-title">${companyName}</div>
-        <div id="caption-strip-body">${body}</div>
-      </div>
+        ${captionTitle ? `<div id="caption-strip-title">${captionTitle}</div>` : ''}
+        ${captionBody ? `<div id="caption-strip-body">${captionBody}</div>` : ''}
+      </div>` : ''}
     </div>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
     <script>
@@ -649,7 +669,6 @@ function buildSplitPanelHtml(snapshotInput: ProviderLabPostSnapshot): string {
       const tl = gsap.timeline({ paused: true });
       tl.fromTo("#left-panel", { opacity: 0, x: -28 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.02);
       tl.fromTo("#headline", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" }, 0.12);
-      tl.fromTo("#subtitle", { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.45, ease: "power2.out" }, 0.22);
       tl.fromTo("#body-copy", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.42, ease: "power2.out" }, 0.32);
       ${cardScenes.map((scene, index) => {
         const start = Number(Math.max(scene.start - 0.04, 0.08).toFixed(2));

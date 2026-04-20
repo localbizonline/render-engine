@@ -10,8 +10,6 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      RAILWAY_TOKEN: ${{ secrets.RENDER_ENGINE_RAILWAY_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,6 +21,13 @@ jobs:
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli@4.40.0
+
+      - name: Restore Railway Auth Config
+        run: |
+          mkdir -p ~/.railway
+          cat <<'EOF' > ~/.railway/config.json
+          ${{ secrets.RENDER_ENGINE_RAILWAY_CONFIG_JSON }}
+          EOF
 
       - name: Link Railway Service
         run: railway link --project 3453ac5d-bc4c-4c31-8c11-6a99f5edb2b4 --service render-engine --environment production

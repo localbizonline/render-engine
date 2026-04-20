@@ -1,0 +1,31 @@
+name: Deploy Render Engine
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-render-engine-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RENDER_ENGINE_RAILWAY_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli@4.40.0
+
+      - name: Link Railway Service
+        run: railway link --project 3453ac5d-bc4c-4c31-8c11-6a99f5edb2b4 --service render-engine --environment production
+
+      - name: Deploy To Railway
+        run: railway deployment up --ci --service render-engine

@@ -47,6 +47,14 @@ export interface ProviderRenderArtifacts {
   width: number;
   height: number;
   verificationSummary?: string;
+  timings?: {
+    cliMs: number;
+    verifyMs: number;
+    posterMs: number;
+    totalMs: number;
+    workerCount: number | null;
+    runtime: 'cloudflare' | 'railway' | 'local';
+  };
 }
 
 export interface ProviderPreviewResult {

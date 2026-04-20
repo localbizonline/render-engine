@@ -719,27 +719,62 @@ function resolveHyperframesCliPath() {
   return fs.existsSync(localBin) ? localBin : 'hyperframes';
 }
 
-function isContainerizedHyperframesRuntime() {
-  return process.env.CONTAINER === 'true'
-    || Boolean(process.env.RAILWAY_ENVIRONMENT)
+function isRailwayRuntime() {
+  return Boolean(process.env.RAILWAY_ENVIRONMENT)
     || Boolean(process.env.RAILWAY_PUBLIC_DOMAIN);
 }
 
-function resolveHyperframesWorkerCount() {
-  const configured = process.env.HYPERFRAMES_RENDER_WORKERS?.trim()
-    || process.env.PRODUCER_MAX_WORKERS?.trim();
+function isCloudflareContainerRuntime() {
+  return process.env.CONTAINER === 'true' && !isRailwayRuntime();
+}
 
-  if (configured) {
-    const parsed = Number.parseInt(configured, 10);
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-    console.warn(`[hyperframes] ignoring invalid worker override: ${configured}`);
+function isContainerizedHyperframesRuntime() {
+  return isRailwayRuntime() || isCloudflareContainerRuntime();
+}
+
+type HyperframesRuntimeLabel = 'cloudflare' | 'railway' | 'local';
+
+function resolveHyperframesRuntimeLabel(): HyperframesRuntimeLabel {
+  if (isRailwayRuntime()) return 'railway';
+  if (isCloudflareContainerRuntime()) return 'cloudflare';
+  return 'local';
+}
+
+function parsePositiveInt(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function resolveHyperframesWorkerCount() {
+  const runtime = resolveHyperframesRuntimeLabel();
+
+  const runtimeSpecificRaw = runtime === 'cloudflare'
+    ? process.env.HYPERFRAMES_RENDER_WORKERS_CLOUDFLARE
+    : runtime === 'railway'
+      ? process.env.HYPERFRAMES_RENDER_WORKERS_RAILWAY
+      : undefined;
+
+  const runtimeSpecific = parsePositiveInt(runtimeSpecificRaw);
+  if (runtimeSpecific) return runtimeSpecific;
+  if (runtimeSpecificRaw && runtimeSpecificRaw.trim()) {
+    console.warn(`[hyperframes] ignoring invalid ${runtime} worker override: ${runtimeSpecificRaw}`);
   }
 
-  // Railway currently enforces a tight PID budget. Letting the Hyperframes CLI
-  // auto-scale to 6 workers on that host can exhaust Chromium thread/process
-  // creation inside a single request, so default to sequential capture there.
+  const globalRaw = process.env.HYPERFRAMES_RENDER_WORKERS?.trim()
+    || process.env.PRODUCER_MAX_WORKERS?.trim();
+  const globalParsed = parsePositiveInt(globalRaw);
+  if (globalParsed) return globalParsed;
+  if (globalRaw) {
+    console.warn(`[hyperframes] ignoring invalid worker override: ${globalRaw}`);
+  }
+
+  // Containerised hosts (Railway, and Cloudflare by default) start at a
+  // single worker. Railway enforces a tight PID budget where auto-scaling
+  // the CLI to 6 workers exhausts Chromium thread/process creation inside
+  // a single request. Cloudflare Containers have not yet been benchmarked,
+  // so we default conservatively and expose HYPERFRAMES_RENDER_WORKERS_CLOUDFLARE
+  // to tune without touching Railway.
   return isContainerizedHyperframesRuntime() ? 1 : null;
 }
 
@@ -751,6 +786,10 @@ async function runHyperframesCliRender(input: {
   const cliPath = resolveHyperframesCliPath();
   const quality = input.mode === 'preview' ? 'draft' : 'standard';
   const workerCount = resolveHyperframesWorkerCount();
+  const runtime = resolveHyperframesRuntimeLabel();
+  console.log(
+    `[hyperframes] cli render starting runtime=${runtime} workers=${workerCount ?? 'auto'} mode=${input.mode} quality=${quality}`,
+  );
   const args = [
     'render',
     input.projectDir,
@@ -828,16 +867,29 @@ async function renderHyperframesHtmlDocument(input: {
   const htmlPath = path.join(projectDir, 'index.html');
   fs.writeFileSync(htmlPath, input.htmlDocument, 'utf8');
 
+  const timings = {
+    cliMs: 0,
+    verifyMs: 0,
+    posterMs: 0,
+    totalMs: 0,
+    workerCount: resolveHyperframesWorkerCount(),
+    runtime: resolveHyperframesRuntimeLabel(),
+  };
+  const overallStart = Date.now();
   try {
+    const cliStart = Date.now();
     await runHyperframesCliRender({
       projectDir,
       outputPath,
       mode: input.mode,
     });
+    timings.cliMs = Date.now() - cliStart;
     const shouldVerify = input.mode === 'final' || process.env.HYPERFRAMES_VERIFY_PREVIEW === 'true';
+    const verifyStart = Date.now();
     const verification = shouldVerify
       ? await scanVideoForHyperframesFrameIssues(outputPath)
       : null;
+    timings.verifyMs = shouldVerify ? Date.now() - verifyStart : 0;
     if (verification?.failed) {
       throw new Error(`Hyperframes frame gate failed: ${verification.summary}`);
     }
@@ -849,7 +901,13 @@ async function renderHyperframesHtmlDocument(input: {
     const posterSeconds = durationSeconds > 0
       ? Math.min(Math.max(durationSeconds * 0.2, 0.5), durationSeconds)
       : 0.5;
+    const posterStart = Date.now();
     const posterBuffer = await capturePosterFrame(outputPath, posterSeconds);
+    timings.posterMs = Date.now() - posterStart;
+    timings.totalMs = Date.now() - overallStart;
+    console.log(
+      `[hyperframes timing] runtime=${resolveHyperframesRuntimeLabel()} mode=${input.mode} cliMs=${timings.cliMs} verifyMs=${timings.verifyMs} posterMs=${timings.posterMs} totalMs=${timings.totalMs}`,
+    );
 
     return {
       templateId: HYPERFRAMES_TEMPLATE_ID,
@@ -859,6 +917,7 @@ async function renderHyperframesHtmlDocument(input: {
       width: DEFAULT_WIDTH,
       height: DEFAULT_HEIGHT,
       verificationSummary: verification?.summary,
+      timings,
     };
   } finally {
     fs.rmSync(projectDir, { recursive: true, force: true });

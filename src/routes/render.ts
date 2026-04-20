@@ -185,6 +185,7 @@ async function handleHyperframesRender(
         width: result.width,
         height: result.height,
         verificationSummary: result.verificationSummary,
+        timings: result.timings,
       },
     });
   } catch (err) {

@@ -9,6 +9,7 @@ import type {
   ProviderRenderArtifacts,
   ProviderLabTemplateDefinition,
 } from './types.js';
+import { scanVideoForHyperframesFrameIssues } from '../utils/hyperframes-frame-gate.js';
 
 const DEFAULT_WIDTH = 1080;
 const DEFAULT_HEIGHT = 1920;
@@ -113,15 +114,49 @@ const HYPERFRAMES_HF_BRIDGE_SCRIPT = `
       return fallbackDuration();
     },
     seek: function(t){
+      // Production captures were intermittently hitting black/near-black
+      // frames when seeking to exact frame-boundary timestamps like 5.000s,
+      // 7.500s, and 10.000s. Bias the seek forward by 1ms so capture lands
+      // just inside the target frame instead of on a brittle boundary.
+      var safeT = Math.max(0, Number(t) + 0.001);
       var tls = timelines();
       for (var i = 0; i < tls.length; i++) {
         var tl = tls[i];
         if (!tl) continue;
         try { if (typeof tl.pause === 'function') tl.pause(); } catch(_) {}
         try {
-          if (typeof tl.seek === 'function') tl.seek(t, false);
-          else if (typeof tl.time === 'function') tl.time(t);
+          if (typeof tl.seek === 'function') tl.seek(safeT, false);
+          else if (typeof tl.time === 'function') tl.time(safeT);
         } catch(_) {}
+      }
+    },
+    settle: async function(){
+      try {
+        if (document.fonts && document.fonts.ready) {
+          await document.fonts.ready;
+        }
+      } catch (_) {}
+      try {
+        var images = Array.prototype.slice.call(document.images || []);
+        var pending = [];
+        for (var i = 0; i < images.length; i++) {
+          var img = images[i];
+          if (!img || typeof img.decode !== 'function') continue;
+          if (img.complete && img.naturalWidth > 0) continue;
+          pending.push(img.decode().catch(function(){}));
+        }
+        if (pending.length > 0) {
+          await Promise.all(pending);
+        }
+      } catch (_) {}
+      if (typeof requestAnimationFrame === 'function') {
+        await new Promise(function(resolve){
+          requestAnimationFrame(function(){
+            requestAnimationFrame(function(){
+              resolve(undefined);
+            });
+          });
+        });
       }
     },
   };
@@ -665,6 +700,30 @@ function resolveHyperframesCliPath() {
   return fs.existsSync(localBin) ? localBin : 'hyperframes';
 }
 
+function isContainerizedHyperframesRuntime() {
+  return process.env.CONTAINER === 'true'
+    || Boolean(process.env.RAILWAY_ENVIRONMENT)
+    || Boolean(process.env.RAILWAY_PUBLIC_DOMAIN);
+}
+
+function resolveHyperframesWorkerCount() {
+  const configured = process.env.HYPERFRAMES_RENDER_WORKERS?.trim()
+    || process.env.PRODUCER_MAX_WORKERS?.trim();
+
+  if (configured) {
+    const parsed = Number.parseInt(configured, 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+    console.warn(`[hyperframes] ignoring invalid worker override: ${configured}`);
+  }
+
+  // Railway currently enforces a tight PID budget. Letting the Hyperframes CLI
+  // auto-scale to 6 workers on that host can exhaust Chromium thread/process
+  // creation inside a single request, so default to sequential capture there.
+  return isContainerizedHyperframesRuntime() ? 1 : null;
+}
+
 async function runHyperframesCliRender(input: {
   projectDir: string;
   outputPath: string;
@@ -672,6 +731,7 @@ async function runHyperframesCliRender(input: {
 }) {
   const cliPath = resolveHyperframesCliPath();
   const quality = input.mode === 'preview' ? 'draft' : 'standard';
+  const workerCount = resolveHyperframesWorkerCount();
   const args = [
     'render',
     input.projectDir,
@@ -683,14 +743,35 @@ async function runHyperframesCliRender(input: {
     quality,
     '--quiet',
   ];
+  if (workerCount) {
+    args.push('--workers', String(workerCount));
+  }
 
   await new Promise<void>((resolve, reject) => {
+    const childEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      CI: process.env.CI || '1',
+      // HeadlessExperimental.beginFrame on the Linux render host can emit
+      // intermittent black frames for otherwise-correct Hyperframes seeks.
+      // Force the CLI onto the stable screenshot capture path for this provider.
+      PRODUCER_FORCE_SCREENSHOT: 'true',
+    };
+
+    if (workerCount) {
+      childEnv.PRODUCER_MAX_WORKERS = String(workerCount);
+    }
+
+    // In Railway/Docker we also have full Chromium available. Prefer that
+    // browser over chrome-headless-shell for screenshot-mode captures, since
+    // the black-frame artifact is production-only and does not reproduce with
+    // normal browser screenshots locally.
+    if (process.env.PUPPETEER_EXECUTABLE_PATH?.trim()) {
+      childEnv.PRODUCER_HEADLESS_SHELL_PATH = process.env.PUPPETEER_EXECUTABLE_PATH.trim();
+    }
+
     const cli = spawn(cliPath, args, {
       cwd: input.projectDir,
-      env: {
-        ...process.env,
-        CI: process.env.CI || '1',
-      },
+      env: childEnv,
     });
 
     let output = '';
@@ -734,6 +815,16 @@ async function renderHyperframesHtmlDocument(input: {
       outputPath,
       mode: input.mode,
     });
+    const shouldVerify = input.mode === 'final' || process.env.HYPERFRAMES_VERIFY_PREVIEW === 'true';
+    const verification = shouldVerify
+      ? await scanVideoForHyperframesFrameIssues(outputPath)
+      : null;
+    if (verification?.failed) {
+      throw new Error(`Hyperframes frame gate failed: ${verification.summary}`);
+    }
+    if (verification && verification.darkFrames.length > 0) {
+      console.warn(`[hyperframes frame gate] dark-frame warning: ${verification.summary}`);
+    }
     const mp4Buffer = fs.readFileSync(outputPath);
     const durationSeconds = input.durationMs ? input.durationMs / 1000 : 0;
     const posterSeconds = durationSeconds > 0
@@ -748,6 +839,7 @@ async function renderHyperframesHtmlDocument(input: {
       durationMs: input.durationMs || Math.round((durationSeconds || extractStaticDurationSeconds(input.htmlDocument) || 0) * 1000),
       width: DEFAULT_WIDTH,
       height: DEFAULT_HEIGHT,
+      verificationSummary: verification?.summary,
     };
   } finally {
     fs.rmSync(projectDir, { recursive: true, force: true });

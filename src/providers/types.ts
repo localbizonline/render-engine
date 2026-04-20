@@ -46,6 +46,7 @@ export interface ProviderRenderArtifacts {
   durationMs: number;
   width: number;
   height: number;
+  verificationSummary?: string;
 }
 
 export interface ProviderPreviewResult {

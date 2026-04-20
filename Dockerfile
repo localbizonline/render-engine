@@ -17,6 +17,8 @@ WORKDIR /app
 # Install ALL deps (including devDependencies for building)
 COPY package.json package-lock.json* ./
 RUN npm ci
+COPY scripts/ ./scripts/
+RUN node ./scripts/patch-hyperframes-cli.mjs
 
 # Copy source and build
 COPY tsconfig.json ./
@@ -31,6 +33,7 @@ FROM node:22-bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    dumb-init \
     unzip \
     chromium \
     libcairo2 \
@@ -80,6 +83,8 @@ WORKDIR /app
 # Copy package files and install production deps only
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
+COPY scripts/ ./scripts/
+RUN node ./scripts/patch-hyperframes-cli.mjs
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
@@ -107,4 +112,5 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/index.js"]

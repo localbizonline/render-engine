@@ -391,6 +391,12 @@ curl -I https://render-engine-production.up.railway.app/vendor/konva.min.js
 npx playwright test tests/live-production.playwright.spec.js
 ```
 
+Production note:
+- The Docker build patches the bundled Hyperframes CLI using `scripts/patch-hyperframes-cli.mjs`.
+- That patch is part of the production render path for Hyperframes capture stability, post-seek paint settling, and H.264 tuning.
+- Final Hyperframes renders are frame-gated before upload to catch black frames and one-frame localized dropouts.
+- If Hyperframes-only MP4 artifacts regress, read `docs/HYPERFRAMES_BLACK_FRAME_DEBUG_2026-04-19.md` and `docs/HYPERFRAMES_TEMPLATE_HARDENING_2026-04-19.md` before changing composition JS.
+
 ## R2 Storage
 
 - Bucket: `social-post-images`

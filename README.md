@@ -62,7 +62,16 @@ npm run build
 - `POST /api/render/hyperframes/preview` is the composition-native preview path used by V2 Hyperframes Studio preview parity.
 - `POST /api/render/hyperframes` is the composition-native final MP4 path used by V2 Hyperframes Studio and queue-time Hyperframes renders.
 
+## Hyperframes Production Notes
+
+- Railway production uses Docker, and Hyperframes behavior can differ materially from local macOS runs.
+- The Docker build patches the bundled Hyperframes CLI via `scripts/patch-hyperframes-cli.mjs` for production capture stability.
+- Final Hyperframes renders are frame-gated before upload to catch black frames and one-frame localized dropouts.
+- If you are debugging frame corruption or black-frame flashes, start with the incident log in `docs/` before rewriting composition JS.
+
 ## Docs
 
 - operating guide: [AGENTS.md](AGENTS.md)
 - repo memory: [CLAUDE.md](CLAUDE.md)
+- Hyperframes black-frame incident log: [docs/HYPERFRAMES_BLACK_FRAME_DEBUG_2026-04-19.md](docs/HYPERFRAMES_BLACK_FRAME_DEBUG_2026-04-19.md)
+- Hyperframes template hardening guide: [docs/HYPERFRAMES_TEMPLATE_HARDENING_2026-04-19.md](docs/HYPERFRAMES_TEMPLATE_HARDENING_2026-04-19.md)

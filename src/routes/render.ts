@@ -132,6 +132,7 @@ async function handleHyperframesRender(
         posterBytes: result.posterBuffer.length,
         width: result.width,
         height: result.height,
+        verificationSummary: result.verificationSummary,
       },
     });
   } catch (err) {

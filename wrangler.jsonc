@@ -1,0 +1,53 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "render-engine-hyperframes",
+  "main": "src/cf-worker.ts",
+  "compatibility_date": "2026-04-20",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  },
+  "containers": [
+    {
+      "name": "hyperframes-render-engine",
+      "class_name": "HyperframesRenderEngineContainer",
+      "image": "./Dockerfile",
+      "instance_type": "standard-3",
+      "max_instances": 1,
+      "scheduling_policy": "regional",
+      // Cloudflare's Apr 15, 2026 containers rollout added region constraints.
+      // Keep the target explicit here so production stays in Western Europe.
+      "constraints": {
+        "regions": ["WEUR"]
+      },
+      "wrangler_ssh": {
+        "enabled": true
+      },
+      "rollout_step_percentage": 100,
+      "rollout_active_grace_period": 60
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "HYPERFRAMES_RENDER_ENGINE",
+        "class_name": "HyperframesRenderEngineContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["HyperframesRenderEngineContainer"]
+    }
+  ],
+  "dev": {
+    "port": 8788,
+    "enable_containers": true
+  },
+  "env": {
+    "staging": {
+      "name": "render-engine-hyperframes-staging"
+    }
+  }
+}

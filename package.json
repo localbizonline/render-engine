@@ -5,9 +5,12 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev:cf": "wrangler dev",
     "build": "tsc",
+    "check:cf": "wrangler deploy --dry-run",
+    "deploy:cf": "wrangler deploy",
     "start": "node dist/index.js",
-    "test": "tsx --test tests/static-routes.test.mjs tests/http-routes.test.ts tests/expand-photo-frames.test.ts tests/hyperframes-frame-gate.test.ts",
+    "test": "tsx --test tests/static-routes.test.mjs tests/http-routes.test.ts tests/expand-photo-frames.test.ts tests/hyperframes-frame-gate.test.ts tests/hyperframes-provider.test.ts tests/cloudflare-worker.test.ts",
     "test:render": "tsx src/test-render.ts",
     "smoke:r2": "bash scripts/smoke-r2-write.sh",
     "scan:hyperframes-video": "tsx scripts/scan-hyperframes-video.ts"
@@ -19,6 +22,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "@aws-sdk/client-s3": "^3.988.0",
+    "@cloudflare/containers": "^0.3.2",
     "@google/genai": "^1.48.0",
     "canvas": "^3.2.1",
     "express": "^5.2.1",
@@ -37,6 +41,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^25.2.3",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.83.0"
   }
 }

@@ -12,6 +12,46 @@ import { renderHyperframesComposition } from '../providers/hyperframes.js';
 
 export const renderRouter = Router();
 
+function getContainerInstanceId() {
+  return process.env.CLOUDFLARE_DURABLE_OBJECT_ID?.trim()
+    || process.env.HOSTNAME?.trim()
+    || null
+}
+
+function logHyperframesRenderEvent(input: {
+  route: string
+  mode: 'preview' | 'final'
+  durationMs: number
+  outputVideoKey: string
+  outputPosterKey: string
+  jobId?: string
+  videoBytes?: number
+  posterBytes?: number
+  verificationSummary?: string | null
+  error?: string
+}) {
+  const payload = {
+    route: input.route,
+    mode: input.mode,
+    durationMs: input.durationMs,
+    containerInstanceId: getContainerInstanceId(),
+    outputVideoKey: input.outputVideoKey,
+    outputPosterKey: input.outputPosterKey,
+    jobId: input.jobId || null,
+    videoBytes: input.videoBytes ?? null,
+    posterBytes: input.posterBytes ?? null,
+    verificationSummary: input.verificationSummary ?? null,
+    error: input.error ?? null,
+  }
+
+  const line = `[render/hyperframes/${input.mode}] ${JSON.stringify(payload)}`
+  if (input.error) {
+    console.error(line)
+    return
+  }
+  console.log(line)
+}
+
 // ── Legacy 410 stubs (kept so external callers that still hold these URLs
 // get a clear signal rather than a generic 404) ─────────────────────────
 
@@ -119,6 +159,18 @@ async function handleHyperframesRender(
       putAt(renderOptions.outputPosterKey, result.posterBuffer, 'image/png'),
     ]);
 
+    logHyperframesRenderEvent({
+      route: req.originalUrl || req.url,
+      mode,
+      durationMs: Date.now() - t0,
+      outputVideoKey: renderOptions.outputVideoKey,
+      outputPosterKey: renderOptions.outputPosterKey,
+      jobId: renderOptions.jobId,
+      videoBytes: result.mp4Buffer.length,
+      posterBytes: result.posterBuffer.length,
+      verificationSummary: result.verificationSummary || null,
+    })
+
     return res.json({
       success: true,
       r2Key: renderOptions.outputVideoKey,
@@ -137,7 +189,15 @@ async function handleHyperframesRender(
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`[render/hyperframes/${mode}] MP4 render failed:`, message);
+    logHyperframesRenderEvent({
+      route: req.originalUrl || req.url,
+      mode,
+      durationMs: Date.now() - t0,
+      outputVideoKey: renderOptions.outputVideoKey,
+      outputPosterKey: renderOptions.outputPosterKey,
+      jobId: renderOptions.jobId,
+      error: message,
+    })
     return res.status(500).json({ success: false, error: message });
   }
 }

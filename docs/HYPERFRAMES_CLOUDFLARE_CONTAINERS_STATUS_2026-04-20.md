@@ -51,6 +51,7 @@ Secrets added to the render-engine Worker:
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET_NAME`
 - `R2_PUBLIC_URL`
+- `RENDER_API_KEY`
 
 An R2 token was created for the `social-post-images` bucket with bucket-scoped read/write permissions so the render host can:
 
@@ -70,6 +71,8 @@ Live deployment details:
 Known-good smoke check on 2026-04-20:
 
 - `GET /health` returned `200`
+- Authenticated `POST /api/render/hyperframes` with an intentionally invalid body returned `400`
+  - This confirmed request auth passed and validation handled the request instead of returning `401`.
 
 The deployed config currently uses:
 
@@ -79,23 +82,21 @@ The deployed config currently uses:
 - `scheduling_policy: "default"`
 - `wrangler_ssh.enabled: true`
 
-## Remaining blocker before production traffic
+## Production status
 
-The render host is live, but the main production app is still pinned to Railway on purpose.
+The render host is live and is now the active production backend for Hyperframes traffic.
 
-The remaining gating item before switching real Hyperframes traffic is shared auth:
+App-side production state in `social-posting-v2`:
 
-- `social-posting-v2` already has a production `RENDER_SERVICE_API_KEY`
-- this Cloudflare render host does not yet have a matching `RENDER_API_KEY`
-- if we flip traffic now, the host is reachable, but auth is not aligned the way production should be
+- `HYPERFRAMES_RENDER_SERVICE_URL=https://render-engine-hyperframes.cf7-9ca.workers.dev`
+- `HYPERFRAMES_RENDER_BACKEND=cloudflare`
+- `HYPERFRAMES_RENDER_SERVICE_API_KEY=<set>`
 
-Until auth is aligned, production should stay on:
-
-- `HYPERFRAMES_RENDER_BACKEND=railway`
+Railway remains live only as the rollback path for Hyperframes.
 
 ## What still needs to be done
 
-1. Set `RENDER_API_KEY` on this Worker to match the app's existing `RENDER_SERVICE_API_KEY`, or rotate both together.
+1. Run app-driven preview and final-render smoke tests against the production Cloudflare path and compare outputs against Railway baselines.
 2. Optionally add the remaining non-R2 secrets if needed for full production parity:
    - `DESIGNER_DEFAULT_V2_BASE_URL`
    - `DESIGNER_DEFAULT_V2_ADMIN_SECRET`
@@ -108,16 +109,18 @@ Until auth is aligned, production should stay on:
    - `GET /health`
    - `POST /api/render/hyperframes/preview`
    - `POST /api/render/hyperframes`
+4. Watch production logs for:
+   - render duration
+   - verification summary
+   - output keys and bytes written
+   - error rate
+5. Keep Railway available until Cloudflare has proven stable under real preview and queue-time load.
 
 ## Rollout recommendation
 
-Do not point production Hyperframes traffic here immediately after the account upgrade.
+Current rollout position:
 
-Recommended sequence:
-
-1. Leave `social-posting-v2` pinned to Railway with `HYPERFRAMES_RENDER_BACKEND=railway`.
-2. Keep `HYPERFRAMES_RENDER_SERVICE_URL` in the app pointed at this Cloudflare host.
-3. Align auth by setting `RENDER_API_KEY` here to the production app's render-service key, or rotate both together.
-4. Run smoke tests and compare Cloudflare outputs vs Railway outputs.
-5. Flip the app to `HYPERFRAMES_RENDER_BACKEND=cloudflare` only after parity is confirmed.
-6. Roll back by setting the selector back to `railway`.
+1. Cloudflare Containers is live for Hyperframes.
+2. App-side Hyperframes routing and Hyperframes-only auth are configured.
+3. Production is currently set to `HYPERFRAMES_RENDER_BACKEND=cloudflare`.
+4. Roll back immediately by setting the selector back to `railway`.

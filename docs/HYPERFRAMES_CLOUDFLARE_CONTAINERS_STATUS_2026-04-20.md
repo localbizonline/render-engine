@@ -183,3 +183,61 @@ Recommended order (before changing any defaults):
 3. Never remove frame-gate or `PRODUCER_FORCE_SCREENSHOT` in the first optimization pass — those were added to fix a real production black-frame issue.
 
 Rollback path is unchanged: `HYPERFRAMES_RENDER_BACKEND=railway` on the app side flips traffic off Cloudflare.
+
+## Follow-up production debugging result
+
+Later on 2026-04-20, a real production `Job Showcase Reel v2` render was debugged end-to-end against this Cloudflare host and ultimately passed.
+
+### What was learned
+
+The main production bug was not “Cloudflare randomly makes everything black”.
+
+It was specifically:
+
+- the live request asked for `runtime.duration_seconds = 9`
+- the saved composition root still carried baked `data-duration="15"`
+- the provider only injected runtime duration when the root had no duration at all
+
+That meant Cloudflare could render the intended `9s` animation and then keep capturing into stale tail time, which produced the original:
+
+- `frames=450 black=182 dark=182`
+
+### Renderer fix applied
+
+`src/providers/hyperframes.ts` now overwrites the root `data-duration` when runtime duration is present, instead of bailing out when the attribute already exists.
+
+Regression coverage was added in:
+
+- `tests/http-routes.test.ts`
+
+### What happened after the duration fix
+
+The failure shrank to only clip-boundary frames:
+
+- `frames=270 black=2 dark=2`
+- then `frames=270 black=1 dark=1`
+
+That proved the large failure was solved, and the remaining issue was a narrow intro/slideshow boundary problem rather than a full renderer/runtime failure.
+
+### Final live result
+
+After softening the intro → slideshow handoff in the template, the Cloudflare path passed with:
+
+- run id: `0842893b91e04c3bb49d57f44d2ff5c7`
+- verification summary: `frames=270 black=0 dark=0 dropouts=0`
+- response status: `200`
+- render time: about `81.9s`
+
+The deployed Cloudflare Worker version for the passing run was:
+
+- `12af35e3-791c-4d35-92c7-97842acf4761`
+
+### Operational note
+
+`wrangler deploy` for this host initially failed when forced onto the narrower `CLOUDFLARE_API_TOKEN` present in the shell environment. Re-running with that env var unset allowed Wrangler to use the broader cached OAuth login, which had the required `containers (write)` permission.
+
+Practical deploy workaround on this machine:
+
+```bash
+env -u CLOUDFLARE_API_TOKEN -u CF_API_TOKEN npm run deploy:cf
+```

@@ -512,7 +512,7 @@ test('HTTP POST /api/render/hyperframes returns caller-owned artifact keys for c
 
 test('Hyperframes composition document injects runtime props for the official CLI renderer', () => {
   const html = buildHyperframesCompositionDocument({
-    compositionHtml: '<div id="root"></div>',
+    compositionHtml: '<div id="root" data-composition-id="job-showcase-reel-v2" data-duration="15"></div>',
     compositionCss: '#root { width: 1080px; height: 1920px; }',
     compositionJs: 'window.__compositionDurationSeconds = 6.2;',
     props: {
@@ -530,6 +530,8 @@ test('Hyperframes composition document injects runtime props for the official CL
   assert.match(html, /window\.__HYPERFRAMES_PROPS__/);
   assert.match(html, /window\.__HYPERFRAMES_ASSETS__/);
   assert.match(html, /gsap@3\/dist\/gsap\.min\.js/);
+  assert.match(html, /data-composition-id="job-showcase-reel-v2"[^>]*data-duration="6\.2"/);
+  assert.doesNotMatch(html, /data-composition-id="job-showcase-reel-v2"[^>]*data-duration="15"/);
 });
 
 test('HTTP POST /api/render/hyperframes/preview returns caller-owned preview artifact keys for composition renders', async () => {

@@ -109,6 +109,10 @@ test('worker proxy builds container env vars from configured worker env', () => 
     HYPERFRAMES_RENDER_ENGINE: {},
     RENDER_API_KEY: 'render-secret',
     DESIGNER_DEFAULT_V2_BASE_URL: 'https://admin.localpros.co.za',
+    HYPERFRAMES_RENDER_WORKERS_CLOUDFLARE: '2',
+    HYPERFRAMES_RENDER_WORKERS: '3',
+    PRODUCER_MAX_WORKERS: '4',
+    HYPERFRAMES_VERIFY_PREVIEW: 'true',
     NODE_ENV: 'staging',
     PORT: '8787',
     GOOGLE_API_KEY: '',
@@ -119,5 +123,9 @@ test('worker proxy builds container env vars from configured worker env', () => 
     PORT: '3000',
     RENDER_API_KEY: 'render-secret',
     DESIGNER_DEFAULT_V2_BASE_URL: 'https://admin.localpros.co.za',
+    HYPERFRAMES_RENDER_WORKERS_CLOUDFLARE: '2',
+    HYPERFRAMES_RENDER_WORKERS: '3',
+    PRODUCER_MAX_WORKERS: '4',
+    HYPERFRAMES_VERIFY_PREVIEW: 'true',
   });
 });

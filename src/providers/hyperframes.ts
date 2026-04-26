@@ -1157,11 +1157,12 @@ async function renderHyperframesHtmlDocument(input: {
 
 function injectRootDataDuration(html: string, seconds: number): string {
   if (!(seconds > 0)) return html;
-  if (/data-composition-id=[^>]*data-duration=/i.test(html)) return html;
   return html.replace(
     /(<[^>]*\sdata-composition-id=["'][^"']+["'][^>]*)(>)/i,
     (match, open, close) => {
-      if (/data-duration=/i.test(open)) return match;
+      if (/data-duration=/i.test(open)) {
+        return `${open.replace(/data-duration=["'][^"']*["']/i, `data-duration="${seconds}"`)}${close}`;
+      }
       return `${open} data-duration="${seconds}"${close}`;
     },
   );

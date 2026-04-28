@@ -118,6 +118,21 @@ const hyperframesAssetManifestSchema = z.object({
     landscape_url: z.string().url().nullable().optional(),
     square_url: z.string().url().nullable().optional(),
   }).optional(),
+  // Music track muxed into the render. v2 picks the track from its
+  // soundtracks pool; on absence/fetch failure HF still produces a
+  // (silent) MP4 — silent is a safer fallback than failing the render.
+  music: z.object({
+    soundtrack_id: z.string().nullable().optional(),
+    name: z.string().nullable().optional(),
+    url: z.string().url().nullable().optional(),
+    content_type: z.string().nullable().optional(),
+    duration_seconds: z.number().nullable().optional(),
+    volume: z.number().min(0).max(1).optional(),
+  }).optional(),
+  // Legacy MP4 path used assets.soundtrackUrl. Accept it on the HF path
+  // too as a fallback so callers that haven't migrated to assets.music
+  // still work.
+  soundtrackUrl: z.string().url().nullable().optional(),
 }).optional();
 
 const hyperframesRenderRequestSchema = z.object({

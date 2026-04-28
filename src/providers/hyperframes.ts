@@ -59,6 +59,17 @@ export interface HyperframesCompositionAssetManifest {
     landscape_url?: string | null;
     square_url?: string | null;
   };
+  music?: {
+    soundtrack_id?: string | null;
+    name?: string | null;
+    url?: string | null;
+    content_type?: string | null;
+    duration_seconds?: number | null;
+    volume?: number;
+  } | null;
+  // Legacy MP4 path used assets.soundtrackUrl. Accept it on the HF path
+  // too so callers that haven't migrated to assets.music still work.
+  soundtrackUrl?: string | null;
 }
 
 export interface HyperframesCompositionRenderInput {
@@ -1174,6 +1185,7 @@ export function buildHyperframesCompositionDocument(input: Omit<HyperframesCompo
   const slotConstraints = input.slotConstraints || {};
   const requestedSeconds = resolveRequestedDurationSeconds(props) ?? 0;
   const compositionHtml = injectRootDataDuration(String(input.compositionHtml || ''), requestedSeconds);
+  const musicTrack = buildHyperframesMusicTrack(assets, requestedSeconds);
 
   return `<!doctype html>
 <html lang="en">
@@ -1184,6 +1196,7 @@ export function buildHyperframesCompositionDocument(input: Omit<HyperframesCompo
   </head>
   <body>
     ${compositionHtml}
+    ${musicTrack}
     <script>
       window.__HYPERFRAMES_PROPS__ = ${JSON.stringify(props)};
       window.__HYPERFRAMES_ASSETS__ = ${JSON.stringify(assets)};
@@ -1196,6 +1209,36 @@ export function buildHyperframesCompositionDocument(input: Omit<HyperframesCompo
     <script>${HYPERFRAMES_HF_BRIDGE_SCRIPT}</script>
   </body>
 </html>`;
+}
+
+// HF mixes audio into the render via <audio data-track-index> elements
+// in the composition body. The track stays separate from the visual
+// timeline so rotation / volume can change without touching composition
+// markup. Mirrors the tag emitted by social-posting-v2's preview document
+// so what plays in Studio matches what ships in the MP4.
+function buildHyperframesMusicTrack(
+  assets: HyperframesCompositionAssetManifest,
+  requestedSeconds: number,
+): string {
+  const music = assets.music || null;
+  const rawUrl = music?.url || assets.soundtrackUrl || null;
+  const url = typeof rawUrl === 'string' && rawUrl.trim() ? rawUrl.trim() : null;
+  if (!url) return '';
+
+  const requestedVolume = Number(music?.volume);
+  const volume = Number.isFinite(requestedVolume)
+    ? Math.max(0, Math.min(1, requestedVolume))
+    : 0.72;
+
+  const declaredDuration = Number(music?.duration_seconds);
+  const duration = requestedSeconds > 0
+    ? requestedSeconds
+    : Number.isFinite(declaredDuration) && declaredDuration > 0
+      ? declaredDuration
+      : null;
+  const durationAttr = duration ? ` data-duration="${duration}"` : '';
+
+  return `<audio id="hf-music-track" data-start="0"${durationAttr} data-track-index="90" src="${escapeHtml(url)}" data-volume="${volume}"></audio>`;
 }
 
 export async function renderHyperframesComposition(

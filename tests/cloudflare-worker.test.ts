@@ -13,6 +13,7 @@ test('worker proxy only allows health and Hyperframes render routes', () => {
   assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/health', { method: 'HEAD' })), true);
   assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/api/render/hyperframes', { method: 'POST' })), true);
   assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/api/render/hyperframes/preview', { method: 'POST' })), true);
+  assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/api/render/hyperframes/still', { method: 'POST' })), true);
   assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/api/render', { method: 'POST' })), false);
   assert.equal(isAllowedHyperframesProxyRequest(new Request('https://example.com/api/render/hyperframes', { method: 'GET' })), false);
 });

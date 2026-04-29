@@ -3,6 +3,8 @@ import path from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
 import ffmpeg from 'fluent-ffmpeg';
+import { chromium } from 'playwright';
+import sharp from 'sharp';
 import type {
   ProviderExperimentProvider,
   ProviderLabPostSnapshot,
@@ -45,6 +47,36 @@ type HyperframesRenderOverride = (input: {
   mode: 'preview' | 'final';
 }) => Promise<ProviderRenderArtifacts>;
 
+export type HyperframesStillOutputFormat = 'png' | 'jpeg' | 'webp';
+
+export interface HyperframesStillRenderArtifacts {
+  imageBuffer: Buffer;
+  contentType: string;
+  width: number;
+  height: number;
+  format: HyperframesStillOutputFormat;
+  captureTimeSeconds: number;
+  imageBytes: number;
+  verificationSummary: string;
+  timings: {
+    browserMs: number;
+    settleMs: number;
+    screenshotMs: number;
+    encodeMs: number;
+    totalMs: number;
+    runtime: 'cloudflare' | 'railway' | 'local';
+  };
+}
+
+type HyperframesStillRenderOverride = (input: {
+  htmlDocument: string;
+  captureTimeSeconds: number;
+  width: number;
+  height: number;
+  format: HyperframesStillOutputFormat;
+  quality?: number;
+}) => Promise<HyperframesStillRenderArtifacts>;
+
 export interface HyperframesCompositionAssetManifest {
   uploaded_photos?: Array<{
     index?: number;
@@ -82,7 +114,16 @@ export interface HyperframesCompositionRenderInput {
   mode: 'preview' | 'final';
 }
 
+export interface HyperframesCompositionStillInput extends Omit<HyperframesCompositionRenderInput, 'mode'> {
+  captureTimeSeconds?: number | null;
+  width?: number | null;
+  height?: number | null;
+  format?: HyperframesStillOutputFormat | null;
+  quality?: number | null;
+}
+
 let renderOverride: HyperframesRenderOverride | null = null;
+let stillRenderOverride: HyperframesStillRenderOverride | null = null;
 
 function escapeHtml(value: string): string {
   return value
@@ -961,6 +1002,69 @@ function resolveHyperframesCliPath() {
   return fs.existsSync(localBin) ? localBin : 'hyperframes';
 }
 
+function normalizeStillFormat(value: HyperframesStillOutputFormat | null | undefined): HyperframesStillOutputFormat {
+  if (value === 'jpeg' || value === 'webp') return value;
+  return 'png';
+}
+
+function getStillContentType(format: HyperframesStillOutputFormat): string {
+  if (format === 'jpeg') return 'image/jpeg';
+  if (format === 'webp') return 'image/webp';
+  return 'image/png';
+}
+
+function normalizeStillDimension(value: number | null | undefined, fallback: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(100, Math.min(4096, Math.trunc(parsed)));
+}
+
+function normalizeStillQuality(value: number | null | undefined): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.max(1, Math.min(100, Math.trunc(parsed)));
+}
+
+async function encodeStillBuffer(
+  buffer: Buffer,
+  format: HyperframesStillOutputFormat,
+  quality?: number,
+): Promise<Buffer> {
+  if (format === 'jpeg') {
+    return sharp(buffer)
+      .jpeg({ quality: quality ?? 88, mozjpeg: true })
+      .toBuffer();
+  }
+  if (format === 'webp') {
+    return sharp(buffer)
+      .webp({ quality: quality ?? 88 })
+      .toBuffer();
+  }
+  if (quality !== undefined) {
+    const compressionLevel = Math.max(0, Math.min(9, Math.round(((100 - quality) / 100) * 9)));
+    return sharp(buffer)
+      .png({ compressionLevel })
+      .toBuffer();
+  }
+  return buffer;
+}
+
+async function summarizeStillBuffer(buffer: Buffer): Promise<{ width: number; height: number; summary: string }> {
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+  const stats = await image.stats();
+  const stdev = stats.channels.reduce((sum, channel) => sum + channel.stdev, 0) / Math.max(1, stats.channels.length);
+  const width = metadata.width || 0;
+  const height = metadata.height || 0;
+  const blankWarning = stdev < 0.5 ? 'low-variance pixels detected' : 'nonblank pixel variance detected';
+  return {
+    width,
+    height,
+    summary: `${width}x${height}; ${blankWarning}; mean channel stdev ${stdev.toFixed(2)}`,
+  };
+}
+
 function isRailwayRuntime() {
   return Boolean(process.env.RAILWAY_ENVIRONMENT)
     || Boolean(process.env.RAILWAY_PUBLIC_DOMAIN);
@@ -1257,6 +1361,112 @@ export async function renderHyperframesComposition(
   });
 }
 
+export async function renderHyperframesStillComposition(
+  input: HyperframesCompositionStillInput,
+): Promise<HyperframesStillRenderArtifacts> {
+  const htmlDocument = buildHyperframesCompositionDocument(input);
+  const width = normalizeStillDimension(input.width, DEFAULT_WIDTH);
+  const height = normalizeStillDimension(input.height, DEFAULT_HEIGHT);
+  const format = normalizeStillFormat(input.format);
+  const quality = normalizeStillQuality(input.quality);
+  const captureTimeSeconds = Math.max(0, Number(input.captureTimeSeconds) || 0);
+  const totalStart = Date.now();
+
+  if (stillRenderOverride) {
+    return stillRenderOverride({
+      htmlDocument,
+      captureTimeSeconds,
+      width,
+      height,
+      format,
+      quality,
+    });
+  }
+
+  const browserStart = Date.now();
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH?.trim() || undefined,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  const browserMs = Date.now() - browserStart;
+  let settleMs = 0;
+  let screenshotMs = 0;
+  let encodeMs = 0;
+
+  try {
+    const page = await browser.newPage({
+      viewport: { width, height },
+      deviceScaleFactor: 1,
+    });
+    await page.setContent(htmlDocument, { waitUntil: 'networkidle' });
+    await page.waitForSelector('[data-composition-id]', { state: 'attached', timeout: 10_000 });
+
+    const settleStart = Date.now();
+    await page.evaluate(async ({ fallbackWidth, fallbackHeight, captureTime }) => {
+      const root = document.querySelector('[data-composition-id]') as HTMLElement | null;
+      if (!root) throw new Error('HyperFrames composition root was not found.');
+
+      const declaredWidth = Number(root.getAttribute('data-width')) || fallbackWidth;
+      const declaredHeight = Number(root.getAttribute('data-height')) || fallbackHeight;
+      const rect = root.getBoundingClientRect();
+      if (!(rect.width > 0)) root.style.width = `${declaredWidth}px`;
+      if (!(rect.height > 0)) root.style.height = `${declaredHeight}px`;
+      root.style.overflow = root.style.overflow || 'hidden';
+
+      const hf = (window as unknown as {
+        __hf?: {
+          seek?: (seconds: number) => void;
+          settle?: () => Promise<void>;
+        };
+      }).__hf;
+      if (hf?.seek) hf.seek(captureTime);
+      if (hf?.settle) await hf.settle();
+    }, {
+      fallbackWidth: width,
+      fallbackHeight: height,
+      captureTime: captureTimeSeconds,
+    });
+    settleMs = Date.now() - settleStart;
+
+    const element = await page.$('[data-composition-id]');
+    if (!element) throw new Error('HyperFrames composition root was not found for screenshot capture.');
+
+    const screenshotStart = Date.now();
+    const pngBuffer = Buffer.from(await element.screenshot({
+      type: 'png',
+      omitBackground: false,
+    }));
+    screenshotMs = Date.now() - screenshotStart;
+
+    const encodeStart = Date.now();
+    const imageBuffer = await encodeStillBuffer(pngBuffer, format, quality);
+    const summary = await summarizeStillBuffer(imageBuffer);
+    encodeMs = Date.now() - encodeStart;
+
+    return {
+      imageBuffer,
+      contentType: getStillContentType(format),
+      width: summary.width || width,
+      height: summary.height || height,
+      format,
+      captureTimeSeconds,
+      imageBytes: imageBuffer.length,
+      verificationSummary: summary.summary,
+      timings: {
+        browserMs,
+        settleMs,
+        screenshotMs,
+        encodeMs,
+        totalMs: Date.now() - totalStart,
+        runtime: resolveHyperframesRuntimeLabel(),
+      },
+    };
+  } finally {
+    await browser.close();
+  }
+}
+
 function resolveTemplateId(templateId: string): string {
   return HYPERFRAMES_TEMPLATES.some((t) => t.id === templateId)
     ? templateId
@@ -1280,6 +1490,10 @@ async function createProject(
 
 export function setHyperframesRenderOverrideForTests(nextOverride: HyperframesRenderOverride | null) {
   renderOverride = nextOverride;
+}
+
+export function setHyperframesStillRenderOverrideForTests(nextOverride: HyperframesStillRenderOverride | null) {
+  stillRenderOverride = nextOverride;
 }
 
 export const hyperframesProvider: ProviderExperimentProvider = {

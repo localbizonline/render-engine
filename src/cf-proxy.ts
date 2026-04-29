@@ -3,6 +3,7 @@ const ALLOWED_PROXY_ROUTES = new Set([
   '/health',
   '/api/render/hyperframes',
   '/api/render/hyperframes/preview',
+  '/api/render/hyperframes/still',
 ]);
 
 const FORWARDED_CONTAINER_ENV_KEYS = [

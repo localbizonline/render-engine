@@ -15,6 +15,7 @@ import {
 import {
   buildHyperframesCompositionDocument,
   setHyperframesRenderOverrideForTests,
+  setHyperframesStillRenderOverrideForTests,
 } from '../src/providers/hyperframes.ts';
 
 async function withServer(run: (baseUrl: string) => Promise<void>) {
@@ -595,6 +596,82 @@ test('HTTP POST /api/render/hyperframes/preview returns caller-owned preview art
     });
   } finally {
     setHyperframesRenderOverrideForTests(null);
+  }
+});
+
+test('HTTP POST /api/render/hyperframes/still returns caller-owned image artifact keys for composition stills', async () => {
+  setHyperframesStillRenderOverrideForTests(async ({ captureTimeSeconds, width, height, format }) => ({
+    imageBuffer: Buffer.from('fake-still'),
+    contentType: 'image/png',
+    width,
+    height,
+    format,
+    captureTimeSeconds,
+    imageBytes: Buffer.byteLength('fake-still'),
+    verificationSummary: '1080x1350; nonblank pixel variance detected; mean channel stdev 2.40',
+    timings: {
+      browserMs: 1,
+      settleMs: 2,
+      screenshotMs: 3,
+      encodeMs: 4,
+      totalMs: 10,
+      runtime: 'local',
+    },
+  }));
+
+  try {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/render/hyperframes/still`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          composition_html: '<div id="root" data-composition-id="test" data-width="1080" data-height="1350"></div>',
+          composition_css: '#root { width: 1080px; height: 1350px; }',
+          composition_js: '',
+          props: {
+            runtime: {
+              duration_seconds: 6.2,
+            },
+          },
+          assets: {
+            uploaded_photos: [],
+          },
+          renderOptions: {
+            jobId: 'hf-still-1',
+            outputImageKey: 'org1/hyperframes/previews/run-1.png',
+            captureTimeSeconds: 1.5,
+            width: 1080,
+            height: 1350,
+            format: 'png',
+          },
+        }),
+      });
+
+      assert.equal(res.status, 200);
+      const body = await res.json() as {
+        success: boolean;
+        r2Key: string;
+        contentType: string;
+        meta: {
+          artifactType: string;
+          captureTimeSeconds: number;
+          width: number;
+          height: number;
+          imageBytes: number;
+        };
+      };
+
+      assert.equal(body.success, true);
+      assert.equal(body.r2Key, 'org1/hyperframes/previews/run-1.png');
+      assert.equal(body.contentType, 'image/png');
+      assert.equal(body.meta.artifactType, 'still');
+      assert.equal(body.meta.captureTimeSeconds, 1.5);
+      assert.equal(body.meta.width, 1080);
+      assert.equal(body.meta.height, 1350);
+      assert.equal(body.meta.imageBytes, Buffer.byteLength('fake-still'));
+    });
+  } finally {
+    setHyperframesStillRenderOverrideForTests(null);
   }
 });
 

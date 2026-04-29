@@ -8,7 +8,10 @@ import { loadRemoteImage } from '../engine/asset-loader.js';
 import { renderMp4, expandPhotoFrames } from '../engine/mp4-renderer.js';
 import { renderPng } from '../engine/png-renderer.js';
 import { putAt } from '../services/r2-storage.js';
-import { renderHyperframesComposition } from '../providers/hyperframes.js';
+import {
+  renderHyperframesComposition,
+  renderHyperframesStillComposition,
+} from '../providers/hyperframes.js';
 
 export const renderRouter = Router();
 
@@ -45,6 +48,37 @@ function logHyperframesRenderEvent(input: {
   }
 
   const line = `[render/hyperframes/${input.mode}] ${JSON.stringify(payload)}`
+  if (input.error) {
+    console.error(line)
+    return
+  }
+  console.log(line)
+}
+
+function logHyperframesStillEvent(input: {
+  route: string
+  durationMs: number
+  outputImageKey: string
+  jobId?: string
+  imageBytes?: number
+  contentType?: string
+  verificationSummary?: string | null
+  error?: string
+}) {
+  const payload = {
+    route: input.route,
+    mode: 'still',
+    durationMs: input.durationMs,
+    containerInstanceId: getContainerInstanceId(),
+    outputImageKey: input.outputImageKey,
+    jobId: input.jobId || null,
+    imageBytes: input.imageBytes ?? null,
+    contentType: input.contentType || null,
+    verificationSummary: input.verificationSummary ?? null,
+    error: input.error ?? null,
+  }
+
+  const line = `[render/hyperframes/still] ${JSON.stringify(payload)}`
   if (input.error) {
     console.error(line)
     return
@@ -145,6 +179,26 @@ const hyperframesRenderRequestSchema = z.object({
   renderOptions: renderOptionsSchema,
 });
 
+const hyperframesStillRenderOptionsSchema = z.object({
+  jobId: z.string().optional(),
+  outputImageKey: z.string().min(1),
+  captureTimeSeconds: z.number().min(0).optional(),
+  width: z.number().int().min(100).max(4096).optional(),
+  height: z.number().int().min(100).max(4096).optional(),
+  format: z.enum(['png', 'jpeg', 'webp']).optional(),
+  quality: z.number().int().min(1).max(100).optional(),
+});
+
+const hyperframesStillRenderRequestSchema = z.object({
+  composition_html: z.string().optional(),
+  composition_css: z.string().optional(),
+  composition_js: z.string().optional(),
+  slot_constraints: z.record(z.string(), z.unknown()).optional(),
+  props: z.record(z.string(), z.unknown()).optional(),
+  assets: hyperframesAssetManifestSchema,
+  renderOptions: hyperframesStillRenderOptionsSchema,
+});
+
 async function handleHyperframesRender(
   req: import('express').Request,
   res: import('express').Response,
@@ -214,6 +268,84 @@ async function handleHyperframesRender(
       jobId: renderOptions.jobId,
       error: message,
     })
+    return res.status(500).json({ success: false, error: message });
+  }
+}
+
+async function handleHyperframesStillRender(
+  req: import('express').Request,
+  res: import('express').Response,
+) {
+  const parsed = hyperframesStillRenderRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return failBadRequest(res, `Invalid request: ${parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+  }
+
+  const {
+    composition_html,
+    composition_css,
+    composition_js,
+    slot_constraints,
+    props,
+    assets,
+    renderOptions,
+  } = parsed.data;
+  const t0 = Date.now();
+
+  try {
+    const result = await renderHyperframesStillComposition({
+      compositionHtml: composition_html,
+      compositionCss: composition_css,
+      compositionJs: composition_js,
+      slotConstraints: slot_constraints,
+      props: props || {},
+      assets: assets || {},
+      captureTimeSeconds: renderOptions.captureTimeSeconds ?? 0,
+      width: renderOptions.width ?? null,
+      height: renderOptions.height ?? null,
+      format: renderOptions.format || 'png',
+      quality: renderOptions.quality ?? null,
+    });
+
+    await putAt(renderOptions.outputImageKey, result.imageBuffer, result.contentType);
+
+    logHyperframesStillEvent({
+      route: req.originalUrl || req.url,
+      durationMs: Date.now() - t0,
+      outputImageKey: renderOptions.outputImageKey,
+      jobId: renderOptions.jobId,
+      imageBytes: result.imageBytes,
+      contentType: result.contentType,
+      verificationSummary: result.verificationSummary,
+    });
+
+    return res.json({
+      success: true,
+      r2Key: renderOptions.outputImageKey,
+      contentType: result.contentType,
+      meta: {
+        artifactType: 'still',
+        renderMode: 'still',
+        renderTimeMs: Date.now() - t0,
+        jobId: renderOptions.jobId,
+        imageBytes: result.imageBytes,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        captureTimeSeconds: result.captureTimeSeconds,
+        verificationSummary: result.verificationSummary,
+        timings: result.timings,
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logHyperframesStillEvent({
+      route: req.originalUrl || req.url,
+      durationMs: Date.now() - t0,
+      outputImageKey: renderOptions.outputImageKey,
+      jobId: renderOptions.jobId,
+      error: message,
+    });
     return res.status(500).json({ success: false, error: message });
   }
 }
@@ -359,6 +491,10 @@ renderRouter.post('/', async (req, res) => {
 
 renderRouter.post('/hyperframes/preview', async (req, res) => {
   return handleHyperframesRender(req, res, 'preview');
+});
+
+renderRouter.post('/hyperframes/still', async (req, res) => {
+  return handleHyperframesStillRender(req, res);
 });
 
 renderRouter.post('/hyperframes', async (req, res) => {

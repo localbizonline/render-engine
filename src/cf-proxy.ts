@@ -1,6 +1,7 @@
 const CONTAINER_PORT = 3000;
 const ALLOWED_PROXY_ROUTES = new Set([
   '/health',
+  '/artifacts',
   '/api/render/hyperframes',
   '/api/render/hyperframes/preview',
   '/api/render/hyperframes/still',
@@ -26,6 +27,7 @@ const FORWARDED_CONTAINER_ENV_KEYS = [
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
   'GEMINI_VIDEO_MODEL',
+  'RENDER_ENGINE_PUBLIC_URL',
 ] as const;
 
 export { CONTAINER_PORT };
@@ -51,6 +53,9 @@ export function isAllowedHyperframesProxyRequest(request: Request) {
   const { pathname } = new URL(request.url);
   if (!ALLOWED_PROXY_ROUTES.has(pathname)) return false;
   if (pathname === '/health') {
+    return request.method === 'GET' || request.method === 'HEAD';
+  }
+  if (pathname === '/artifacts') {
     return request.method === 'GET' || request.method === 'HEAD';
   }
   return request.method === 'POST';

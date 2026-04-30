@@ -1,6 +1,7 @@
 export const config = {
   port: parseInt(process.env.PORT || '3000', 10),
   apiKey: process.env.RENDER_API_KEY || '',
+  publicUrl: (process.env.RENDER_ENGINE_PUBLIC_URL || '').replace(/\/+$/, ''),
   designer: {
     defaultV2BaseUrl: (process.env.DESIGNER_DEFAULT_V2_BASE_URL || process.env.V2_BASE_URL || 'https://admin.localpros.co.za').replace(/\/+$/, ''),
     defaultV2AdminSecret: process.env.DESIGNER_DEFAULT_V2_ADMIN_SECRET || process.env.V2_ADMIN_SECRET || '',

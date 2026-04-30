@@ -7,6 +7,9 @@
   "observability": {
     "enabled": true
   },
+  "vars": {
+    "RENDER_ENGINE_PUBLIC_URL": "https://render-engine-hyperframes.cf7-9ca.workers.dev"
+  },
   "containers": [
     {
       "name": "hyperframes-render-engine",

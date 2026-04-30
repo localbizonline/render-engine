@@ -17,6 +17,7 @@ function isR2Configured(): boolean {
 }
 
 function getAppBaseUrl(): string {
+  if (config.publicUrl) return config.publicUrl;
   return process.env.RAILWAY_PUBLIC_DOMAIN
     ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
     : `http://localhost:${config.port}`;

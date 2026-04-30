@@ -74,8 +74,12 @@ export function createApp() {
       return;
     }
 
-    // Only expose Provider Lab experiment artifacts through the public proxy.
-    if (!key.startsWith('experiments/')) {
+    const isProviderLabArtifact = key.startsWith('experiments/');
+    const isCallerOwnedHyperframesArtifact = key.startsWith('hyperframes/')
+      || /^[A-Za-z0-9_-]+\/hyperframes\//.test(key);
+
+    // Expose Provider Lab artifacts and caller-owned HyperFrames render outputs.
+    if (!isProviderLabArtifact && !isCallerOwnedHyperframesArtifact) {
       res.status(403).send('forbidden');
       return;
     }

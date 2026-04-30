@@ -14,6 +14,7 @@ Date: 2026-04-20
   - `GET /health`
   - `POST /api/render/hyperframes`
   - `POST /api/render/hyperframes/preview`
+  - `POST /api/render/hyperframes/still`
 - Added Hyperframes request logging in [src/routes/render.ts](/Users/jeremymartin/Documents/Cursor/render-engine/src/routes/render.ts) with:
   - route
   - mode
@@ -82,6 +83,43 @@ The deployed config currently uses:
 - `scheduling_policy: "default"`
 - `wrangler_ssh.enabled: true`
 
+## HyperFrames Stills update - 2026-04-30
+
+The same Cloudflare Containers host now serves the V2 HyperFrames still-image endpoint:
+
+- `POST /api/render/hyperframes/still`
+
+Deployed details:
+
+- render-engine commit: `8406f9e`
+- Cloudflare Worker version: `81bce5ff-06a3-4fb6-84b1-7f000684d211`
+- Worker URL: `https://render-engine-hyperframes.cf7-9ca.workers.dev`
+
+What changed:
+
+- the Worker proxy allow-list includes `/api/render/hyperframes/still`
+- the Express render router validates still render requests
+- the HyperFrames provider can render a deterministic image buffer for a chosen capture time
+- `src/services/r2-storage.ts` returns local `/output/...` artifact URLs when R2 is not configured, so local smoke tests can open stills without live credentials
+- HTTP coverage confirms caller-owned image keys and local artifact URLs for still renders
+
+Verification on 2026-04-30:
+
+- `npm run build`: passed
+- `npm test -- tests/http-routes.test.ts tests/cloudflare-worker.test.ts`: passed
+- `npx wrangler deploy --env="" --dry-run`: passed
+- Cloudflare deploy with Wrangler OAuth: succeeded
+- `GET /health`: `ok`
+- unauthenticated `POST /api/render/hyperframes/still`: `401 Invalid API key`, confirming the live route is protected and reaches the deployed Worker
+
+Operational note:
+
+- The shell's existing `CLOUDFLARE_API_TOKEN` did not have Cloudflare Containers write permission. Use Wrangler OAuth for this host on Jeremy's machine with:
+
+```bash
+env -u CLOUDFLARE_API_TOKEN npx wrangler deploy --env=""
+```
+
 ## Production status
 
 The render host is live and is now the active production backend for Hyperframes traffic.
@@ -96,7 +134,7 @@ Railway remains live only as the rollback path for Hyperframes.
 
 ## What still needs to be done
 
-1. Run app-driven preview and final-render smoke tests against the production Cloudflare path and compare outputs against Railway baselines.
+1. Keep running app-driven preview and final-render smoke tests against the production Cloudflare path and compare outputs against Railway baselines.
 2. Optionally add the remaining non-R2 secrets if needed for full production parity:
    - `DESIGNER_DEFAULT_V2_BASE_URL`
    - `DESIGNER_DEFAULT_V2_ADMIN_SECRET`
@@ -109,6 +147,7 @@ Railway remains live only as the rollback path for Hyperframes.
    - `GET /health`
    - `POST /api/render/hyperframes/preview`
    - `POST /api/render/hyperframes`
+   - `POST /api/render/hyperframes/still`
 4. Watch production logs for:
    - render duration
    - verification summary

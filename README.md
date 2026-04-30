@@ -23,10 +23,12 @@ The same deployment now also exposes the upstream Hyperframes composition previe
 - overlay asset upload for badges, borders, and decorative frame elements
 - Hyperframes preview rendering from HTML/CSS/JS composition source through `/api/render/hyperframes/preview`
 - final Hyperframes MP4 rendering from HTML/CSS/JS composition source through `/api/render/hyperframes`
+- deterministic Hyperframes still rendering from HTML/CSS/JS composition source through `/api/render/hyperframes/still`
 
 ## Product Boundaries
 
-- Reel Template Studio is reel-only. Static-image authoring, reference-image mode, and vision endpoints are removed.
+- Reel Template Studio is reel-only. Legacy static-image authoring, reference-image mode, and vision endpoints are removed.
+- Hyperframes stills are a render-service endpoint for V2-authored compositions, not a standalone static-image editor in this repo.
 - All templates must output `mp4`.
 - `png-renderer.ts` still exists as internal frame-compositing infrastructure inside the MP4 pipeline. It is no longer a user-facing product surface.
 
@@ -61,6 +63,16 @@ npm run build
 - `POST /api/render` remains the owned JSON-template render path.
 - `POST /api/render/hyperframes/preview` is the composition-native preview path used by V2 Hyperframes Studio preview parity.
 - `POST /api/render/hyperframes` is the composition-native final MP4 path used by V2 Hyperframes Studio and queue-time Hyperframes renders.
+- `POST /api/render/hyperframes/still` is the composition-native still-image path used by V2 HyperFrames Studio still preview/render actions.
+
+Current Cloudflare render host:
+
+- `https://render-engine-hyperframes.cf7-9ca.workers.dev`
+
+Known deployed stills version:
+
+- render-engine commit: `8406f9e`
+- Cloudflare Worker version: `81bce5ff-06a3-4fb6-84b1-7f000684d211`
 
 ## Hyperframes Production Notes
 

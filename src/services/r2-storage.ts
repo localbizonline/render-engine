@@ -85,7 +85,7 @@ export async function putAt(
   key: string,
   buffer: Buffer,
   contentType: string,
-): Promise<void> {
+): Promise<string> {
   if (isR2Configured()) {
     const client = getClient();
     await client.send(
@@ -97,13 +97,14 @@ export async function putAt(
         CacheControl: 'public, max-age=31536000, immutable',
       }),
     );
-    return;
+    return buildArtifactProxyUrl(key);
   }
 
   const filePath = path.join(LOCAL_OUTPUT_DIR, key);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, buffer);
   console.log(`[storage] R2 not configured, wrote locally: ${filePath}`);
+  return `${getAppBaseUrl()}/output/${key}`;
 }
 
 export async function getAt(

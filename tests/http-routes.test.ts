@@ -658,6 +658,7 @@ test('HTTP POST /api/render/hyperframes/still returns caller-owned image artifac
           width: number;
           height: number;
           imageBytes: number;
+          artifactUrl: string;
         };
       };
 
@@ -669,6 +670,7 @@ test('HTTP POST /api/render/hyperframes/still returns caller-owned image artifac
       assert.equal(body.meta.width, 1080);
       assert.equal(body.meta.height, 1350);
       assert.equal(body.meta.imageBytes, Buffer.byteLength('fake-still'));
+      assert.equal(body.meta.artifactUrl, 'http://localhost:3000/output/org1/hyperframes/previews/run-1.png');
     });
   } finally {
     setHyperframesStillRenderOverrideForTests(null);

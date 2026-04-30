@@ -307,7 +307,7 @@ async function handleHyperframesStillRender(
       quality: renderOptions.quality ?? null,
     });
 
-    await putAt(renderOptions.outputImageKey, result.imageBuffer, result.contentType);
+    const artifactUrl = await putAt(renderOptions.outputImageKey, result.imageBuffer, result.contentType);
 
     logHyperframesStillEvent({
       route: req.originalUrl || req.url,
@@ -332,6 +332,7 @@ async function handleHyperframesStillRender(
         width: result.width,
         height: result.height,
         format: result.format,
+        artifactUrl,
         captureTimeSeconds: result.captureTimeSeconds,
         verificationSummary: result.verificationSummary,
         timings: result.timings,

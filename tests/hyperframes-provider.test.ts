@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawn } from 'node:child_process';
 import {
+  __hyperframesProviderTestHooks,
   hyperframesProvider,
   setHyperframesRenderOverrideForTests,
 } from '../src/providers/hyperframes.ts';
@@ -105,4 +110,88 @@ test('split-panel Hyperframes template falls back within post copy only', async 
   assert.doesNotMatch(html, /Provider Lab Reel/);
   assert.doesNotMatch(html, /Real post snapshot/);
   assert.doesNotMatch(html, /Social Reel/);
+});
+
+function runCommand(command: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args);
+    let output = '';
+    child.stdout.on('data', (chunk) => {
+      output += String(chunk);
+    });
+    child.stderr.on('data', (chunk) => {
+      output += String(chunk);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`${command} ${args.join(' ')} failed with exit ${code}: ${output.trim()}`));
+    });
+  });
+}
+
+test('Hyperframes CLI render resolves when a valid output is complete even if the child hangs', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hyperframes-provider-cli-hang-'));
+  const fixturePath = path.join(tmpDir, 'fixture.mp4');
+  const cliPath = path.join(tmpDir, 'fake-hyperframes-cli.mjs');
+  const outputPath = path.join(tmpDir, 'render.mp4');
+
+  await runCommand('ffmpeg', [
+    '-v',
+    'error',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=blue:s=160x284:d=1:r=30',
+    '-pix_fmt',
+    'yuv420p',
+    fixturePath,
+  ]);
+
+  fs.writeFileSync(
+    cliPath,
+    `#!/usr/bin/env node
+import fs from 'node:fs';
+const outputIndex = process.argv.indexOf('--output');
+if (outputIndex === -1 || !process.argv[outputIndex + 1]) {
+  console.error('missing --output');
+  process.exit(2);
+}
+fs.copyFileSync(${JSON.stringify(fixturePath)}, process.argv[outputIndex + 1]);
+setInterval(() => {}, 1000);
+`,
+    'utf8',
+  );
+  fs.chmodSync(cliPath, 0o755);
+
+  const previousCliPath = process.env.HYPERFRAMES_CLI_PATH;
+  const previousWatchdog = process.env.HYPERFRAMES_RENDER_OUTPUT_WATCHDOG_MS;
+  process.env.HYPERFRAMES_CLI_PATH = cliPath;
+  process.env.HYPERFRAMES_RENDER_OUTPUT_WATCHDOG_MS = '250';
+
+  try {
+    const startedAt = Date.now();
+    await __hyperframesProviderTestHooks.runHyperframesCliRender({
+      projectDir: tmpDir,
+      outputPath,
+      mode: 'preview',
+    });
+    assert.ok(Date.now() - startedAt < 5000);
+    assert.equal(await __hyperframesProviderTestHooks.probeCompletedVideoOutput(outputPath), true);
+  } finally {
+    if (previousCliPath === undefined) {
+      delete process.env.HYPERFRAMES_CLI_PATH;
+    } else {
+      process.env.HYPERFRAMES_CLI_PATH = previousCliPath;
+    }
+    if (previousWatchdog === undefined) {
+      delete process.env.HYPERFRAMES_RENDER_OUTPUT_WATCHDOG_MS;
+    } else {
+      process.env.HYPERFRAMES_RENDER_OUTPUT_WATCHDOG_MS = previousWatchdog;
+    }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });

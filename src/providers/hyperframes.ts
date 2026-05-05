@@ -1092,6 +1092,12 @@ function parsePositiveInt(value: string | undefined): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+function parseNonNegativeInt(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number.parseInt(value.trim(), 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function resolveHyperframesWorkerCount() {
   const runtime = resolveHyperframesRuntimeLabel();
 
@@ -1124,6 +1130,67 @@ function resolveHyperframesWorkerCount() {
   return isContainerizedHyperframesRuntime() ? 1 : null;
 }
 
+function resolveHyperframesCliOutputWatchdogMs(): number {
+  const raw = process.env.HYPERFRAMES_RENDER_OUTPUT_WATCHDOG_MS;
+  const parsed = parseNonNegativeInt(raw);
+  if (parsed !== null) return parsed;
+  if (raw && raw.trim()) {
+    console.warn(`[hyperframes] ignoring invalid output watchdog override: ${raw}`);
+  }
+  return 20_000;
+}
+
+async function probeCompletedVideoOutput(outputPath: string): Promise<boolean> {
+  if (!fs.existsSync(outputPath)) return false;
+  const stats = fs.statSync(outputPath);
+  if (stats.size <= 0) return false;
+
+  const output = await new Promise<string>((resolve, reject) => {
+    const probe = spawn('ffprobe', [
+      '-v',
+      'error',
+      '-select_streams',
+      'v:0',
+      '-show_entries',
+      'stream=width,height,nb_frames,duration',
+      '-of',
+      'json',
+      outputPath,
+    ]);
+    let text = '';
+    probe.stdout.on('data', (chunk) => {
+      text += String(chunk);
+    });
+    probe.stderr.on('data', (chunk) => {
+      text += String(chunk);
+    });
+    probe.on('error', reject);
+    probe.on('close', (code) => {
+      if (code === 0) {
+        resolve(text);
+        return;
+      }
+      reject(new Error(`ffprobe failed with exit ${code}: ${text.trim()}`));
+    });
+  }).catch(() => '');
+
+  if (!output) return false;
+  try {
+    const parsed = JSON.parse(output) as {
+      streams?: Array<{ width?: number; height?: number; nb_frames?: string; duration?: string }>;
+    };
+    const stream = parsed.streams?.[0];
+    if (!stream) return false;
+    const width = Number(stream.width);
+    const height = Number(stream.height);
+    const duration = Number(stream.duration);
+    const frames = stream.nb_frames ? Number(stream.nb_frames) : 1;
+    return width > 0 && height > 0 && duration > 0 && frames > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function runHyperframesCliRender(input: {
   projectDir: string;
   outputPath: string;
@@ -1133,6 +1200,7 @@ async function runHyperframesCliRender(input: {
   const quality = input.mode === 'preview' ? 'draft' : 'standard';
   const workerCount = resolveHyperframesWorkerCount();
   const runtime = resolveHyperframesRuntimeLabel();
+  const outputWatchdogMs = resolveHyperframesCliOutputWatchdogMs();
   console.log(
     `[hyperframes] cli render starting runtime=${runtime} workers=${workerCount ?? 'auto'} mode=${input.mode} quality=${quality}`,
   );
@@ -1179,22 +1247,70 @@ async function runHyperframesCliRender(input: {
     });
 
     let output = '';
+    let settled = false;
+    let lastStableSize: number | null = null;
+    let stableProbeCount = 0;
+    let watchdog: NodeJS.Timeout | null = null;
+
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      if (watchdog) clearInterval(watchdog);
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    };
+
+    if (outputWatchdogMs > 0) {
+      watchdog = setInterval(() => {
+        void (async () => {
+          if (settled || !fs.existsSync(input.outputPath)) return;
+          const stats = fs.statSync(input.outputPath);
+          if (stats.size <= 0) return;
+          if (lastStableSize === stats.size) {
+            stableProbeCount += 1;
+          } else {
+            stableProbeCount = 0;
+            lastStableSize = stats.size;
+          }
+          if (stableProbeCount < 1) return;
+          const isComplete = await probeCompletedVideoOutput(input.outputPath);
+          if (!isComplete || settled) return;
+          console.warn(
+            `[hyperframes] cli still running after output completed; terminating child pid=${cli.pid ?? 'unknown'} output=${input.outputPath}`,
+          );
+          cli.kill('SIGTERM');
+          finish();
+        })().catch((error) => {
+          console.warn(`[hyperframes] output watchdog probe failed: ${error instanceof Error ? error.message : String(error)}`);
+        });
+      }, outputWatchdogMs);
+    }
+
     cli.stdout.on('data', (chunk) => {
       output += String(chunk);
     });
     cli.stderr.on('data', (chunk) => {
       output += String(chunk);
     });
-    cli.on('error', reject);
+    cli.on('error', (error) => finish(error));
     cli.on('close', (code) => {
+      if (settled) return;
       if (code === 0) {
-        resolve();
+        finish();
         return;
       }
-      reject(new Error(`hyperframes render failed with exit ${code}: ${output.trim()}`));
+      finish(new Error(`hyperframes render failed with exit ${code}: ${output.trim()}`));
     });
   });
 }
+
+export const __hyperframesProviderTestHooks = {
+  runHyperframesCliRender,
+  probeCompletedVideoOutput,
+};
 
 async function renderHyperframesHtmlDocument(input: {
   htmlDocument: string;
